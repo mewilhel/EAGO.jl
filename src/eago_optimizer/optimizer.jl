@@ -1,8 +1,5 @@
 # Copyright (c) 2018: Matthew Wilhelm & Matthew Stuber.
-# This work is licensed under the Creative Commons Attribution-NonCommercial-
-# ShareAlike 4.0 International License. To view a copy of this license, visit
-# http://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to Creative
-# Commons, PO Box 1866, Mountain View, CA 94042, USA.
+# This code is licensed under MIT license (see LICENSE.md for full details)
 #############################################################################
 # EAGO
 # A development environment for robust and global optimization
@@ -22,6 +19,8 @@ structure to the `Optimizer` in the `ext_type` field.
 """
 abstract type ExtensionType end
 struct DefaultExt <: ExtensionType end
+MOIU.map_indices(::Function, x::ExtensionType) = x
+MOIU.map_indices(::Function, x::DefaultExt) = x
 
 @enum(ObjectiveType, UNSET, SINGLE_VARIABLE, SCALAR_AFFINE, SCALAR_QUADRATIC, NONLINEAR)
 @enum(ProblemType, UNCLASSIFIED, LP, MILP, SOCP, MISOCP, DIFF_CVX, MINCVX)
@@ -397,6 +396,23 @@ function Base.isempty(x::ParsedProblem)
     return is_empty_flag
 end
 
+
+function default_nlp_solver()
+
+    upper_optimizer = Ipopt.Optimizer()
+
+    MOI.set(upper_optimizer, MOI.RawParameter("max_iter"),3000)
+    MOI.set(upper_optimizer, MOI.RawParameter("acceptable_tol"), 1E30)
+    MOI.set(upper_optimizer, MOI.RawParameter("acceptable_iter"), 300)
+    MOI.set(upper_optimizer, MOI.RawParameter("constr_viol_tol"), 0.000001)
+    MOI.set(upper_optimizer, MOI.RawParameter("acceptable_compl_inf_tol"), 0.000001)
+    MOI.set(upper_optimizer, MOI.RawParameter("acceptable_dual_inf_tol"), 1.0)
+    MOI.set(upper_optimizer, MOI.RawParameter("acceptable_constr_viol_tol"), 0.000001)
+    MOI.set(upper_optimizer, MOI.RawParameter("print_level"), 0)
+
+    return upper_optimizer
+end
+
 export Optimizer
 """
 $(TYPEDEF)
@@ -424,11 +440,7 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     obbt_variable_values::Vector{Bool} = Bool[]
 
     # Upper bounding options (set as a user-specified option)
-    upper_optimizer::MOI.AbstractOptimizer = Ipopt.Optimizer(max_iter = 3000, acceptable_tol = 1E30,
-                                                             acceptable_iter = 300, constr_viol_tol = 0.000001,
-                                                             acceptable_compl_inf_tol = 0.000001,
-                                                             acceptable_dual_inf_tol = 1.0,
-                                                             acceptable_constr_viol_tol = 0.000001, print_level = 0)
+    upper_optimizer::MOI.AbstractOptimizer = default_nlp_solver()
 
     # Extensions (set as user-specified option)
     enable_optimize_hook::Bool = false
@@ -520,6 +532,7 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     _last_postprocessing_time::Float64 = 0.0
 
     # reset in initial_parse! in parse.jl
+    _min_converged_value::Float64 = Inf
     _global_lower_bound::Float64 = -Inf
     _global_upper_bound::Float64 = Inf
     _maximum_node_id::Int64 = 0
@@ -717,7 +730,7 @@ function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
         error("EAGO only supports raw parameters with Symbol or String names.")
     end
 
-    if hasfield(EAGOParameters, psym)
+    if psym in fieldnames(EAGOParameters)
         setfield!(m._parameters, psym, value)
     else
         setfield!(m, psym, value)
@@ -727,12 +740,12 @@ function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
 end
 
 function MOI.set(m::Optimizer, ::MOI.TimeLimitSec, value::Nothing)
-    m.time_limit = Inf
+    m._parameters.time_limit = Inf
     return nothing
 end
 
 function MOI.set(m::Optimizer, ::MOI.TimeLimitSec, value::Float64)
-    m.time_limit = value
+    m._parameters.time_limit = value
     return nothing
 end
 
@@ -792,10 +805,10 @@ function MOI.get(m::Optimizer, p::MOI.RawParameter)
         error("EAGO only supports raw parameters with Symbol or String names.")
     end
 
-    if hasfield(EAGOParameters, psym)
-        return getfield(m._parameters, psym, value)
+    if psym in fieldnames(EAGOParameters)
+        return getfield(m._parameters, psym)
     else
-        return getfield!(m, psym, value)
+        return getfield(m, psym)
     end
 end
 
@@ -804,7 +817,7 @@ end
 ##### Support, set, and evaluate objective functions
 #####
 #####
-
+MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
 MOI.supports(::Optimizer, ::MOI.ObjectiveSense) = true
 MOI.supports(::Optimizer, ::MOI.ObjectiveFunction{F}) where {F <: Union{SV, SAF, SQF}} = true
 

@@ -1,8 +1,5 @@
 # Copyright (c) 2018: Matthew Wilhelm & Matthew Stuber.
-# This work is licensed under the Creative Commons Attribution-NonCommercial-
-# ShareAlike 4.0 International License. To view a copy of this license, visit
-# http://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to Creative
-# Commons, PO Box 1866, Mountain View, CA 94042, USA.
+# This code is licensed under MIT license (see LICENSE.md for full details)
 #############################################################################
 # EAGO
 # A development environment for robust and global optimization
@@ -442,6 +439,12 @@ function convergence_check(t::ExtensionType, m::Optimizer)
   t = (U - L) <= m._parameters.absolute_tolerance
   if (U < Inf) && (L > Inf)
       t |= (abs(U - L)/(max(abs(L), abs(U))) <= m._parameters.relative_tolerance)
+  end
+
+  if t && m._min_converged_value < Inf
+      m._min_converged_value = min(m._min_converged_value, L)
+  else
+      m._min_converged_value = L
   end
 
   return t
@@ -1052,6 +1055,7 @@ postprocess!(m::Optimizer) = postprocess!(m.ext_type, m)
 single_storage!(m::Optimizer) = single_storage!(m.ext_type, m)
 branch_node!(m::Optimizer) = branch_node!(m.ext_type, m)
 fathom!(m::Optimizer) = fathom!(m.ext_type, m)
+revert_adjusted_upper_bound!(m::Optimizer) = revert_adjusted_upper_bound!(m.ext_type, m)
 
 """
 $(TYPEDSIGNATURES)
@@ -1146,6 +1150,7 @@ function global_solve!(m::Optimizer)
         m._iteration_count += 1
     end
 
+    revert_adjusted_upper_bound!(m)
     m._objective_value = m._global_upper_bound
 
     # Prints the solution

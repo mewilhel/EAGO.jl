@@ -3,13 +3,13 @@
 # EAGO: Easy-Advanced Global Optimization
 EAGO is an open-source development environment for **robust and global optimization** in Julia.
 
-| **Documentation**                                                | **Linux/OS**                                                                     | **Windows**                                                                     |
+| **Documentation**                                                | **Linux/OS/Windows**                                                                     | **Persistent DOI**                                                                     |
 |:-----------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------:|
-| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://PSORLab.github.io/EAGO.jl/) | [![Build Status](https://travis-ci.org/PSORLab/EAGO.jl.svg?branch=master)](https://travis-ci.org/PSORLab/EAGO.jl) | [![Build status](https://ci.appveyor.com/api/projects/status/oc8ql7kdugc19skf?svg=true)](https://ci.appveyor.com/project/mewilhel/eago-jl) |
+| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://PSORLab.github.io/EAGO.jl/dev) | [![Build Status](https://github.com/PSORLab/EAGO.jl/workflows/CI/badge.svg?branch=master)](https://github.com/PSORLab/EAGO.jl/actions?query=workflow%3ACI) | [![DOI](https://zenodo.org/badge/108954118.svg)](https://zenodo.org/badge/latestdoi/108954118) |
 
 | **Coverage** | **Chat** |
 |:------------:|:------------:|
-|[![Coverage Status](https://coveralls.io/repos/github/PSORLab/EAGO.jl/badge.png?branch=master)](https://coveralls.io/github/PSORLab/EAGO.jl?branch=master) [![codecov](https://codecov.io/gh/PSORLab/EAGO.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/PSORLab/EAGO.jl) | [![Join the chat at https://gitter.im/EAGODevelopment](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/EAGODevelopment/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link)
+| [![codecov](https://codecov.io/gh/PSORLab/EAGO.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/PSORLab/EAGO.jl) | [![Join the chat at https://gitter.im/EAGODevelopment](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/EAGODevelopment/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link)
 
 ## EAGO's Optimizer Capabilities
 
@@ -20,7 +20,7 @@ EAGO is a deterministic global optimizer designed to address a wide variety of o
 
 ## EAGO's Relaxations
 
-For each nonlinear term EAGO makes use of factorable representation to construct bounds and relaxations. In the case of F = y(y-1)sin(y), a list is generated and rules for constructing McCormick relaxations are used to formulate relaxations in the original Y decision space<sup>1</sup>:
+For each nonlinear term EAGO makes use of factorable representation to construct bounds and relaxations. In the case of F = y(y-5)sin(y), a list is generated and rules for constructing McCormick relaxations are used to formulate relaxations in the original Y decision space<sup>1</sup>:
 
 - *v*<sub>1</sub> = y
 - *v*<sub>2</sub> = *v*<sub>1</sub> - 5
@@ -96,29 +96,11 @@ As a global optimization platform, EAGO's solvers can be used to find solutions 
 
 ## Package Capabilities
 
-The EAGO package has numerous features: a solver accessible from JuMP/MathOptInterface, domain reduction routines, McCormick relaxations, and specialized non-convex semi-infinite program solvers. A full description of all EAGO features is available in the [**documentation website**](https://psorlab.github.io/EAGO.jl/). A series of example have been provided in the form of Jupyter notebooks in the separate [**EAGO-notebooks**](https://github.com/PSORLab/EAGO-notebooks) repository
+The EAGO package has numerous features: a solver accessible from JuMP/MathOptInterface, domain reduction routines, McCormick relaxations, and specialized non-convex semi-infinite program solvers. A full description of all EAGO features is available in the [**documentation website**](https://psorlab.github.io/EAGO.jl/dev/). A series of example have been provided in the form of Jupyter notebooks in the separate [**EAGO-notebooks**](https://github.com/PSORLab/EAGO-notebooks) repository
 
 ## Recent News
 
-- 6/14/2019: [**EAGO v0.2.0 has been tagged**](https://github.com/PSORLab/EAGO.jl/releases/tag/v0.2.0). This update creates a number of breaking changes to the EAGO API. Please review the use cases provided in the documentation to update examples.
-  - Updated to support Julia 1.0+, MathOptInterface (MOI), and MOI construction of subproblems.
-  - Additional domain reduction routines available.
-  - Support for specialized handling of linear and quadratic terms.
-  - Significant performance improvements due to pre-allocation of Wengert tapes and MOI support.
-  - A more intuitive API for McCormick relaxation construction.
-- 7/5/2019: [**EAGO v0.2.1 has been tagged**](https://github.com/PSORLab/EAGO.jl/releases/tag/v0.2.1). This contains fixes for a few minor issues.
-  - Bug fix for explicit SIP solving routine that occurred for uncertainty sets of dimension greater than 1.
-  - Bug fix for Max objective sense.
-- 11/1/2019: [**EAGO v0.3.0 has been tagged**](https://github.com/PSORLab/EAGO.jl/releases/tag/v0.3.0): This update is intended to be the last to create a large number of breaking changes to the EAGO API. Please review the use cases provided in the documentation to update examples.
-  - A number of performance improvements have been made to the underlying McCormick relaxation library.
-  - The optimizer used to construct relaxations is now modified in place.
-  - All subproblem storage has been moved to the Optimizer object and storage types (e.g. LowerInfo) have been removed.
-  - A MinMax heap structure is now used to store nodes.
-  - Speed and aesthetics for logging and printing utilities have been updated.
-  - Subroutines are now customized by creating a subtype of 'ExtensionType' and defining subroutines which dispatch on this new structure.
-  - Parametric interval methods and the Implicit optimizer have been move to a separate package (to be tagged shortly.)
-  - JIT compilation time has been reduced sub
-- 6/7/2020: [**EAGO v0.4.0 is on the master (tagging in progress)**](https://github.com/PSORLab/EAGO.jl/releases/tag/v0.4.0))
+- 6/7/2020: [**EAGO v0.4.0 has been tagged**](https://github.com/PSORLab/EAGO.jl/releases/tag/v0.4.0).
   - Support for new MOI/JuMP `RawParameter` input and a number of new attributes.
   - Separates McCormick and ReverseMcCormick libraries (now [McCormick.jl](https://github.com/PSORLab/McCormick.jl) and [ReverseMcCormick.jl](https://github.com/PSORLab/ReverseMcCormick.jl))
     from main package.  McCormick.jl is reexported.
@@ -128,11 +110,29 @@ The EAGO package has numerous features: a solver accessible from JuMP/MathOptInt
   - Add problem classification preprocessing that throws to simpler routines if LP problem types are detected (enables future support for SOCP, MILP, MISOCP, and Convex forms).
   - Fix multiple bugs and add more transparent error codes.
 
+- 06/17/2020: [**EAGO v0.4.1 has been tagged**](https://github.com/PSORLab/EAGO.jl/commit/9c1bcf024a19840a0ac49c8c6da13619a5f3845f#comments) Contains minor bug releases.
+- 08/29/2020: [**EAGO v0.4.2 has been tagged**](https://github.com/PSORLab/EAGO.jl/releases/tag/v0.4.2) Support for Julia v1.5.
+- 11/18/2020: [**EAGO v0.5.0 has been tagged**](https://github.com/PSORLab/EAGO.jl/releases/tag/v0.5.0)
+  - Introduces the `register_eago_operators!(m::JuMP.Model)` which can be used
+    to register all nonstandard nonlinear terms used in EAGO in any JuMP model.
+  - Introduces `positive`, `negative`, `lower_bnd`, `upper_bnd`, and `bnd`
+    functions which can be used to enforce bounds on intermediate terms in
+    nonlinear expressions (EAGO.Optimizer only).
+  - Adds envelopes: `abs2`, `sinpi`, `cospi`, `fma`, `cbrt`.
+  - Adds envelopes and functions: `xlogx`
+  - Adds envelopes of special functions: `erf`, `erfc`, `erfinv`, `erfcinv`
+  - Adds envelopes of activation functions: `relu`, `gelu`, `elu`, `selu`, `swish1`,
+                                             `sigmoid`, `softsign`, `softplus`,
+                                             `bisigmoid`, `pentanh`, `leaky_relu`,
+                                             `param_relu`.
+  - Error messages in `sip_explicit` have been made more transparent.
+  - Fixes some issues with documentation image rendering and links.
+  - Drops appveyor CI and Travis CI in favor of Github Actions.
+- 11/18/2020 [**EAGO v0.5.1 has been tagged**](https://github.com/PSORLab/EAGO.jl/releases/tag/v0.5.1) Support for Julia ~1 (with limited functionality for Julia 1.0, 1.1).
+
 For a full list of EAGO release news, see click [**here**](https://github.com/PSORLab/EAGO.jl/releases)
 
 ## Installing EAGO
-
-**We recommend using v0.4.0 (the current master) as a it includes a number of bug fixes and performance updates. We're currently in the process of registering it (pending McCormick.jl merging into the meta-data). This is usable in the mean time by cloning and developing v0.6.1 of McCormick.jl and then cloning and developing EAGO via the package manager.**
 
 EAGO is registered Julia package. It can be installed using the Julia package manager.
 From the Julia REPL, type ] to enter the Pkg REPL mode and run the following command
@@ -149,8 +149,7 @@ generation of Wergert Tapes pass evaluators between JuMP and EAGO etc.
 pkg> add JuMP
 ```
 
-EAGO v0.3.1 is the current tagged version and requires Julia 1.2+. Use with version 1.4 is recommended as the majority of in-house
-testing has occurred using this version of Julia. The user is directed to the [**High-Performance Configuration**](https://psorlab.github.io/EAGO.jl/Optimizer/high_performance/)
+EAGO v0.5.1 is the current tagged version and requires Julia 1.2+ for full functionality (however Julia 1.0+ versions support partial functionality). Use with version 1.5 is recommended as the majority of in-house testing has occurred using this version of Julia. The user is directed to the [**High-Performance Configuration**](https://psorlab.github.io/EAGO.jl/Optimizer/high_performance/)
 for instructions on how to install a high performance version of EAGO (rather than the basic entirely open-source version).
 If any issues are encountered when loading EAGO (or when using it), please submit an issue using the Github [**issue tracker**](https://github.com/PSORLab/EAGO.jl/issues).
 
@@ -171,10 +170,27 @@ Please report bugs or feature requests by opening an issue using the Github [**i
 
 ## Citing EAGO
 
+Please cite the following paper when using EAGO. In plain tex form this is:
 ```
-Wilhelm, Matthew; Stuber, Matthew (October 2017) Easy Advanced Global
-Optimization (EAGO): An Open-Source Platform for Robust and Global Optimization
-in Julia. Presented at the AIChE Annual Meeting in Minneapolis, MN.
+ M. E. Wilhelm & M. D. Stuber (2020) EAGO.jl: easy advanced global optimization in Julia,
+ Optimization Methods and Software, DOI: 10.1080/10556788.2020.1786566
+```
+
+A corresponding bibtex entry text is given below and a corresponding .bib file is given in citation.bib.
+```
+@article{doi:10.1080/10556788.2020.1786566,
+author = { M. E.   Wilhelm  and  M. D.   Stuber },
+title = {EAGO.jl: easy advanced global optimization in Julia},
+journal = {Optimization Methods and Software},
+volume = {0},
+number = {0},
+pages = {1-26},
+year  = {2020},
+publisher = {Taylor & Francis},
+doi = {10.1080/10556788.2020.1786566},
+URL = {https://doi.org/10.1080/10556788.2020.1786566},
+eprint = {https://doi.org/10.1080/10556788.2020.1786566}
+}
 ```
 
 ## Related Packages

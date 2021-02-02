@@ -1,14 +1,11 @@
 # Copyright (c) 2018: Matthew Wilhelm & Matthew Stuber.
-# This work is licensed under the Creative Commons Attribution-NonCommercial-
-# ShareAlike 4.0 International License. To view a copy of this license, visit
-# http://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to Creative
-# Commons, PO Box 1866, Mountain View, CA 94042, USA.
+# This code is licensed under MIT license (see LICENSE.md for full details)
 #############################################################################
 # EAGO
 # A development environment for robust and global optimization
 # See https://github.com/PSORLab/EAGO.jl
 #############################################################################
-# src/eeago_optimizer/optimize/optimize_convex.jl
+# src/eago_optimizer/optimize/optimize_convex.jl
 # Contains the solve_local_nlp! routine which computes the optimal value
 # of a convex function. This is used to compute the upper bound in the
 # branch and bound routine. A number of utility function required for
@@ -29,6 +26,26 @@ function stored_adjusted_upper_bound!(d::Optimizer, v::Float64)
     else
         d._upper_objective_value = v*(1.0 - adj_rtol) + adj_atol
     end
+
+    return nothing
+end
+
+
+revert_adjusted_upper_bound!(t::ExtensionType, d::Optimizer) = nothing
+
+function revert_adjusted_upper_bound!(t::DefaultExt, d::Optimizer)
+
+    adj_atol = d._parameters.absolute_tolerance/100.0
+    adj_rtol = d._parameters.relative_tolerance/100.0
+
+    adj_objective_value = d._global_upper_bound
+    adj_objective_value -= adj_atol
+    if adj_objective_value > 0.0
+        adj_objective_value /= (1.0 + adj_rtol)
+    else
+        adj_objective_value /= (1.0 - adj_rtol)
+    end
+    d._global_upper_bound = adj_objective_value
 
     return nothing
 end

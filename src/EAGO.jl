@@ -1,8 +1,5 @@
 # Copyright (c) 2018: Matthew Wilhelm & Matthew Stuber.
-# This work is licensed under the Creative Commons Attribution-NonCommercial-
-# ShareAlike 4.0 International License. To view a copy of this license, visit
-# http://creativecommons.org/licenses/by-nc-sa/4.0/ or send a letter to Creative
-# Commons, PO Box 1866, Mountain View, CA 94042, USA.
+# This code is licensed under MIT license (see LICENSE.md for full details)
 #############################################################################
 # EAGO
 # A development environment for robust and global optimization
@@ -19,7 +16,7 @@ module EAGO
     import MathOptInterface
 
     using Reexport, Cassette, IntervalArithmetic, NumericIO, DocStringExtensions
-    using FastRounding
+    using FastRounding, SpecialFunctions
 
     using JuMP
     import JuMP._Derivatives: operators, NodeData
@@ -34,6 +31,7 @@ module EAGO
     import IntervalArithmetic: mid
 
     @reexport using McCormick
+    @reexport using SpecialFunctions
     #@reexport using ReverseMcCormick
 
     #using IntervalContractors
@@ -81,6 +79,8 @@ module EAGO
     export NodeBB, get_history, get_lower_bound, get_upper_bound, get_lower_time,
            get_upper_time, get_preprocess_time, get_postprocess_time, get_lower_bound, get_solution_time,
            get_iteration_number, get_node_count, get_absolute_gap, get_relative_gap
+
+    export register_eago_operators!
 
     # map/reduce nonallocating no bounds checking map-reduce like utilities
     include("eago_optimizer/unsafe_utilities.jl")
@@ -133,5 +133,4 @@ module EAGO
     # routines for solving SIPs
     export SIP_Options, SIP_Result, explicit_sip_solve
     include("eago_semiinfinite/semi_infinite.jl")
-
 end
