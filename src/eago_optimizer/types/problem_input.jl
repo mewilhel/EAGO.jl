@@ -33,8 +33,8 @@ Base.@kwdef mutable struct InputProblem
 
     # conic constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
     _conic_second_order::Vector{Tuple{VECOFVAR, SECOND_ORDER_CONE}} = Tuple{VECOFVAR, SECOND_ORDER_CONE}[]
-    _conic_second_order::Vector{Tuple{VECOFVAR, POWER_CONE}} = Tuple{VECOFVAR, POWER_CONE}[]
-    _conic_second_order::Vector{Tuple{VECOFVAR, EXP_CONE}} = Tuple{VECOFVAR, EXP_CONE}[]
+    _conic_power_corder::Vector{Tuple{VECOFVAR, POWER_CONE}} = Tuple{VECOFVAR, POWER_CONE}[]
+    _conic_exp_order::Vector{Tuple{VECOFVAR, EXP_CONE}} = Tuple{VECOFVAR, EXP_CONE}[]
 
     _conic_second_order_count::Int = 0
     _conic_power_count::Int = 0
@@ -57,9 +57,10 @@ Base.@kwdef mutable struct InputProblem
 end
 
 integer_variable_num(d::InputProblem) = count(is_integer.(d._variable_info))
-function constraint_num(::typeof(:second_order_cone), d::InputProblem)
+function second_order_cone_num(d::InputProblem)
+    d._conic_second_order_count
 end
-function constraint_num(::typeof(:quadratic), d::InputProblem)
+function quadratic_num(d::InputProblem)
     d._quadratic_leq_count + d._quadratic_geq_count + d._quadratic_eq_count
 end
 function nl_expr_num(d::InputProblem)

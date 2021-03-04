@@ -12,10 +12,6 @@
 # copy_subexpression_value!, eliminate_fixed_variables!
 #############################################################################
 
-include("register_special.jl")
-include("empty_evaluator.jl")
-include("univariate.jl")
-
 """
 $(TYPEDEF)
 
@@ -24,7 +20,7 @@ Stores a general quadratic function with a buffer.
 mutable struct NonlinearExpression{V} <: AbstractEAGOConstraint
 
     "List of nodes in nonlinear expression"
-    nd::Vector{JuMP.NodeData}
+    nd::Vector{NodeData}
     "Adjacency Matrix for the expression"
     adj::SparseMatrixCSC{Bool,Int64}
     const_values::Vector{Float64}
@@ -477,6 +473,3 @@ end
 function eliminate_fixed_variables!(f::BufferedNonlinearFunction{V}, v::Vector{VariableInfo}) where V
     eliminate_fixed_variables!(f.expr, v)
 end
-
-include("forward_pass.jl")
-include("reverse_pass.jl")

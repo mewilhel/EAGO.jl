@@ -39,4 +39,5 @@ function eliminate_fixed_variables! end
 include("affine.jl")
 include("quadratic.jl")
 include("cone.jl")
-include("nonlinear/nonlinear.jl")
+include("empty_evaluator.jl")
+include("nonlinear.jl")

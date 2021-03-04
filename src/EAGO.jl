@@ -18,8 +18,10 @@ module EAGO
     using Reexport, Cassette, IntervalArithmetic, NumericIO, DocStringExtensions
     using FastRounding, SpecialFunctions
 
-    using JuMP
-    import JuMP._Derivatives: operators, NodeData
+    import JuMP
+    import JuMP._Derivatives: operators, NodeData, VARIABLE, VALUE, SUBEXPRESSION,
+                              Linearity, classify_linearity, UserOperatorRegistry,
+                              register_multivariate_operator!
     using JuMP._Derivatives: univariate_operators,
                              univariate_operator_to_id
     using Ipopt, GLPK
@@ -85,7 +87,8 @@ module EAGO
     export register_eago_operators!
 
     # map/reduce nonallocating no bounds checking map-reduce like utilities
-    include("eago_optimizer/unsafe_utilities.jl")
+    include("eago_optimizer/utilities/unsafe_utilities.jl")
+    include("eago_optimizer/utilities/register_special.jl")
 
     # creates a context that removes domain violations when constructing bounds
     include("eago_optimizer/guarded_context.jl")
@@ -93,29 +96,17 @@ module EAGO
     # defines structure used to store information at each iteration of global optimize
     include("eago_optimizer/logging/log.jl")
 
-    # defines structure used to store node in stack
-    include("eago_optimizer/node_bb.jl")
-
-    # load internal storage functions
-    include("eago_optimizer/functions/functions.jl")
-
-    #include("eago_optimizer/evaluator/evaluator.jl")
-
     # defines the optimizer structures
     include("eago_optimizer/types/types.jl")
 
-    # defines routines to add variables and single variable constraints
-    include("eago_optimizer/variables.jl")
-
     # defines routines to add saf, sqf, and nlp block constraints
-    include("eago_optimizer/moi_constraints.jl")
+    include("eago_optimizer/moi_api.jl")
 
     # functions which print information to console
     include("eago_optimizer/display.jl")
 
     #
-    include("eago_optimizer/relax.jl")
-    include("eago_optimizer/bound.jl")
+    include("eago_optimizer/evaluate/evaluate.jl")
 
     #
     include("eago_optimizer/domain_reduction.jl")

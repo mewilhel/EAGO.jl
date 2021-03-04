@@ -432,8 +432,8 @@ function parse_classify_problem(::typeof(LP), m::Optimizer)
     obj_typ = input_problem._objective_type
 
     is_lp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
-    is_lp &= constraint_num(:cone, input_problem)       == 0
-    is_lp &= constraint_num(:quadratic, input_problem)  == 0
+    is_lp &= second_order_cone_num(input_problem)       == 0
+    is_lp &= quadratic_num(input_problem)               == 0
     is_lp &= nl_expr_num(input_problem)                 == 0
     is_lp &= integer_variable_num(input_problem)        == 0
 
@@ -450,8 +450,8 @@ function parse_classify_problem(::typeof(MILP), m::Optimizer)
     obj_typ = input_problem._objective_type
 
     is_milp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
-    is_milp &= constraint_num(:cone, input_problem)       == 0
-    is_milp &= constraint_num(:quadratic, input_problem)  == 0
+    is_milp &= second_order_cone_num(input_problem)       == 0
+    is_milp &= quadratic_num(input_problem)               == 0
     is_milp &= nl_expr_num(input_problem)                 == 0
     is_milp &= integer_variable_num(input_problem)        > 0
 
@@ -468,8 +468,8 @@ function parse_classify_problem(::typeof(SOCP), m::Optimizer)
     obj_typ = input_problem._objective_type
 
     is_socp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
-    is_socp &= constraint_num(:cone, input_problem)       > 0
-    is_socp &= constraint_num(:quadratic, input_problem)  == 0
+    is_socp &= second_order_cone_num(input_problem)       > 0
+    is_socp &= quadratic_num(input_problem)               == 0
     is_socp &= nl_expr_num(input_problem)                 == 0
     is_socp &= integer_variable_num(input_problem)        == 0
 
@@ -486,8 +486,8 @@ function parse_classify_problem(::typeof(MISOCP), m::Optimizer)
     obj_typ = input_problem._objective_type
 
     is_misocp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
-    is_misocp &= constraint_num(:cone, input_problem)       > 0
-    is_misocp &= constraint_num(:quadratic, input_problem)  == 0
+    is_misocp &= second_order_cone_num(input_problem)       > 0
+    is_misocp &= quadratic_num(input_problem)               == 0
     is_misocp &= nl_expr_num(input_problem)                 == 0
     is_misocp &= integer_variable_num(input_problem)        > 0
 

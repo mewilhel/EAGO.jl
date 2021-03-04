@@ -29,7 +29,7 @@ end
 ###
 ### Constructor definitions
 ###
-function BufferedSOC(func::VECOFVAR, set::SOC)
+function BufferedSOC(func::VECOFVAR, set::SECOND_ORDER_CONE)
     len = length(func.variables)
     buffer = Dict{Int, Float64}([(variable.value, 0.0) for variable in func.variables])
     saf = SAF(fill(SAT(0.0, VI(1)), len), 0.0)

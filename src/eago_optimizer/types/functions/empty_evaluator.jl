@@ -10,11 +10,10 @@
 #############################################################################
 
 struct EmptyNLPEvaluator <: MOI.AbstractNLPEvaluator
-    _current_node::NodeBB
     has_nlobj::Bool
 end
-EmptyNLPEvaluator() = EmptyNLPEvaluator(NodeBB(),false)
-set_current_node!(x::EmptyNLPEvaluator, n::NodeBB) = ()
+EmptyNLPEvaluator() = EmptyNLPEvaluator(false)
+set_current_node!(x::EmptyNLPEvaluator, n) = ()
 
 MOI.features_available(::EmptyNLPEvaluator) = [:Grad, :Jac, :Hess]
 MOI.initialize(::EmptyNLPEvaluator, features) = nothing
