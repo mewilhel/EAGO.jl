@@ -426,100 +426,105 @@ function initial_parse!(m::Optimizer)
     return nothing
 end
 
-### Routines for parsing the full nonconvex problem
-"""
-[FUTURE FEATURE] Reformulates quadratic terms in SOC constraints if possible.
-For <= or >=, the quadratic term is deleted if an SOCP is detected. For ==,
-the SOC check is done for each >= and <=, the convex constraint is reformulated
-to a SOC, the concave constraint is keep as a quadratic.
-"""
-function parse_classify_quadratic!(m::Optimizer)
-    #=
-    for (id, cinfo) in m._quadratic_constraint
-        is_soc, add_concave, cfunc, cset, qfunc, qset = check_convexity(cinfo.func, cinfo.set)
-        if is_soc
-            MOI.add_constraint(m, cfunc, cset)
-            deleteat!(m._quadratic_constraint, id)
-            if add_concave
-                MOI.add_constraint(m, qfunc, qset)
-            end
-        end
+function parse_classify_problem(::typeof(LP), m::Optimizer)
+
+    input_problem = m._input_problem
+    obj_typ = input_problem._objective_type
+
+    is_lp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
+    is_lp &= constraint_num(:cone, input_problem)       == 0
+    is_lp &= constraint_num(:quadratic, input_problem)  == 0
+    is_lp &= nl_expr_num(input_problem)                 == 0
+    is_lp &= integer_variable_num(input_problem)        == 0
+
+    if is_lp
+        m._working_problem._problem_type = LP
+        return true
     end
-    =#
-    return nothing
+
+    return false
 end
 
-"""
-[FUTURE FEATURE] Parses provably convex nonlinear functions into a convex
-function buffer
-"""
-function parse_classify_nlp(m)
-    return nothing
+function parse_classify_problem(::typeof(MILP), m::Optimizer)
+    input_problem = m._input_problem
+    obj_typ = input_problem._objective_type
+
+    is_milp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
+    is_milp &= constraint_num(:cone, input_problem)       == 0
+    is_milp &= constraint_num(:quadratic, input_problem)  == 0
+    is_milp &= nl_expr_num(input_problem)                 == 0
+    is_milp &= integer_variable_num(input_problem)        > 0
+
+    if is_milp
+        m._working_problem._problem_type = MILP
+        return true
+    end
+
+    return false
 end
+
+function parse_classify_problem(::typeof(SOCP), m::Optimizer)
+    input_problem = m._input_problem
+    obj_typ = input_problem._objective_type
+
+    is_socp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
+    is_socp &= constraint_num(:cone, input_problem)       > 0
+    is_socp &= constraint_num(:quadratic, input_problem)  == 0
+    is_socp &= nl_expr_num(input_problem)                 == 0
+    is_socp &= integer_variable_num(input_problem)        == 0
+
+    if is_socp
+        m._working_problem._problem_type = SOCP
+        return true
+    end
+
+    return false
+end
+
+function parse_classify_problem(::typeof(MISOCP), m::Optimizer)
+    input_problem = m._input_problem
+    obj_typ = input_problem._objective_type
+
+    is_misocp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
+    is_misocp &= constraint_num(:cone, input_problem)       > 0
+    is_misocp &= constraint_num(:quadratic, input_problem)  == 0
+    is_misocp &= nl_expr_num(input_problem)                 == 0
+    is_misocp &= integer_variable_num(input_problem)        > 0
+
+    if is_misocp
+        m._working_problem._problem_type = MISOCP
+        return true
+    end
+
+    return false
+end
+
+function parse_classify_problem(::typeof(SDP), m::Optimizer)
+    m._working_problem._problem_type = MINCVX
+    return false
+end
+
+# is most general type support aka always true...
+function parse_classify_problem(::typeof(MINCVX), m::Optimizer)
+    m._working_problem._problem_type = MINCVX
+    return true
+end
+
 
 """
 Classifies the problem type
 """
-function parse_classify_problem!(m::Optimizer)
+function parse_classify_problem(m::Optimizer)
 
-    ip = m._input_problem
-    integer_variable_number = count(is_integer.(ip._variable_info))
+    # TODO: Transform Nonlinear Expressions into Linear or SOCP where appropriate
+    parse_classify_problem(LP, m)       && return
+    parse_classify_problem(MILP, m)     && return
+    parse_classify_problem(SOCP, m)     && return
+    parse_classify_problem(SDP, m)      && return
+    parse_classify_problem(MISOCP, m)   && return
+    parse_classify_problem(MINCVX, m)   && return
 
-    nl_expr_number = ip._objective_type === NONLINEAR ? 1 : 0
-    nl_expr_number += ip._nonlinear_count
-    cone_constraint_number = ip._conic_second_order_count
-    quad_constraint_number = ip._quadratic_leq_count + ip._quadratic_geq_count + ip._quadratic_eq_count
-
-    linear_or_sv_objective = (ip._objective_type === SINGLE_VARIABLE || ip._objective_type === SCALAR_AFFINE)
-    relaxed_supports_soc = false
-    #TODO: relaxed_supports_soc = MOI.supports_constraint(m.relaxed_optimizer, VECOFVAR, SOC)
-
-    if integer_variable_number === 0
-
-        if cone_constraint_number === 0 && quad_constraint_number === 0 &&
-            nl_expr_number === 0 && linear_or_sv_objective
-            m._working_problem._problem_type = LP
-            #println("LP")
-        elseif quad_constraint_number === 0 && relaxed_supports_soc &&
-               nl_expr_number === 0 && linear_or_sv_objective
-            m._working_problem._problem_type = SOCP
-            #println("SOCP")
-        else
-            #parse_classify_quadratic!(m)
-            #if iszero(m._input_nonlinear_constraint_number)
-            #    if isempty(m._quadratic_constraint)
-            #        m._problem_type = SOCP
-            #    end
-            #else
-            #    # Check if DIFF_CVX, NS_CVX, DIFF_NCVX, OR NS_NCVX
-            #    m._problem_type = parse_classify_nlp(m)
-            #end
-            m._working_problem._problem_type = MINCVX
-            #println("MINCVX")
-        end
-    else
-        #=
-        if cone_constraint_number === 0 && quad_constraint_number === 0 && linear_or_sv_objective
-        elseif quad_constraint_number === 0 && relaxed_supports_soc && linear_or_sv_objective
-            m._working_problem._problem_type = MISOCP
-        else
-            #parse_classify_quadratic!(m)
-            #=
-            if iszero(m._nonlinear_constraint_number)
-                if iszero(m._quadratic_constraint_number)
-                    m._problem_type = MISOCP
-                end
-            else
-                # Performs parsing
-                _ = parse_classify_nlp(m)
-            end
-            =#
-            m._problem_type = MINCVX
-        end
-        =#
-    end
-
-    return nothing
+    return
 end
 
 """
