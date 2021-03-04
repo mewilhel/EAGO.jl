@@ -5,6 +5,7 @@
 #####
 #####
 
+const INEQ_SETS = Union{LT, GT, ET}
 const EAGO_OPTIMIZER_ATTRIBUTES = Symbol[:relaxed_optimizer, :relaxed_optimizer_kwargs, :upper_optimizer,
                                          :enable_optimize_hook, :ext, :ext_type, :_parameters]
 const EAGO_MODEL_STRUCT_ATTRIBUTES = Symbol[:_stack, :_log, :_current_node, :_working_problem, :_input_problem]
@@ -278,7 +279,7 @@ end
 const CONE_SETS = Union{SECOND_ORDER_CONE}
 MOI.supports_constraint(::Optimizer, ::Type{VECOFVAR}, ::Type{S}) where {S <: CONE_SETS} = true
 
-macro @define_addconstraint_conic(function_type, set_type, array_name, count_name)
+macro define_addconstraint_conic(function_type, set_type, array_name, count_name)
     quote
         function MOI.add_constraint(m::Optimizer, func::$function_type, set::$set_type)
             if length(func.variables) !== set.dimension
@@ -311,7 +312,6 @@ end
 MOI.add_variables(m::Optimizer, n::Int) = [MOI.add_variable(m) for i in 1:n]
 
 ##### Supports function and add_constraint for single variable functions
-const INEQ_SETS = Union{LT, GT, ET}
 MOI.supports_constraint(::Optimizer, ::Type{SV}, ::Type{S}) where {S <: INEQ_SETS} = true
 
 #=

@@ -17,12 +17,12 @@ Create the model and variables used with extension `t::EAGO.ExtensionType` in al
 `build_model(t::ExtensionType, a::AbstractSIPAlgo, s::AbstractSubproblemType, p::SIPProblem)`.
 """
 function build_model(t::DefaultExt, a::A, s::S, p::SIPProblem) where {A <: AbstractSIPAlgo, S <: AbstractSubproblemType}
-    model = Model(get_sip_optimizer(t,a,s))
+    model = JuMP.Model(get_sip_optimizer(t,a,s))
     for (k,v) in get_sip_kwargs(s,p)
         MOI.set(model, MOI.RawParameter(String(k)), v)
     end
     vL, vU, nv = get_bnds(s,p)
-    @variable(model, vL[i] <= v[i=1:nv] <= vU[i])
+    JuMP.@variable(model, vL[i] <= v[i=1:nv] <= vU[i])
     return model, v
 end
 function build_model(t::ExtensionType, a::A, s::S, p::SIPProblem) where {A <: AbstractSIPAlgo, S <: AbstractSubproblemType}
@@ -35,15 +35,15 @@ end
 function set_tolerance_inner!(t::DefaultExt, alg, s, m::JuMP.Model, abs_tol::Float64)
     optimizer_name = JuMP.solver_name(m)
     if optimizer_name === "EAGO: Easy Advanced Global Optimization"
-        set_optimizer_attribute(m, "absolute_tolerance", abs_tol)
+        JuMP.set_optimizer_attribute(m, "absolute_tolerance", abs_tol)
     elseif optimizer_name === "SCIP"
-        set_optimizer_attribute(m, "limits/absgap", abs_tol)
+        JuMP.set_optimizer_attribute(m, "limits/absgap", abs_tol)
     elseif optimizer_name === "Alpine"
-        set_optimizer_attribute(m, "absgap", abs_tol)
+        JuMP.set_optimizer_attribute(m, "absgap", abs_tol)
     elseif optimizer_name === "BARON"
-        set_optimizer_attribute(m, "EpsA", abs_tol)
+        JuMP.set_optimizer_attribute(m, "EpsA", abs_tol)
     elseif optimizer_name === "GAMS"
-        set_optimizer_attribute(m, "OptCA", abs_tol)
+        JuMP.set_optimizer_attribute(m, "OptCA", abs_tol)
     else
         error("A custom set_tolerance! function for solver = $optimizer_name
                specified for use with subproblem = $s in algorithm = $alg with
@@ -122,7 +122,7 @@ function sip_llp!(t::DefaultExt, alg::A, s::S, result::SIPResult,
     # define the objective
     xbar = get_xbar(t, alg, s, sr)
     g(p...) = cb.gSIP[i](xbar, p)
-    register(m, :g, prob.np, g, autodiff=true)
+    JuMP.register(m, :g, prob.np, g, autodiff=true)
     if isone(prob.np)
         nl_obj = :(-g($(p[1])))
     else
@@ -133,7 +133,7 @@ function sip_llp!(t::DefaultExt, alg::A, s::S, result::SIPResult,
         end
         nl_obj = :(-$nl_obj)
     end
-    set_NL_objective(m, MOI.MIN_SENSE, nl_obj)
+    JuMP.set_NL_objective(m, MOI.MIN_SENSE, nl_obj)
 
     # add uncertainty constraints
     add_uncertainty_constraint!(m, prob)
@@ -182,7 +182,7 @@ function sip_bnd!(t::DefaultExt, alg::A, s::S, sr::SIPSubResult, result::SIPResu
         for j = 1:length(disc_set)
             gi = Symbol("g$i$j")
             g(x...) = cb.gSIP[i](x, disc_set[j])
-            register(m, gi, prob.nx, g, autodiff=true)
+            JuMP.register(m, gi, prob.nx, g, autodiff=true)
             gic = Expr(:call)
             push!(gic.args, gi)
             for i in 1:prob.nx
@@ -194,7 +194,7 @@ function sip_bnd!(t::DefaultExt, alg::A, s::S, sr::SIPSubResult, result::SIPResu
 
     # define the objective
     obj(x...) = cb.f(x)
-    register(m, :obj, prob.nx, obj, autodiff=true)
+    JuMP.register(m, :obj, prob.nx, obj, autodiff=true)
     if isone(prob.nx)
         nl_obj = :(obj($(x[1])))
     else
@@ -204,7 +204,7 @@ function sip_bnd!(t::DefaultExt, alg::A, s::S, sr::SIPSubResult, result::SIPResu
             push!(nl_obj.args, x[i])
         end
     end
-    set_NL_objective(m, MOI.MIN_SENSE, nl_obj)
+    JuMP.set_NL_objective(m, MOI.MIN_SENSE, nl_obj)
 
     # optimize model and check status
     JuMP.optimize!(m)
@@ -236,7 +236,7 @@ function sip_res!(t::DefaultExt, alg::A, sr::SIPSubResult, result::SIPResult,
     # create JuMP model & variables
     s = ResProblem()
     m, x = build_model(t, alg, s, prob)
-    @variable(m, η)
+    JuMP.@variable(m, η)
 
     # add discretized semi-infinite constraint
     for i = 1:prob.nSIP
@@ -244,7 +244,7 @@ function sip_res!(t::DefaultExt, alg::A, sr::SIPSubResult, result::SIPResult,
         for j = 1:length(disc_set)
             gi = Symbol("g$i$j")
             g(x...) = cb.gSIP[i](x, disc_set[j])
-            register(m, gi, prob.nx, g, autodiff=true)
+            JuMP.register(m, gi, prob.nx, g, autodiff=true)
             gic = Expr(:call)
             push!(gic.args, gi)
             for i in 1:prob.nx
@@ -260,7 +260,7 @@ function sip_res!(t::DefaultExt, alg::A, sr::SIPSubResult, result::SIPResult,
 
     # add epigraph reformulated objective
     obj(x...) = cb.f(x)
-    register(m, :f, prob.nx, obj, autodiff=true)
+    JuMP.register(m, :f, prob.nx, obj, autodiff=true)
     if isfinite(sr.fRes)
         if isone(prob.nx)
             nl_obj = :(f($(x[1])))
@@ -275,7 +275,7 @@ function sip_res!(t::DefaultExt, alg::A, sr::SIPSubResult, result::SIPResult,
     end
 
     # define the objective
-    @objective(m, Min, -η)
+    JuMP.@objective(m, Min, -η)
 
     # optimize model and check status
     JuMP.optimize!(m)

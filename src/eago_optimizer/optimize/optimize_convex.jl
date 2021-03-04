@@ -160,7 +160,7 @@ function solve_local_nlp!(m::Optimizer)
         MOI.add_constraint(upper_optimizer, func, set)
     end
 
-    if MOI.supports_constraint(upper_optimizer, VECOFVAR, SOC)
+    if MOI.supports_constraint(upper_optimizer, VECOFVAR, SECOND_ORDER_CONE)
         add_soc_constraints!(m, upper_optimizer)
     else
         add_soc_constraints_as_quad!(m, upper_optimizer)

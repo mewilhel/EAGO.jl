@@ -426,7 +426,7 @@ function initial_parse!(m::Optimizer)
     return nothing
 end
 
-function parse_classify_problem(::typeof(LP), m::Optimizer)
+function parse_classify_problem(::Val{LP}, m::Optimizer)
 
     input_problem = m._input_problem
     obj_typ = input_problem._objective_type
@@ -445,7 +445,7 @@ function parse_classify_problem(::typeof(LP), m::Optimizer)
     return false
 end
 
-function parse_classify_problem(::typeof(MILP), m::Optimizer)
+function parse_classify_problem(::Val{MILP}, m::Optimizer)
     input_problem = m._input_problem
     obj_typ = input_problem._objective_type
 
@@ -463,7 +463,7 @@ function parse_classify_problem(::typeof(MILP), m::Optimizer)
     return false
 end
 
-function parse_classify_problem(::typeof(SOCP), m::Optimizer)
+function parse_classify_problem(::Val{SOCP}, m::Optimizer)
     input_problem = m._input_problem
     obj_typ = input_problem._objective_type
 
@@ -481,7 +481,7 @@ function parse_classify_problem(::typeof(SOCP), m::Optimizer)
     return false
 end
 
-function parse_classify_problem(::typeof(MISOCP), m::Optimizer)
+function parse_classify_problem(::Val{MISOCP}, m::Optimizer)
     input_problem = m._input_problem
     obj_typ = input_problem._objective_type
 
@@ -499,13 +499,13 @@ function parse_classify_problem(::typeof(MISOCP), m::Optimizer)
     return false
 end
 
-function parse_classify_problem(::typeof(SDP), m::Optimizer)
-    m._working_problem._problem_type = MINCVX
-    return false
-end
+#function parse_classify_problem(::typeof(SDP), m::Optimizer)
+#    m._working_problem._problem_type = MINCVX
+#    return false
+#end
 
 # is most general type support aka always true...
-function parse_classify_problem(::typeof(MINCVX), m::Optimizer)
+function parse_classify_problem(::Val{MINCVX}, m::Optimizer)
     m._working_problem._problem_type = MINCVX
     return true
 end
@@ -514,15 +514,15 @@ end
 """
 Classifies the problem type
 """
-function parse_classify_problem(m::Optimizer)
+function parse_classify_problem!(m::Optimizer)
 
     # TODO: Transform Nonlinear Expressions into Linear or SOCP where appropriate
-    parse_classify_problem(LP, m)       && return
-    parse_classify_problem(MILP, m)     && return
-    parse_classify_problem(SOCP, m)     && return
-    parse_classify_problem(SDP, m)      && return
-    parse_classify_problem(MISOCP, m)   && return
-    parse_classify_problem(MINCVX, m)   && return
+    parse_classify_problem(Val{LP}(), m)       && return
+    parse_classify_problem(Val{MILP}(), m)     && return
+    parse_classify_problem(Val{SOCP}(), m)     && return
+    #parse_classify_problem(Val{SDP}(), m)      && return
+    parse_classify_problem(Val{MISOCP}(), m)   && return
+    parse_classify_problem(Val{MINCVX}(), m)   && return
 
     return
 end
