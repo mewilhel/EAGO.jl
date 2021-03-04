@@ -90,6 +90,9 @@ module EAGO
     # creates a context that removes domain violations when constructing bounds
     include("eago_optimizer/guarded_context.jl")
 
+    # defines structure used to store information at each iteration of global optimize
+    include("eago_optimizer/logging/log.jl")
+
     # defines structure used to store node in stack
     include("eago_optimizer/node_bb.jl")
 
@@ -98,11 +101,8 @@ module EAGO
 
     #include("eago_optimizer/evaluator/evaluator.jl")
 
-    # defines structure used to store information at each iteration of global optimize
-    include("eago_optimizer/logging/log.jl")
-
     # defines the optimizer structures
-    include("eago_optimizer/optimizer.jl")
+    include("eago_optimizer/types/types.jl")
 
     # defines routines to add variables and single variable constraints
     include("eago_optimizer/variables.jl")
