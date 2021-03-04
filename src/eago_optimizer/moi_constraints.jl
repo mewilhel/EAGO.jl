@@ -51,21 +51,25 @@ end
 @define_addconstraint_quadratic SQF ET _quadratic_eq_constraints _quadratic_eq_count
 
 ##### Supports function and add_constraint for conic functions
-#=
-const CONE_SETS = Union{SOC}
+const CONE_SETS = Union{SECOND_ORDER_CONE, POWER_CONE, EXP_CONE}
 MOI.supports_constraint(::Optimizer, ::Type{VECOFVAR}, ::Type{S}) where {S <: CONE_SETS} = true
 
-function MOI.add_constraint(m::Optimizer, func::VECOFVAR, set::SOC)
-
-    if length(func.variables) !== set.dimension
-        error("Dimension of $(s) does not match number of terms in $(f)")
+macro @define_addconstraint_conic(function_type, set_type, array_name, count_name)
+    quote
+        function MOI.add_constraint(m::Optimizer, func::$function_type, set::$set_type)
+            if length(func.variables) !== set.dimension
+                error("Dimension of $(s) does not match number of terms in $(f)")
+            end
+            check_inbounds!(m, func)
+            push!(m._input_problem.$(array_name), (func, set))
+            m._input_problem._last_constraint_index += 1
+            m._input_problem.$(count_name) += 1
+            indx = CI{$function_type, $set_type}(m._input_problem._last_constraint_index)
+            return indx
+        end
     end
-
-    check_inbounds!(m, func)
-    push!(m._input_problem._conic_second_order, (func, set))
-    m._input_problem._last_constraint_index += 1
-    m._input_problem._conic_second_order_count += 1
-
-    return CI{VECOFVAR, SOC}(m._input_problem._last_constraint_index)
 end
-=#
+
+@define_addconstraint_quadratic VECOFVAR SECOND_ORDER_CONE _conic_second_order _conic_second_order_count
+@define_addconstraint_quadratic VECOFVAR POWER_CONE        _conic_power        _conic_power_count
+@define_addconstraint_quadratic VECOFVAR EXP_CONE          _conic_exp          _conic_exp_count

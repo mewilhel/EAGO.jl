@@ -35,6 +35,18 @@ $(TYPEDFIELDS)
 """
 Base.@kwdef mutable struct EAGOParameters
 
+    # Subsolver Options
+    "Subsolver used to solve linear programs"
+    lp_optimizer = nothing
+    "Subsolver used to solve mixed-integer linear programs"
+    mip_optimizer = nothing
+    "Subsolver used to solve second-order conic programs"
+    socp_optimizer = nothing
+    "Subsolver used to locally solve nonlinear programs"
+    nlp_optimizer = nothing
+    "Subsolver used to locally solve mixed-integer nonlinear programs "
+    minlp_optimizer = nothing
+
     # Presolving options
     "Should EAGO attempt to remove type assert issues for user-defined functions (default = false)"
     presolve_scrubber_flag::Bool = false
@@ -232,9 +244,13 @@ Base.@kwdef mutable struct InputProblem
     _quadratic_eq_count::Int = 0
 
     # conic constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
-    _conic_second_order::Vector{Tuple{VECOFVAR, MOI.SecondOrderCone}} = Tuple{VECOFVAR, MOI.SecondOrderCone}[]
+    _conic_second_order::Vector{Tuple{VECOFVAR, SECOND_ORDER_CONE}} = Tuple{VECOFVAR, SECOND_ORDER_CONE}[]
+    _conic_second_order::Vector{Tuple{VECOFVAR, POWER_CONE}} = Tuple{VECOFVAR, POWER_CONE}[]
+    _conic_second_order::Vector{Tuple{VECOFVAR, EXP_CONE}} = Tuple{VECOFVAR, EXP_CONE}[]
 
     _conic_second_order_count::Int = 0
+    _conic_power_count::Int = 0
+    _conic_exp_count::Int = 0
 
     # nonlinear constraint storage
     _nonlinear_count::Int = 0
