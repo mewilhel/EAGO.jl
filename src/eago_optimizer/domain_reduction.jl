@@ -10,7 +10,7 @@
 #############################################################################
 
 """
-$(FUNCTIONNAME)
+    variable_dbbt!
 
 Tightens the bounds of the `_current_node` using the current global upper bound
 and the duality information obtained from the relaxation.
@@ -45,7 +45,7 @@ function variable_dbbt!(n::NodeBB, mult_lo::Vector{Float64}, mult_hi::Vector{Flo
 end
 
 """
-$(FUNCTIONNAME)
+    trivial_filtering!
 
 Excludes OBBT on variable indices that are tight for the solution of the relaxation.
 """
@@ -84,7 +84,7 @@ function trivial_filtering!(m::Optimizer, n::NodeBB)
 end
 
 """
-$(FUNCTIONNAME)
+    bool_indx_diff
 
 Utility function used to set vector of booleans z to x & ~y. Avoids the
 generation of conversion of the BitArray created by broadcasting logical operators.
@@ -97,7 +97,7 @@ function bool_indx_diff(z::Vector{Bool},x::Vector{Bool}, y::Vector{Bool})
 end
 
 """
-$(FUNCTIONNAME)
+    aggressive_filtering!
 
 Excludes OBBT on variable indices after a search in a filtering direction.
 """
@@ -185,7 +185,7 @@ function aggressive_filtering!(m::Optimizer, n::NodeBB)
 end
 
 """
-$(FUNCTIONNAME)
+    set_node_flag!
 """
 function set_node_flag!(m::Optimizer)
     for constr in m._working_problem._nonlinear_constr
@@ -200,7 +200,7 @@ function set_node_flag!(m::Optimizer)
 end
 
 """
-$(FUNCTIONNAME)
+    set_reference_point!
 """
 function set_reference_point!(m::Optimizer)
 
@@ -237,7 +237,7 @@ function set_reference_point!(m::Optimizer)
 end
 
 """
-$(FUNCTIONNAME)
+    obbt!
 
 Performs OBBT with filtering and greedy ordering as detailed in:
 Gleixner, A.M., Berthold, T., Müller, B. et al. J Glob Optim (2017) 67: 731.
@@ -437,7 +437,7 @@ function obbt!(m::Optimizer)
 end
 
 """
-$(FUNCTIONNAME)
+    load_fbbt_buffer!
 """
 function load_fbbt_buffer!(m::Optimizer)
 
@@ -463,7 +463,7 @@ function load_fbbt_buffer!(m::Optimizer)
 end
 
 """
-$(FUNCTIONNAME)
+    unpack_fbbt_buffer!
 """
 function unpack_fbbt_buffer!(m::Optimizer)
 
@@ -488,7 +488,7 @@ function unpack_fbbt_buffer!(m::Optimizer)
 end
 
 """
-$(FUNCTIONNAME)
+    fbbt!
 
 Performs feasibility-based bound tightening on a back-end constraint and returns `true` if it is feasible or
 `false` if it is infeasible.
@@ -640,6 +640,8 @@ end
 cp_condition(m::Optimizer) = false
 
 """
+    set_constraint_propagation_fbbt!
+
 Performs bound tightening based on forward/reverse interval and/or McCormick passes. This routine
 resets the current node with new interval bounds.
 """

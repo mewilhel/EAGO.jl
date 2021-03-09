@@ -15,7 +15,7 @@ const MAX_ASSOCIATIVE_REVERSE = 6
 const REVERSE_DEBUG = false
 
 """
-$(FUNCTIONNAME)
+    reverse_plus_binary!
 
 Updates storage tapes with reverse evalution of node representing `n = x + y` which updates x & y.
 """
@@ -110,7 +110,7 @@ function reverse_plus_binary!(k::Int64, children_arr::Vector{Int64}, children_id
 end
 
 """
-$(FUNCTIONNAME)
+    reverse_plus_narity!
 
 Updates storage tapes with reverse evalution of node representing `n = +(x,y,z...)` which updates x, y, z and so on.
 """
@@ -174,7 +174,7 @@ function reverse_plus_narity!(k::Int64, children_arr::Vector{Int64}, children_id
 end
 
 """
-$(FUNCTIONNAME)
+    reverse_multiply_binary!
 
 Updates storage tapes with reverse evalution of node representing `n = x * y` which updates x & y.
 """
@@ -272,7 +272,7 @@ function reverse_multiply_binary!(k::Int64, children_arr::Vector{Int64}, childre
 end
 
 """
-$(FUNCTIONNAME)
+    reverse_multiply_narity!
 
 Updates storage tapes with reverse evalution of node representing `n = *(x,y,z...)` which updates x, y, z and so on.
 """
@@ -660,6 +660,8 @@ function reverse_set_subexpression!(k::Int64, op::Int64, subexpressions::Vector{
 end
 
 """
+    reverse_pass_kernel!
+
 Performs a reverse McCormick/interval pass. If a NaN value is computed for the McCormick relaxation then the
 routine defaults to the interval value instead.
 
@@ -792,7 +794,7 @@ function reverse_pass_kernel!(nd::Vector{JuMP.NodeData}, adj::SparseMatrixCSC{Bo
 end
 
 """
-$(FUNCTIONNAME)
+    reverse_pass!
 
 A reverse_pass! on a `BufferedNonlinear` structure `d` intersects the existing value of the `d` with
 constraint bounds then reverse propagates a set-valued operator (by default McCormick operator) along the

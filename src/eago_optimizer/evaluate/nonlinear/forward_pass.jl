@@ -13,7 +13,7 @@
 const FORWARD_DEBUG = false
 
 """
-$(FUNCTIONNAME)
+    set_value_post
 
 Post process set_value operator. By default, performs the affine interval cut on
 a MC structure.
@@ -102,7 +102,7 @@ function set_value_post(x_values::Vector{Float64}, val::MC{N,T}, lower_variable_
 end
 
 """
-$(FUNCTIONNAME)
+    overwrite_or_intersect
 
 Intersects the new set valued operator with the prior and performs affine bound tightening
 
@@ -145,7 +145,7 @@ function overwrite_or_intersect(xMC::MC{N,T}, past_xMC::MC{N,T}, x::Vector{Float
 end
 
 """
-$(FUNCTIONNAME)
+    forward_plus_binary!
 
 Updates storage tapes with forward evalution of node representing `n = x + y`.
 """
@@ -214,7 +214,7 @@ function forward_plus_binary!(k::Int64, children_arr::Vector{Int64}, children_id
 end
 
 """
-$(FUNCTIONNAME)
+    forward_plus_narity!
 
 Updates storage tapes with forward evalution of node representing `n = +(x, y, z,...)`.
 """
@@ -265,7 +265,7 @@ function forward_plus_narity!(k::Int64, children_arr::Vector{Int64}, children_id
 end
 
 """
-$(FUNCTIONNAME)
+    forward_multiply_binary!
 
 Updates storage tapes with forward evalution for node representing `n = x*y`.
 """
@@ -331,7 +331,7 @@ end
 
 
 """
-$(FUNCTIONNAME)
+    forward_multiply_narity!
 
 Updates storage tapes with forward evalution of node representing `n = *(x, y, z,...)`.
 """
@@ -380,7 +380,7 @@ function forward_multiply_narity!(k::Int64, children_arr::Vector{Int64}, childre
 end
 
 """
-$(FUNCTIONNAME)
+    forward_minus!
 
 Updates storage tapes with forward evalution for node representing `n = x-y`.
 """
@@ -446,7 +446,7 @@ function forward_minus!(k::Int64, children_arr::Vector{Int64}, children_idx::Uni
 end
 
 """
-$(FUNCTIONNAME)
+    forward_power!
 
 Updates storage tapes with forward evalution for node representing `n = x^y`.
 """
@@ -539,7 +539,7 @@ function forward_power!(k::Int64, children_arr::Vector{Int64}, children_idx::Uni
 end
 
 """
-$(FUNCTIONNAME)
+    forward_divide!
 
 Updates storage tapes with forward evalution for node representing `n = x/y`.
 """
@@ -628,7 +628,7 @@ function forward_divide!(k::Int64, children_arr::Vector{Int64}, children_idx::Un
 end
 
 """
-$(FUNCTIONNAME)
+    forward_user_multivariate!
 
 Updates storage tapes with forward evalution for node representing `n = user_f(x, y...)`.
 """
@@ -683,7 +683,7 @@ function forward_user_multivariate!(k::Int64, op::Int64, children_arr::Vector{In
 end
 
 """
-$(FUNCTIONNAME)
+    forward_univariate_number!
 
 Updates storage tapes with forward evalution for node representing `n = f(c)` where f is standard function
 and `c` is a number.
@@ -700,7 +700,7 @@ function forward_univariate_number!(k::Int64, op::Int64, arg_idx::Int, numvalued
 end
 
 """
-$(FUNCTIONNAME)
+    forward_univariate_tiepnt_1!
 
 Updates storage tapes with forward evalution for node representing `n = f(x)` where f is standard function
 that requires a single tiepoint calculation per convex/concave relaxation (e.g. tan).
@@ -737,7 +737,7 @@ function forward_univariate_tiepnt_1!(k::Int64, op::Int64, child_idx::Int64, set
 end
 
 """
-$(FUNCTIONNAME)
+    forward_univariate_tiepnt_2!
 
 Updates storage tapes with forward evalution for node representing `n = f(x)` where f is standard function
 that requires a two tiepoint calculations per convex/concave relaxation (e.g. sin).
@@ -787,7 +787,7 @@ function forward_univariate_tiepnt_2!(k::Int64, op::Int64, child_idx::Int64, set
 end
 
 """
-$(FUNCTIONNAME)
+    forward_univariate_user!
 
 Updates storage tapes with forward evalution for node representing `n = user_f(x)`.
 """
@@ -823,7 +823,7 @@ function forward_univariate_user!(k::Int64, op::Int64, child_idx::Int64, arg_is_
 end
 
 """
-$(FUNCTIONNAME)
+    forward_univariate_other!
 
 Updates storage tapes with forward evalution for node representing `n = f(x)` where `f` is a standard function
 that does not require a tiepoint evaluation (e.g. exp).
@@ -849,7 +849,7 @@ function forward_univariate_other!(k::Int64, op::Int64, child_idx::Int64, setsto
 end
 
 """
-$(FUNCTIONNAME)
+    expand_set
 
 """
 function expand_set(::Type{MC{N2,T}}, x::MC{N1,T}, fsparse::Vector{Int64},
@@ -882,7 +882,7 @@ function expand_set(::Type{MC{N2,T}}, x::MC{N1,T}, fsparse::Vector{Int64},
 end
 
 """
-$(FUNCTIONNAME)
+    forward_get_subexpression!
 
 Unpacks the `MC{N1,T}` in the subexpression to a `MC{N2,T}` where `N1` is the sparsity of the
 subexpression and `N2` is the sparsity of the function tape. Note that the sparsity of the
@@ -911,7 +911,7 @@ end
 const id_to_operator = Dict(value => key for (key, value) in JuMP.univariate_operator_to_id)
 
 """
-$(FUNCTIONNAME)
+    forward_pass_kernel!
 
 Performs a forward pass using the tape information passed as arguments. Each variety of node calls an associated
 forward_xxx function where xxx is a descriptor.
