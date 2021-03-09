@@ -67,17 +67,13 @@ end
 
 function eliminate_fixed_variables!(f::T, v::Vector{VariableInfo}) where T <: Union{AffineFunctionIneq,
                                                                                     AffineFunctionEq}
-    deleted_count = 0
-    index = 1
-    while i + deleted_count <= f.len
-        coeff, indx = @inbounds f.terms[i]
+    for i = 1:f.len
+        coeff, indx = @inbounds f.terms[i - deleted_count]
         variable_info = @inbounds v[indx]
         if variable_info.is_fixed
             f.constant += coeff*variable_info.lower_bound
-            deleteat!(f.terms, i)
+            deleteat!(f.terms, i - deleted_count)
             deleted_count += 1
-        else
-            i += 1
         end
     end
     f.len -= deleted_count
