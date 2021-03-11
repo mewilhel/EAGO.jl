@@ -57,17 +57,34 @@ function _add_linear_constraints!(m::Optimizer, opt::T) where T
     return nothing
 end
 
-### LP and MILP routines
-function add_soc_constraints!(m::Optimizer, opt::T) where T
+function _add_quadratic_constraints!(m::Optimizer, opt::T) where T
     ip = m._input_problem
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _second_order_cone_constraints(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_leq_constraints(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_geq_constraints(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_eq_constraints(ip))
+    return nothing
+end
+
+### LP and MILP routines
+function _add_soc_constraints!(m::Optimizer, opt::T) where T
+    if MOI.supports_constraint(opt, VECOFVAR, SECOND_ORDER_CONE)
+        ip = m._input_problem
+        foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _second_order_cone_constraints(ip))
+    else
+        # TODO: FIX
+        for (func, set) in m._input_problem._conic_second_order
+            quad_terms = SQT[SQT((), func.variables[i], func.variables[i]) for i = 1:length(func.variables)]
+            sqf = SQF(SQT[], SAF[], 0.0)
+            MOI.add_constraint(opt, sqf, LT_ZERO)
+        end
+    end
     return nothing
 end
 
 function add_sv_or_aff_obj!(m::Optimizer, opt::T) where T
-    if m._input_problem._objective_type === SINGLE_VARIABLE
+    if m._input_problem._objective_type == SINGLE_VARIABLE
         MOI.set(opt, MOI.ObjectiveFunction{SV}(), m._input_problem._objective_sv)
-    elseif m._input_problem._objective_type === SCALAR_AFFINE
+    elseif m._input_problem._objective_type == SCALAR_AFFINE
         MOI.set(opt, MOI.ObjectiveFunction{SAF}(), m._input_problem._objective_saf)
     end
     return nothing
@@ -97,10 +114,7 @@ function unpack_local_solve!(m::Optimizer, opt::T) where T
         m._solution_value = objective_value
     end
 
-    m._continuous_solution = zeros(m._input_problem._variable_count)
-    for i = 1:m._input_problem._variable_count
-         m._continuous_solution[i] = MOI.get(opt, MOI.VariablePrimal(),  m._relaxed_variable_index[i])
-    end
+    map!(x -> MOI.get(opt, MOI.VariablePrimal(), x), m._continuous_solution, m._relaxed_variable_index)
 
     m._run_time = time() - m._start_time
 
@@ -109,22 +123,23 @@ end
 
 function optimize!(::Val{LP}, m::Optimizer)
 
-    relaxed_optimizer = m.relaxed_optimizer
-    MOI.empty!(relaxed_optimizer)
+    lp_optimizer = m.lp_optimizer
+    set_default_config!(lp_optimizer)
+    MOI.empty!(lp_optimizer)
 
-    m._relaxed_variable_index = add_variables(m, relaxed_optimizer, m._input_problem._variable_count)
-    add_linear_constraints!(m, relaxed_optimizer)
-    add_sv_or_aff_obj!(m, relaxed_optimizer)
-    MOI.set(relaxed_optimizer, MOI.ObjectiveSense(), m._input_problem._optimization_sense)
+    m._relaxed_variable_index = add_variables(m, lp_optimizer, m._input_problem._variable_count)
+    _add_linear_constraints!(m, lp_optimizer)
+    _add_sv_or_aff_obj!(m, lp_optimizer)
+    MOI.set(lp_optimizer, MOI.ObjectiveSense(), m._input_problem._optimization_sense)
 
     if m._parameters.verbosity < 5
-        MOI.set(relaxed_optimizer, MOI.Silent(), true)
+        MOI.set(lp_optimizer, MOI.Silent(), true)
     end
     m._parse_time = time() - m._start_time
 
-    MOI.optimize!(relaxed_optimizer)
+    MOI.optimize!(lp_optimizer)
 
-    unpack_local_solve!(m, relaxed_optimizer)
+    unpack_local_solve!(m, lp_optimizer)
 
     return nothing
 end
@@ -133,23 +148,24 @@ optimize!(::Val{MILP}, m::Optimizer) = optimize!(Val{LP}(), m)
 
 function optimize!(::Val{SOCP}, m::Optimizer)
 
-    relaxed_optimizer = m.relaxed_optimizer
-    MOI.empty!(relaxed_optimizer)
+    socp_optimizer = m.second_order_cone_optimizer
+    set_default_config!(socp_optimizer)
+    MOI.empty!(socp_optimizer)
 
-    m._relaxed_variable_index = add_variables(m, relaxed_optimizer, m._input_problem._variable_count)
-    add_linear_constraints!(m, relaxed_optimizer)
-    add_soc_constraints!(m, relaxed_optimizer)
-    add_sv_or_aff_obj!(m, relaxed_optimizer)
-    MOI.set(relaxed_optimizer, MOI.ObjectiveSense(), m._input_problem._optimization_sense)
+    m._relaxed_variable_index = add_variables(m, socp_optimizer, m._input_problem._variable_count)
+    _add_linear_constraints!(m, socp_optimizer)
+    _add_soc_constraints!(m, socp_optimizer)
+    _add_sv_or_aff_obj!(m, socp_optimizer)
+    MOI.set(socp_optimizer, MOI.ObjectiveSense(), m._input_problem._optimization_sense)
 
     if m._parameters.verbosity < 5
-        MOI.set(relaxed_optimizer, MOI.Silent(), true)
+        MOI.set(socp_optimizer, MOI.Silent(), true)
     end
     m._parse_time = time() - m._start_time
 
-    MOI.optimize!(relaxed_optimizer)
+    MOI.optimize!(socp_optimizer)
 
-    unpack_local_solve!(m, relaxed_optimizer)
+    unpack_local_solve!(m, socp_optimizer)
 
     return nothing
 end
