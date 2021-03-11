@@ -12,6 +12,13 @@
 # solve_local_nlp! are also included.
 #############################################################################
 
+function _add_quadratic_constraints!(ip::InputProblem, opt::T) where T
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_leq_constraints(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_geq_constraints(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_eq_constraints(ip))
+    return nothing
+end
+
 """
 
 Shifts the resulting local nlp objective value `f*` by `(1.0 + relative_tolerance/100.0)*f* + absolute_tolerance/100.0`.
@@ -145,7 +152,7 @@ function solve_local_nlp!(m::Optimizer)
     MOI.set(nlp_optimizer, MOI.ObjectiveSense(), MOI.MIN_SENSE)
 
     # set objective as NECESSARY
-    add_sv_or_aff_obj!(m, nlp_optimizer)
+    _add_sv_or_aff_obj!(m, nlp_optimizer)
     if m._input_problem._objective_type === SCALAR_QUADRATIC
         MOI.set(nlp_optimizer, MOI.ObjectiveFunction{SQF}(), m._input_problem._objective_sqf)
     end
