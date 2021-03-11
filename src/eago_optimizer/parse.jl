@@ -10,63 +10,69 @@
 # LP, SOCP, MILP, MISOCP, and convex problem types.
 #############################################################################
 
+
+function _max_to_min!(wp::ParsedProblem, obj::SV)
+    wp._objective_type = SCALAR_AFFINE
+    wp._objective_saf = MOIU.operate(-, Float64, obj)
+    wp._objective_saf_parsed = AffineFunctionIneq(wp._objective_saf, LT_ZERO)
+    return
+end
+function _max_to_min!(wp::ParsedProblem, obj::SAF)
+    wp._objective_saf = MOIU.operate(-, Float64, wp._objective_saf)
+    wp._objective_saf_parsed = AffineFunctionIneq(wp._objective_saf, LT_ZERO)
+    return
+end
+function _max_to_min!(wp::ParsedProblem, obj::SQF)
+    obj.sqf = MOIU.operate(-, Float64, obj.sqf)
+    return
+end
+function _max_to_min!(wp::ParsedProblem)
+    # updates tape for nlp_data block (used by local optimizer)
+    nd_nlp = wp._nlp_data.evaluator.m.nlp_data.nlobj.nd
+    pushfirst!(nd_nlp, NodeData(JuMP._Derivatives.CALLUNIVAR, 2, -1))
+    nd_nlp[2] = NodeData(nd_nlp[2].nodetype, nd_nlp[2].index, 1)
+    for i = 3:length(nd_nlp)
+        @inbounds nd_nlp[i] = NodeData(nd_nlp[i].nodetype, nd_nlp[i].index, nd_nlp[i].parent + 1)
+    end
+
+    # updates tape used by evaluator for the nonlinear objective (used by the relaxed optimizer)
+    nd_obj = wp._objective_nl.expr.nd
+    pushfirst!(nd_obj, NodeData(JuMP._Derivatives.CALLUNIVAR, 2, -1))
+    nd_obj[2] = NodeData(nd_obj[2].nodetype, nd_obj[2].index, 1)
+    for i = 3:length(nd_obj)
+        @inbounds nd_obj[i] = NodeData(nd_obj[i].nodetype, nd_obj[i].index, nd_obj[i].parent + 1)
+    end
+    I, J, V = findnz(wp._objective_nl.expr.adj)
+    I .+= 1
+    J .+= 1
+    pushfirst!(I, 2)
+    pushfirst!(J, 1)
+    pushfirst!(V, true)
+    wp._objective_nl.expr.adj = sparse(I, J, V)
+
+    set_val = copy(wp._objective_nl.expr.setstorage[1])
+    pushfirst!(wp._objective_nl.expr.setstorage, set_val)
+    pushfirst!(wp._objective_nl.expr.numberstorage, 0.0)
+    pushfirst!(wp._objective_nl.expr.isnumber, false)
+    return
+end
+
 """
 $(TYPEDSIGNATURES)
 
 Converts `MOI.MAX_SENSE` objective to equivalent `MOI.MIN_SENSE` objective
 `max(f) = -min(-f)`.
 """
-function convert_to_min!(m::Optimizer)
-
-    m._working_problem._optimization_sense = MOI.MIN_SENSE
+function _max_to_min!(m::Optimizer)
+    wp = m._working_problem
+    wp._optimization_sense = MOI.MIN_SENSE
     if m._input_problem._optimization_sense === MOI.MAX_SENSE
-
         obj_type = m._input_problem._objective_type
-        if obj_type === SINGLE_VARIABLE
-            m._working_problem._objective_type = SCALAR_AFFINE
-            m._working_problem._objective_saf = MOIU.operate(-, Float64, m._working_problem._objective_sv)
-            m._working_problem._objective_saf_parsed = AffineFunctionIneq(m._working_problem._objective_saf, LT_ZERO)
-
-        elseif obj_type === SCALAR_AFFINE
-            m._working_problem._objective_saf = MOIU.operate(-, Float64, m._working_problem._objective_saf)
-            m._working_problem._objective_saf_parsed = AffineFunctionIneq(m._working_problem._objective_saf, LT_ZERO)
-
-        elseif obj_type === SCALAR_QUADRATIC
-            sqf = m._working_problem._objective_sqf.sqf
-            m._working_problem._objective_sqf.sqf = MOIU.operate(-, Float64, sqf)
-
-        elseif obj_type === NONLINEAR
-
-            # updates tape for nlp_data block (used by local optimizer)
-            nd = m._working_problem._nlp_data.evaluator.m.nlp_data.nlobj.nd
-            pushfirst!(nd, NodeData(JuMP._Derivatives.CALLUNIVAR, 2, -1))
-            nd[2] = NodeData(nd[2].nodetype, nd[2].index, 1)
-            for i = 3:length(nd)
-                @inbounds nd[i] = NodeData(nd[i].nodetype, nd[i].index, nd[i].parent + 1)
-            end
-
-            # updates tape used by evaluator for the nonlinear objective (used by the relaxed optimizer)
-            nd = m._working_problem._objective_nl.expr.nd
-            pushfirst!(nd, NodeData(JuMP._Derivatives.CALLUNIVAR, 2, -1))
-            nd[2] = NodeData(nd[2].nodetype, nd[2].index, 1)
-            for i = 3:length(nd)
-                @inbounds nd[i] = NodeData(nd[i].nodetype, nd[i].index, nd[i].parent + 1)
-            end
-            I, J, V = findnz(m._working_problem._objective_nl.expr.adj)
-            I .+= 1
-            J .+= 1
-            pushfirst!(I, 2)
-            pushfirst!(J, 1)
-            pushfirst!(V, true)
-            m._working_problem._objective_nl.expr.adj = sparse(I, J, V)
-
-            set_val = copy(m._working_problem._objective_nl.expr.setstorage[1])
-            pushfirst!(m._working_problem._objective_nl.expr.setstorage, set_val)
-            pushfirst!(m._working_problem._objective_nl.expr.numberstorage, 0.0)
-            pushfirst!(m._working_problem._objective_nl.expr.isnumber, false)
-        end
+        (obj_type == SINGLE_VARIABLE)   && _max_to_min!(wp, wp._objective_sv)
+        (obj_type == SCALAR_AFFINE)     && _max_to_min!(wp, wp._objective_saf)
+        (obj_type == SCALAR_QUADRATIC)  && _max_to_min!(wp, wp._objective_sqf)
+        (obj_type == NONLINEAR)         && _max_to_min!(wp)
     end
-
     return nothing
 end
 
@@ -409,7 +415,7 @@ function initial_parse!(m::Optimizer)
     # converts a maximum problem to a minimum problem (internally) if necessary
     # this is placed after adding nonlinear functions as this prior routine
     # copies the nlp_block from the input_problem to the working problem
-    convert_to_min!(m)
+    _max_to_min!(m)
     reform_epigraph!(m)
 
     # labels the variable info and the _fixed_variable vector for each fixed variable

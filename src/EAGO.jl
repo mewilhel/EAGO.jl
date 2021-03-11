@@ -34,22 +34,8 @@ module EAGO
 
     @reexport using McCormick
     @reexport using SpecialFunctions
-    #@reexport using ReverseMcCormick
-
-    #using IntervalContractors
+    
     using IntervalContractors
-    #=
-    using IntervalContractors: plus_rev, minus_rev, inv_rev,
-       mul_rev, div_rev, power_rev,
-       max_rev, min_rev,
-        sqr_rev, sqrt_rev, abs_rev,
-        exp_rev, exp2_rev, exp10_rev, expm1_rev,
-        log_rev, log2_rev, log10_rev, log1p_rev,
-        sin_rev, cos_rev, tan_rev,
-        asin_rev, acos_rev, atan_rev,
-        sinh_rev, cosh_rev, tanh_rev,
-        asinh_rev, acosh_rev, atanh_rev
-        =#
 
     const MOI = MathOptInterface
 
@@ -86,12 +72,9 @@ module EAGO
 
     export register_eago_operators!
 
-    # map/reduce nonallocating no bounds checking map-reduce like utilities
+    # map/reduce non-allocating no bounds checking map-reduce like utilities
     include("eago_optimizer/utilities/unsafe_utilities.jl")
     include("eago_optimizer/utilities/register_special.jl")
-
-    # creates a context that removes domain violations when constructing bounds
-    include("eago_optimizer/guarded_context.jl")
 
     # defines structure used to store information at each iteration of global optimize
     include("eago_optimizer/logging/log.jl")
