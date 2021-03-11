@@ -58,6 +58,40 @@ Base.@kwdef mutable struct ParsedProblem
     _var_eq_count::Int = 0
 end
 
+function _add_constraint!(wp::ParsedProblem, fs::T) where T <: Union{Tuple{SAF,LT},
+                                                                     Tuple{SAF,GT}}
+    push!(wp._saf_leq, AffineFunctionIneq(fs[1], fs[2]))
+    wp._saf_leq_count += 1
+    return
+end
+function _add_constraint!(wp::ParsedProblem, fs::Tuple{SAF,ET})
+    push!(wp._saf_eq, AffineFunctionEq(fs[1], fs[2]))
+    wp._saf_eq_count += 1
+    return
+end
+
+function _add_constraint!(wp::ParsedProblem, fs::T) where T <: Union{Tuple{SQF,LT},
+                                                                     Tuple{SQF,GT}}
+    push!(wp._sqf_leq, BufferedQuadraticIneq(fs[1], fs[2]))
+    wp._sqf_leq_count += 1
+    return
+end
+function _add_constraint!(wp::ParsedProblem, fs::Tuple{SQF,ET})
+    push!(wp._sqf_eq, BufferedQuadraticEq(fs[1], fs[2]))
+    wp._sqf_eq_count += 1
+    return
+end
+
+function _add_constraint!(wp::ParsedProblem, fs::Tuple{VECVAR,SOCP})
+    soc_func, soc_set = fs
+    first_variable_loc = soc_func.variables[1].value
+    prior_lbnd = wp._variable_info[first_variable_loc].lower_bound
+    wp._variable_info[first_variable_loc].lower_bound = max(prior_lbnd, 0.0)
+    push!(wp._conic_second_order, BufferedSOC(soc_func, soc_set))
+    wp._conic_second_order_count += 1
+    return
+end
+
 function Base.isempty(x::ParsedProblem)
 
     is_empty_flag = true

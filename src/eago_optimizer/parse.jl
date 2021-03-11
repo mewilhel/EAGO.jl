@@ -338,65 +338,25 @@ function initial_parse!(m::Optimizer)
     # reset initial time and solution statistics
     m._time_left = m._parameters.time_limit
 
+    ip = _input_problem(m)
+    wp = _working_problem(m)
+
     # add variables to working model
-    ip = m._input_problem
-    append!(m._working_problem._variable_info, ip._variable_info)
-    m._working_problem._variable_count = ip._variable_count
+    append!(wp._variable_info, ip._variable_info)
+    wp._variable_count = ip._variable_count
 
     # add linear constraints to the working problem
-    linear_leq = ip._linear_leq_constraints
-    for i = 1:ip._linear_leq_count
-        linear_func, leq_set = @inbounds linear_leq[i]
-        push!(m._working_problem._saf_leq, AffineFunctionIneq(linear_func, leq_set))
-        m._working_problem._saf_leq_count += 1
-    end
-
-    linear_geq = ip._linear_geq_constraints
-    for i = 1:ip._linear_geq_count
-        linear_func, geq_set = @inbounds linear_geq[i]
-        push!(m._working_problem._saf_leq, AffineFunctionIneq(linear_func, geq_set))
-        m._working_problem._saf_leq_count += 1
-    end
-
-    linear_eq = ip._linear_eq_constraints
-    for i = 1:ip._linear_eq_count
-        linear_func, eq_set = @inbounds linear_eq[i]
-        push!(m._working_problem._saf_eq, AffineFunctionEq(linear_func, eq_set))
-        m._working_problem._saf_eq_count += 1
-    end
+    foreach(x -> _add_constraint!(wp, x), _linear_leq_constraints(ip))
+    foreach(x -> _add_constraint!(wp, x), _linear_geq_constraints(ip))
+    foreach(x -> _add_constraint!(wp, x), _linear_eq_constraints(ip))
 
     # add quadratic constraints to the working problem
-    quad_leq = ip._quadratic_leq_constraints
-    for i = 1:ip._quadratic_leq_count
-        quad_func, leq_set = @inbounds quad_leq[i]
-        push!(m._working_problem._sqf_leq, BufferedQuadraticIneq(quad_func, leq_set))
-        m._working_problem._sqf_leq_count += 1
-    end
-
-    quad_geq = ip._quadratic_geq_constraints
-    for i = 1:ip._quadratic_geq_count
-        quad_func, geq_set = @inbounds quad_geq[i]
-        push!(m._working_problem._sqf_leq, BufferedQuadraticIneq(quad_func, geq_set))
-        m._working_problem._sqf_leq_count += 1
-    end
-
-    quad_eq = ip._quadratic_eq_constraints
-    for i = 1:ip._quadratic_eq_count
-        quad_func, eq_set = @inbounds quad_eq[i]
-        push!(m._working_problem._sqf_eq, BufferedQuadraticEq(quad_func, eq_set))
-        m._working_problem._sqf_eq_count += 1
-    end
+    foreach(x -> _add_constraint!(wp, x), _quadratic_leq_constraints(ip))
+    foreach(x -> _add_constraint!(wp, x), _quadratic_geq_constraints(ip))
+    foreach(x -> _add_constraint!(wp, x), _quadratic_eq_constraints(ip))
 
     # add conic constraints to the working problem
-    soc_vec = m._input_problem._conic_second_order
-    for i = 1:ip._conic_second_order_count
-        soc_func, soc_set = @inbounds soc_vec[i]
-        first_variable_loc = soc_func.variables[1].value
-        prior_lbnd = m._working_problem._variable_info[first_variable_loc].lower_bound
-        m._working_problem._variable_info[first_variable_loc].lower_bound = max(prior_lbnd, 0.0)
-        push!(m._working_problem._conic_second_order, BufferedSOC(soc_func, soc_set))
-        m._working_problem._conic_second_order_count += 1
-    end
+    foreach(x -> _add_constraint!(wp, x), _second_order_cone_constraints(ip))
 
     # set objective function
     m._working_problem._objective_type = ip._objective_type
