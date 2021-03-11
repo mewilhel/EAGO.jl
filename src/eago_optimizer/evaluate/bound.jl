@@ -214,31 +214,15 @@ end
 ###
 
 function lower_interval_bound(m::Optimizer, d::BufferedNonlinearFunction{V}, n::NodeBB) where V
-    if !d.has_value
-        forward_pass!(m._working_problem._relaxed_evaluator, d)
-    end
-
-    expr = d.expr
-    if expr.isnumber[1]
-        lower_value = expr.numberstorage[1]
-    else
-        lower_value = expr.setstorage[1].Intv.lo
-    end
-
-    return lower_value
+    !d.has_value && forward_pass!(m._working_problem._relaxed_evaluator, d)
+    ex = d.expr
+    v = ex.isnumber[1] ? ex.numberstorage[1] : ex.setstorage[1].Intv.lo
+    return v
 end
 
 function interval_bound(m::Optimizer, d::BufferedNonlinearFunction{V}, n::NodeBB) where V
-    if !d.has_value
-        forward_pass!(d.evaluator, d)
-    end
-
-    expr = d.expr
-    if expr.isnumber[1]
-        interval_value = Interval(expr.numberstorage[1])
-    else
-        interval_value = expr.setstorage[1].Intv
-    end
-
-    return interval_value.lo, interval_value.hi
+    !d.has_value && forward_pass!(d.evaluator, d)
+    ex = d.expr
+    v = ex.isnumber[1] ? Interval(ex.numberstorage[1]) : ex.setstorage[1].Intv
+    return v.lo, v.hi
 end

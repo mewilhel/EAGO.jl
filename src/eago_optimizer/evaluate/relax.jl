@@ -503,24 +503,20 @@ function relax_all_constraints!(t::ExtensionType, m::Optimizer, q::Int64)
 
     sqf_leq_list = m._working_problem._sqf_leq
     for i = 1:m._working_problem._sqf_leq_count
-        sqf_leq = @inbounds sqf_leq_list[i]
-        relax!(m, sqf_leq, i, check_safe)
+        relax!(m, (@inbounds sqf_leq_list[i]), i, check_safe)
     end
 
     sqf_eq_list = m._working_problem._sqf_eq
     for i = 1:m._working_problem._sqf_eq_count
-        sqf_eq = @inbounds sqf_eq_list[i]
-        relax!(m, sqf_eq, i, check_safe)
+        relax!(m, (@inbounds sqf_eq_list[i]), i, check_safe)
     end
 
     nl_list = m._working_problem._nonlinear_constr
     for i = 1:m._working_problem._nonlinear_count
-        nl = @inbounds nl_list[i]
-        relax!(m, nl, i, check_safe)
+        relax!(m, (@inbounds nl_list[i]), i, check_safe)
     end
 
     m._new_eval_constraint = false
-
     objective_cut!(m, check_safe)
 
     return nothing
@@ -534,26 +530,17 @@ $(FUNCTIONNAME)
 Deletes all nonlinear constraints added to the relaxed optimizer.
 """
 function delete_nl_constraints!(m::Optimizer)
-
     # delete affine relaxations added from quadratic inequality
-    for ci in m._buffered_quadratic_ineq_ci
-        MOI.delete(m.relaxed_optimizer, ci)
-    end
+    MOI.delete.(m.relaxed_optimizer, m._buffered_quadratic_ineq_ci)
     empty!(m._buffered_quadratic_ineq_ci)
 
     # delete affine relaxations added from quadratic equality
-    for ci in m._buffered_quadratic_eq_ci
-        MOI.delete(m.relaxed_optimizer, ci)
-    end
+    MOI.delete.(m.relaxed_optimizer, m._buffered_quadratic_eq_ci)
     empty!(m._buffered_quadratic_eq_ci)
 
     # delete affine relaxations added from nonlinear inequality
-    for ci in m._buffered_nonlinear_ci
-        MOI.delete(m.relaxed_optimizer, ci)
-    end
+    MOI.delete.(m.relaxed_optimizer, m._buffered_nonlinear_ci)
     empty!(m._buffered_nonlinear_ci)
-
-    return nothing
 end
 
 """
@@ -562,13 +549,8 @@ $(FUNCTIONNAME)
 Deletes all scalar-affine objective cuts added to the relaxed optimizer.
 """
 function delete_objective_cuts!(m::Optimizer)
-
-    for ci in m._objective_cut_ci_saf
-        MOI.delete(m.relaxed_optimizer, ci)
-    end
+    MOI.delete.(m.relaxed_optimizer, m._objective_cut_ci_saf)
     empty!(m._objective_cut_ci_saf)
-
-    return nothing
 end
 
 """

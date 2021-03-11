@@ -89,7 +89,7 @@ end
 Utility function used to set vector of booleans z to x & ~y. Avoids the
 generation of conversion of the BitArray created by broadcasting logical operators.
 """
-function bool_indx_diff(z::Vector{Bool},x::Vector{Bool}, y::Vector{Bool})
+function bool_indx_diff(z::Vector{Bool}, x::Vector{Bool}, y::Vector{Bool})
     for i = 1:length(z)
         @inbounds z[i] = (x[i] & ~y[i])
     end
@@ -679,12 +679,10 @@ function set_constraint_propagation_fbbt!(m::Optimizer)
             forward_pass!(evaluator, obj_nonlinear)
             feasible_flag &= reverse_pass!(evaluator, obj_nonlinear)
             evaluator.interval_intersect = true
-        end
-
-        if feasible_flag && (m._working_problem._objective_type === NONLINEAR)
-            obj_nonlinear = m._working_problem._objective_nl
-            set_node_flag!(obj_nonlinear)
-            forward_pass!(evaluator, obj_nonlinear)
+            if feasible_flag
+                set_node_flag!(obj_nonlinear)
+                forward_pass!(evaluator, obj_nonlinear)
+            end
         end
 
         m._new_eval_constraint = false

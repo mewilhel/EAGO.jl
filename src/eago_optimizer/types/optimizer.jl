@@ -49,11 +49,11 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     # set as a user-specified option
     relaxed_optimizer::MOI.AbstractOptimizer = GLPK.Optimizer()
 
-    # set as a user-specified option (if empty set to all nonlinear by TODO in TODO)
-    obbt_variable_values::Vector{Bool} = Bool[]
-
     # Upper bounding options (set as a user-specified option)
     upper_optimizer::MOI.AbstractOptimizer = default_nlp_solver()
+
+    # set as a user-specified option (if empty set to all nonlinear by TODO in TODO)
+    obbt_variable_values::Vector{Bool} = Bool[]
 
     # Extensions (set as user-specified option)
     enable_optimize_hook::Bool = false
