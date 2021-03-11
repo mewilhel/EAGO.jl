@@ -432,87 +432,66 @@ function initial_parse!(m::Optimizer)
     return nothing
 end
 
-function parse_classify_problem(::Val{LP}, m::Optimizer)
-
-    input_problem = m._input_problem
-    obj_typ = input_problem._objective_type
-
-    is_lp = (obj_typ == SINGLE_VARIABLE) || (obj_typ == SCALAR_AFFINE)
-    is_lp &= _second_order_cone_num(input_problem)       == 0
-    is_lp &= _quadratic_num(input_problem)               == 0
-    is_lp &= _nl_expr_num(input_problem)                 == 0
-    is_lp &= _integer_variable_num(input_problem)        == 0
-
+function _parse_classify_problem(::Val{LP}, ip::InputProblem, wp::ParsedProblem
+    is_lp =  _objective_type(ip) == SINGLE_VARIABLE
+    is_lp |= _objective_type(ip) == SCALAR_AFFINE
+    is_lp &= _second_order_cone_num(ip)       == 0
+    is_lp &= _quadratic_num(ip)               == 0
+    is_lp &= _nl_expr_num(ip)                 == 0
+    is_lp &= _integer_variable_num(ip)        == 0
     if is_lp
-        m._working_problem._problem_type = LP
-        return true
+        wp._problem_type = LP
     end
-
-    return false
+    return is_lp
 end
 
-function parse_classify_problem(::Val{MILP}, m::Optimizer)
-    input_problem = m._input_problem
-    obj_typ = input_problem._objective_type
-
-    is_milp = (obj_typ == SINGLE_VARIABLE) || (obj_typ == SCALAR_AFFINE)
-    is_milp &= _second_order_cone_num(input_problem)       == 0
-    is_milp &= _quadratic_num(input_problem)               == 0
-    is_milp &= _nl_expr_num(input_problem)                 == 0
-    is_milp &= _integer_variable_num(input_problem)        > 0
-
+function _parse_classify_problem(::Val{MILP}, ip::InputProblem, wp::ParsedProblem
+    is_milp =  _objective_type(ip) == SINGLE_VARIABLE
+    is_milp |= _objective_type(ip) == SCALAR_AFFINE
+    is_milp &= _second_order_cone_num(ip)       == 0
+    is_milp &= _quadratic_num(ip)               == 0
+    is_milp &= _nl_expr_num(ip)                 == 0
+    is_milp &= _integer_variable_num(ip)        > 0
     if is_milp
-        m._working_problem._problem_type = MILP
-        return true
+        wp._problem_type = MILP
     end
-
-    return false
+    return is_milp
 end
 
-function parse_classify_problem(::Val{SOCP}, m::Optimizer)
-    input_problem = m._input_problem
-    obj_typ = input_problem._objective_type
-
-    is_socp = (obj_typ == SINGLE_VARIABLE) || (obj_typ == SCALAR_AFFINE)
-    is_socp &= _second_order_cone_num(input_problem)       > 0
-    is_socp &= _quadratic_num(input_problem)               == 0
-    is_socp &= _nl_expr_num(input_problem)                 == 0
-    is_socp &= _integer_variable_num(input_problem)        == 0
-
+function _parse_classify_problem(::Val{SOCP}, ip::InputProblem, wp::ParsedProblem
+    is_socp =  _objective_type(ip) == SINGLE_VARIABLE
+    is_socp |= _objective_type(ip) == SCALAR_AFFINE
+    is_socp &= _second_order_cone_num(ip)       > 0
+    is_socp &= _quadratic_num(ip)               == 0
+    is_socp &= _nl_expr_num(ip)                 == 0
+    is_socp &= _integer_variable_num(ip)        == 0
     if is_socp
-        m._working_problem._problem_type = SOCP
-        return true
+        wp._problem_type = SOCP
     end
-
-    return false
+    return is_socp
 end
 
-function parse_classify_problem(::Val{MISOCP}, m::Optimizer)
-    input_problem = m._input_problem
-    obj_typ = input_problem._objective_type
-
-    is_misocp = (obj_typ == SINGLE_VARIABLE) || (obj_typ == SCALAR_AFFINE)
-    is_misocp &= _second_order_cone_num(input_problem)       > 0
-    is_misocp &= _quadratic_num(input_problem)               == 0
-    is_misocp &= _nl_expr_num(input_problem)                 == 0
-    is_misocp &= _integer_variable_num(input_problem)        > 0
-
+function _parse_classify_problem(::Val{MISOCP}, ip::InputProblem, wp::ParsedProblem)
+    is_misocp =  _objective_type(ip) == SINGLE_VARIABLE
+    is_misocp |= _objective_type(ip) == SCALAR_AFFINE
+    is_misocp &= _second_order_cone_num(ip)       > 0
+    is_misocp &= _quadratic_num(ip)               == 0
+    is_misocp &= _nl_expr_num(ip)                 == 0
+    is_misocp &= _integer_variable_num(ip)        > 0
     if is_misocp
-        m._working_problem._problem_type = MISOCP
-        return true
+        wp._problem_type = MISOCP
     end
-
-    return false
+    return is_misocp
 end
 
-#function parse_classify_problem(::typeof(SDP), m::Optimizer)
-#    m._working_problem._problem_type = MINCVX
-#    return false
-#end
+function _parse_classify_problem(::Val{MINCVX}, ip::InputProblem, wp::ParsedProblem)
+    wp._problem_type = MINCVX
+    return true
+end
 
 # is most general type support aka always true...
-function parse_classify_problem(::Val{MINCVX}, m::Optimizer)
-    m._working_problem._problem_type = MINCVX
+function _parse_classify_problem(::Val{MINCVX}, ip::InputProblem, wp::ParsedProblem)
+    wp._problem_type = MINCVX
     return true
 end
 
@@ -520,16 +499,15 @@ end
 """
 Classifies the problem type
 """
-function parse_classify_problem!(m::Optimizer)
-
-    # TODO: Transform Nonlinear Expressions into Linear or SOCP where appropriate
-    parse_classify_problem(Val{LP}(), m)       && return
-    parse_classify_problem(Val{MILP}(), m)     && return
-    parse_classify_problem(Val{SOCP}(), m)     && return
-    #parse_classify_problem(Val{SDP}(), m)      && return
-    parse_classify_problem(Val{MISOCP}(), m)   && return
-    parse_classify_problem(Val{MINCVX}(), m)   && return
-
+function _parse_classify_problem!(m::Optimizer)
+    ip = m._input_problem
+    wp = m._working_problem
+    _parse_classify_problem(Val{LP}(), ip, wp)       && return
+    _parse_classify_problem(Val{MILP}(), ip, wp)     && return
+    _parse_classify_problem(Val{SOCP}(), ip, wp)     && return
+    _parse_classify_problem(Val{SDP}(), ip, wp)      && return
+    _parse_classify_problem(Val{MISOCP}(), ip, wp)   && return
+    _parse_classify_problem(Val{MINCVX}(), ip, wp)   && return
     return
 end
 
