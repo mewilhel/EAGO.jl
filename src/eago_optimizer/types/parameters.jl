@@ -8,20 +8,6 @@ $(TYPEDFIELDS)
 """
 Base.@kwdef mutable struct EAGOParameters
 
-    # Subsolver Options
-    "Subsolver used to solve linear programs"
-    lp_optimizer = nothing                   # Default options: GLPK (or CBC, or COSMO)
-    "Subsolver used to solve mixed-integer linear programs"
-    mip_optimizer = nothing                  # Default options: GLPK (or CBC)
-    "Subsolver used to solve second-order conic programs"
-    second_order_cone_optimizer = nothing    # Default options: ECOS, CSDP, COSMO, Hypatia
-    "Semidefinite Programming Optimizer"
-    semidefinite_optimizer = nothing         # Default options: ProxSDP, SCS, CSDP, COSMO
-    "Subsolver used to locally solve nonlinear programs"
-    nlp_optimizer = nothing                  # Default options: Ipopt
-    "Subsolver used to locally solve mixed-integer nonlinear programs "
-    minlp_optimizer = nothing                # Default options: EAGO-ESH, Pavito
-
     # Presolving options
     "Should EAGO attempt to remove type assert issues for user-defined functions (default = false)"
     presolve_scrubber_flag::Bool = false

@@ -42,14 +42,12 @@ Creates an initial node with initial box constraints and adds it to the stack.
 function create_initial_node!(m::Optimizer)
 
     branch_variable_count = m._branch_variable_count
-
-    variable_info = m._working_problem._variable_info
     lower_bound = zeros(Float64, branch_variable_count)
     upper_bound = zeros(Float64, branch_variable_count)
     branch_count = 1
 
     for i = 1:m._working_problem._variable_count
-        vi = variable_info[i]
+        vi = m._working_problem._variable_info[i]
         if vi.branch_on === BRANCH
             lower_bound[branch_count] = vi.lower_bound
             upper_bound[branch_count] = vi.upper_bound
@@ -207,12 +205,9 @@ $(SIGNATURES)
 Selects node with the lowest lower bound in stack.
 """
 function node_selection!(t::ExtensionType, m::Optimizer)
-
     m._node_count -= 1
     m._current_node = popmin!(m._stack)
-
     return nothing
-
 end
 
 """
@@ -354,9 +349,7 @@ $(SIGNATURES)
 
 Checks to see if current node should be reprocessed.
 """
-function repeat_check(t::ExtensionType, m::Optimizer)
-    return false
-end
+repeat_check(t::ExtensionType, m::Optimizer) = false
 
 relative_gap(L::Float64, U::Float64) = ((L > -Inf) && (U < Inf)) ?  abs(U - L)/(max(abs(L), abs(U))) : Inf
 relative_tolerance(L::Float64, U::Float64, tol::Float64) = relative_gap(L, U)  > tol || ~(L > -Inf)
@@ -420,7 +413,6 @@ function termination_check(t::ExtensionType, m::Optimizer)
     else
 
         return false
-
     end
 
     return true
@@ -461,26 +453,29 @@ to global optimality or the subproblem solution is infeasible. The value of
 """
 function is_globally_optimal(t::MOI.TerminationStatusCode, r::MOI.ResultStatusCode)
 
-    feasible = false
-    valid_result = false
-
-    if (t === MOI.INFEASIBLE && r === MOI.INFEASIBILITY_CERTIFICATE)
-        valid_result = true
-
-    elseif (t === MOI.INFEASIBLE && r === MOI.NO_SOLUTION)
-        valid_result = true
-
-    elseif (t === MOI.INFEASIBLE && r === MOI.UNKNOWN_RESULT_STATUS)
-        valid_result = true
-
-    elseif (t === MOI.OPTIMAL && r === MOI.FEASIBLE_POINT)
-        valid_result = true
-        feasible = true
-
-    elseif (t === MOI.INFEASIBLE_OR_UNBOUNDED && r === MOI.NO_SOLUTION)
+    if t == MOI.INFEASIBLE && r == MOI.INFEASIBILITY_CERTIFICATE
         valid_result = true
         feasible = false
 
+    elseif t == MOI.INFEASIBLE && r == MOI.NO_SOLUTION
+        valid_result = true
+        feasible = false
+
+    elseif t == MOI.INFEASIBLE && r == MOI.UNKNOWN_RESULT_STATUS
+        valid_result = true
+        feasible = false
+
+    elseif t == MOI.OPTIMAL && r == MOI.FEASIBLE_POINT
+        valid_result = true
+        feasible = true
+
+    elseif t == MOI.INFEASIBLE_OR_UNBOUNDED && r == MOI.NO_SOLUTION
+        valid_result = true
+        feasible = false
+
+    else
+        valid_result = false
+        feasible = false
     end
 
     return valid_result, feasible
@@ -635,22 +630,19 @@ function update_relaxed_problem_box!(m::Optimizer)
     lower_bound = n.lower_variable_bounds
     upper_bound = n.upper_variable_bounds
 
-    relaxed_variable_eq = m._relaxed_variable_eq
     for i = 1:wp._var_eq_count
-        constr_indx, node_indx =  relaxed_variable_eq[i]
-        MOI.set(opt, MOI.ConstraintSet(), constr_indx, ET( lower_bound[node_indx]))
+        constr_indx, node_indx = m._relaxed_variable_eq[i]
+        MOI.set(opt, MOI.ConstraintSet(), constr_indx, ET(lower_bound[node_indx]))
     end
 
-    relaxed_variable_lt = m._relaxed_variable_lt
     for i = 1:wp._var_leq_count
-        constr_indx, node_indx =  relaxed_variable_lt[i]
-        MOI.set(opt, MOI.ConstraintSet(), constr_indx, LT( upper_bound[node_indx]))
+        constr_indx, node_indx = m._relaxed_variable_lt[i]
+        MOI.set(opt, MOI.ConstraintSet(), constr_indx, LT(upper_bound[node_indx]))
     end
 
-    relaxed_variable_gt = m._relaxed_variable_gt
     for i = 1:wp._var_geq_count
-        constr_indx, node_indx =  relaxed_variable_gt[i]
-        MOI.set(opt, MOI.ConstraintSet(), constr_indx, GT( lower_bound[node_indx]))
+        constr_indx, node_indx = m._relaxed_variable_gt[i]
+        MOI.set(opt, MOI.ConstraintSet(), constr_indx, GT(lower_bound[node_indx]))
     end
 
     return nothing

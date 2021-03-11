@@ -45,6 +45,20 @@ which are expected to be constant over the entire solve are stored in
 """
 Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
 
+    # Subsolver Options
+    "Subsolver used to solve linear programs"
+    lp_optimizer::MOI.AbstractOptimizer                 = GLPK.Optimizer()
+    "Subsolver used to solve mixed-integer linear programs"
+    mip_optimizer::MOI.AbstractOptimizer                = GLPK.Optimizer()
+    "Subsolver used to solve second-order conic programs"
+    second_order_cone_optimizer::MOI.AbstractOptimizer  = COSMO.Optimizer()
+    "Semidefinite Programming Optimizer"
+    semidefinite_optimizer::MOI.AbstractOptimizer       = COSMO.Optimizer()
+    "Subsolver used to locally solve nonlinear programs"
+    nlp_optimizer::MOI.AbstractOptimizer                = Ipopt.Optimizer()
+    "Subsolver used to locally solve mixed-integer nonlinear programs "
+    minlp_optimizer::MOI.AbstractOptimizer              = Pavito.Optimizer()
+
     # Options for optimality-based bound tightening
     # set as a user-specified option
     relaxed_optimizer::MOI.AbstractOptimizer = GLPK.Optimizer()

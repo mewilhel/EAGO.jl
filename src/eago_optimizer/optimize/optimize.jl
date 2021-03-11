@@ -30,7 +30,6 @@ function MOI.optimize!(m::Optimizer)
         # Determines if the problem is an LP, MILP, SOCP, MISCOP,
         # CONVEX, OF MINCVX PROBLEM TYPE as entered
         parse_classify_problem!(m)
-
         m._parse_time = m._start_time - time()
 
         # Throws the problem to the appropriate solution routine
