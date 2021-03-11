@@ -38,7 +38,6 @@ function MOI.optimize!(m::Optimizer)
 
         # throws to user-defined optimization hook
         throw_optimize_hook!(m)
-
     end
 
     return nothing

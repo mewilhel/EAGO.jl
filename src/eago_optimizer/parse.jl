@@ -342,7 +342,7 @@ function initial_parse!(m::Optimizer)
     wp = _working_problem(m)
 
     # add variables to working model
-    append!(wp._variable_info, ip._variable_info)
+    wp._variable_info = copy(ip._variable_info)
     wp._variable_count = ip._variable_count
 
     # add linear constraints to the working problem

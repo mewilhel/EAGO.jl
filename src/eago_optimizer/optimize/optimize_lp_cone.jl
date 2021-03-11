@@ -49,40 +49,27 @@ function add_variables(m::Optimizer, optimizer::T, variable_number::Int) where T
 end
 
 ### LP and MILP routines
-function add_linear_constraints!(m::Optimizer, opt::T) where T
-
-    # add linear constraints
-    for (func, set) in m._input_problem._linear_leq_constraints
-         MOI.add_constraint(opt, func, set)
-    end
-    for (func, set) in m._input_problem._linear_geq_constraints
-        MOI.add_constraint(opt, func, set)
-    end
-    for (func, set) in m._input_problem._linear_eq_constraints
-        MOI.add_constraint(opt, func, set)
-    end
-
+function _add_linear_constraints!(m::Optimizer, opt::T) where T
+    ip = m._input_problem
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_leq_constraints(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_geq_constraints(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_eq_constraints(ip))
     return nothing
 end
 
 ### LP and MILP routines
 function add_soc_constraints!(m::Optimizer, opt::T) where T
-
-    for (func, set) in m._input_problem._conic_second_order
-         MOI.add_constraint(opt, func, set)
-    end
-
+    ip = m._input_problem
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _second_order_cone_constraints(ip))
     return nothing
 end
 
 function add_sv_or_aff_obj!(m::Optimizer, opt::T) where T
-
     if m._input_problem._objective_type === SINGLE_VARIABLE
         MOI.set(opt, MOI.ObjectiveFunction{SV}(), m._input_problem._objective_sv)
     elseif m._input_problem._objective_type === SCALAR_AFFINE
         MOI.set(opt, MOI.ObjectiveFunction{SAF}(), m._input_problem._objective_saf)
     end
-
     return nothing
 end
 
