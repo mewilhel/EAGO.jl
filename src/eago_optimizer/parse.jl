@@ -66,8 +66,8 @@ Converts `MOI.MAX_SENSE` objective to equivalent `MOI.MIN_SENSE` objective
 function _max_to_min!(m::Optimizer)
     wp = m._working_problem
     wp._optimization_sense = MOI.MIN_SENSE
-    if m._input_problem._optimization_sense === MOI.MAX_SENSE
-        obj_type = m._input_problem._objective_type
+    if _optimization_sense(m._input_problem) == MOI.MAX_SENSE
+        obj_type = _objective_type(m._input_problem)
         (obj_type == SINGLE_VARIABLE)   && _max_to_min!(wp, wp._objective_sv)
         (obj_type == SCALAR_AFFINE)     && _max_to_min!(wp, wp._objective_saf)
         (obj_type == SCALAR_QUADRATIC)  && _max_to_min!(wp, wp._objective_sqf)
@@ -119,7 +119,7 @@ function reform_epigraph!(m::Optimizer)
     return nothing
 end
 
-function check_set_is_fixed(v::VariableInfo)
+function _check_set_is_fixed(v::VariableInfo)
     v.is_fixed && return true
     v.is_fixed = x.lower_bound === x.upper_bound
     return v.is_fixed
@@ -132,7 +132,7 @@ Detects any variables set to a fixed value by equality or inequality constraints
 and populates the `_fixed_variable` storage array.
 """
 function label_fixed_variables!(m::Optimizer)
-    map!(x -> check_set_is_fixed(x), m._fixed_variable, m._working_problem._variable_info)
+    map!(x -> _check_set_is_fixed(x), m._fixed_variable, m._working_problem._variable_info)
 end
 
 """
@@ -437,11 +437,11 @@ function parse_classify_problem(::Val{LP}, m::Optimizer)
     input_problem = m._input_problem
     obj_typ = input_problem._objective_type
 
-    is_lp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
-    is_lp &= second_order_cone_num(input_problem)       == 0
-    is_lp &= quadratic_num(input_problem)               == 0
-    is_lp &= nl_expr_num(input_problem)                 == 0
-    is_lp &= integer_variable_num(input_problem)        == 0
+    is_lp = (obj_typ == SINGLE_VARIABLE) || (obj_typ == SCALAR_AFFINE)
+    is_lp &= _second_order_cone_num(input_problem)       == 0
+    is_lp &= _quadratic_num(input_problem)               == 0
+    is_lp &= _nl_expr_num(input_problem)                 == 0
+    is_lp &= _integer_variable_num(input_problem)        == 0
 
     if is_lp
         m._working_problem._problem_type = LP
@@ -455,11 +455,11 @@ function parse_classify_problem(::Val{MILP}, m::Optimizer)
     input_problem = m._input_problem
     obj_typ = input_problem._objective_type
 
-    is_milp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
-    is_milp &= second_order_cone_num(input_problem)       == 0
-    is_milp &= quadratic_num(input_problem)               == 0
-    is_milp &= nl_expr_num(input_problem)                 == 0
-    is_milp &= integer_variable_num(input_problem)        > 0
+    is_milp = (obj_typ == SINGLE_VARIABLE) || (obj_typ == SCALAR_AFFINE)
+    is_milp &= _second_order_cone_num(input_problem)       == 0
+    is_milp &= _quadratic_num(input_problem)               == 0
+    is_milp &= _nl_expr_num(input_problem)                 == 0
+    is_milp &= _integer_variable_num(input_problem)        > 0
 
     if is_milp
         m._working_problem._problem_type = MILP
@@ -473,11 +473,11 @@ function parse_classify_problem(::Val{SOCP}, m::Optimizer)
     input_problem = m._input_problem
     obj_typ = input_problem._objective_type
 
-    is_socp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
-    is_socp &= second_order_cone_num(input_problem)       > 0
-    is_socp &= quadratic_num(input_problem)               == 0
-    is_socp &= nl_expr_num(input_problem)                 == 0
-    is_socp &= integer_variable_num(input_problem)        == 0
+    is_socp = (obj_typ == SINGLE_VARIABLE) || (obj_typ == SCALAR_AFFINE)
+    is_socp &= _second_order_cone_num(input_problem)       > 0
+    is_socp &= _quadratic_num(input_problem)               == 0
+    is_socp &= _nl_expr_num(input_problem)                 == 0
+    is_socp &= _integer_variable_num(input_problem)        == 0
 
     if is_socp
         m._working_problem._problem_type = SOCP
@@ -491,11 +491,11 @@ function parse_classify_problem(::Val{MISOCP}, m::Optimizer)
     input_problem = m._input_problem
     obj_typ = input_problem._objective_type
 
-    is_misocp = (obj_typ === SINGLE_VARIABLE) || (obj_typ === SCALAR_AFFINE)
-    is_misocp &= second_order_cone_num(input_problem)       > 0
-    is_misocp &= quadratic_num(input_problem)               == 0
-    is_misocp &= nl_expr_num(input_problem)                 == 0
-    is_misocp &= integer_variable_num(input_problem)        > 0
+    is_misocp = (obj_typ == SINGLE_VARIABLE) || (obj_typ == SCALAR_AFFINE)
+    is_misocp &= _second_order_cone_num(input_problem)       > 0
+    is_misocp &= _quadratic_num(input_problem)               == 0
+    is_misocp &= _nl_expr_num(input_problem)                 == 0
+    is_misocp &= _integer_variable_num(input_problem)        > 0
 
     if is_misocp
         m._working_problem._problem_type = MISOCP

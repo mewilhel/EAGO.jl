@@ -56,18 +56,20 @@ Base.@kwdef mutable struct InputProblem
     _optimization_sense::MOI.OptimizationSense = MOI.MIN_SENSE
 end
 
-integer_variable_num(d::InputProblem) = count(is_integer.(d._variable_info))
-function second_order_cone_num(d::InputProblem)
+@inline _integer_variable_num(d::InputProblem) = count(is_integer.(d._variable_info))
+@inline function _second_order_cone_num(d::InputProblem)
     d._conic_second_order_count
 end
-function quadratic_num(d::InputProblem)
+@inline function _quadratic_num(d::InputProblem)
     d._quadratic_leq_count + d._quadratic_geq_count + d._quadratic_eq_count
 end
-function nl_expr_num(d::InputProblem)
+@inline function _nl_expr_num(d::InputProblem)
     nl_expr_number = d._objective_type === NONLINEAR ? 1 : 0
     nl_expr_number += d._nonlinear_count
     return nl_expr_number
 end
+@inline _optimization_sense(d::InputProblem) = d._optimization_sense
+@inline _objective_type(d::InputProblem)     = d._objective_type
 
 function Base.isempty(x::InputProblem)
 
