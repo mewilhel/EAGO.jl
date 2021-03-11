@@ -509,24 +509,15 @@ function forward_power!(k::Int64, children_arr::Vector{Int64}, children_idx::Uni
         # a^b
         if arg1_is_number && arg2_is_number
              numberstorage[k] = num1^num2
-
         # x^b
         elseif !arg1_is_number && arg2_is_number
             outset = set1^num2
-            #is_first_eval ? pow(set1, num2) : ^(set1, num2, setstorage[k].Intv)
-
         # a^y
         elseif arg1_is_number  && !arg2_is_number
-            guard_on = ctx.metadata.guard_on
-            outset = guard_on ? overdub(ctx, ^, num1, set2) : num1^set2 # overdub(ctx, pow, num1, set2)
-            #is_first_eval ? overdub(ctx, pow, num1, set2) : overdub(ctx, ^, num1, set2, setstorage[k].Intv)
-
+            outset = num1^set2 # overdub(ctx, pow, num1, set2)
         # x^y
         elseif !arg1_is_number && !arg2_is_number
-            guard_on = ctx.metadata.guard_on
-            outset = guard_on ? overdub(ctx, ^, set1, set2) : set1^set2
-            #is_first_eval ? overdub(ctx, pow, set1, set2) : overdub(ctx, ^, set1, set2, setstorage[k].Intv)
-
+            outset = set1^set2
         end
     end
 
@@ -547,8 +538,7 @@ function forward_divide!(k::Int64, children_arr::Vector{Int64}, children_idx::Un
                          numvalued::Vector{Bool}, numberstorage::Vector{Float64}, setstorage::Vector{MC{N,T}},
                          x::Vector{Float64}, lbd::Vector{Float64}, ubd::Vector{Float64}, subgrad_tol::Float64,
                          sparsity::Vector{Int},
-                         is_post::Bool, is_intersect::Bool, is_first_eval::Bool, interval_intersect::Bool,
-                         ctx::GuardCtx) where {N,T<:RelaxTag}
+                         is_post::Bool, is_intersect::Bool, is_first_eval::Bool, interval_intersect::Bool) where {N,T<:RelaxTag}
 
     # get row indices
     idx1 = first(children_idx)
@@ -582,41 +572,19 @@ function forward_divide!(k::Int64, children_arr::Vector{Int64}, children_idx::Un
 
     # a/b
     if output_is_number
-         numberstorage[k] = num1/num2
+        numberstorage[k] = num1/num2
 
     # x/b
     elseif !arg1_is_number && arg2_is_number
-
-        guard_on = ctx.metadata.guard_on
-        if guard_on
-            outset = Cassette.overdub(ctx, /, set1, num2)
-        else
-            outset = set1/num2
-        end
-        # is_first_eval ? set1/num2 : div_kernel(set1, num2, setstorage[k].Intv)
+        outset = set1/num2
 
     # a/y
     elseif arg1_is_number && !arg2_is_number
-
-        guard_on = ctx.metadata.guard_on
-        if guard_on
-            outset = Cassette.overdub(ctx, /, num1, set2)
-        else
-            outset = num1/set2
-        end
-        # is_first_eval ? num1/set2 : div_kernel(num1, set2, setstorage[k].Intv)
+        outset = num1/set2
 
     # x/y
     else
-
-        guard_on = ctx.metadata.guard_on
-        if guard_on
-            outset = Cassette.overdub(ctx, /, set1, set2)
-        else
-            outset = set1/set2
-        end
-        # is_first_eval ? set1/set2 : div_kernel(set1, set2, setstorage[k].Intv)
-
+        outset = set1/set2
     end
 
     if !output_is_number
@@ -668,12 +636,7 @@ function forward_user_multivariate!(k::Int64, op::Int64, children_arr::Vector{In
                  set_input[buffer_count] = MC{N,T}(num_input[buffer_count])
             end
         end
-        guard_on = ctx.metadata.guard_on
-        if guard_on
-            outset = Cassette.overdub(ctx, MOI.eval_objective, evaluator, set_input)
-        else
-            outset = MOI.eval_objective(evaluator, set_input)
-        end
+        outset = MOI.eval_objective(evaluator, set_input)
         setstorage[k] = overwrite_or_intersect(outset, setstorage[k], x, lbd, ubd, subgrad_tol, sparsity, is_post, is_intersect,
                                                interval_intersect)
     end
@@ -719,16 +682,11 @@ function forward_univariate_tiepnt_1!(k::Int64, op::Int64, child_idx::Int64, set
     tp2 =  tp2storage[tidx1]
     new_tie_points = tp1 === Inf
 
-    guard_on = ctx.metadata.guard_on
-    if guard_on
-        outset, tp1, tp2 = Cassette.overdub(ctx, single_tp_set, op, tmp_set, setstorage[k], tp1, tp2, is_first_eval)
-    else
-        outset, tp1, tp2 = single_tp_set(op, tmp_set, setstorage[k], tp1, tp2, is_first_eval)
-    end
+    outset, tp1, tp2 = single_tp_set(op, tmp_set, setstorage[k], tp1, tp2, is_first_eval)
 
     if new_tie_points
-         tp1storage[tidx1] = tp1
-         tp2storage[tidx1] = tp2
+        tp1storage[tidx1] = tp1
+        tp2storage[tidx1] = tp2
     end
 
     setstorage[k] = overwrite_or_intersect(outset, setstorage[k], x, lbd, ubd, subgrad_tol, sparsity, is_post, is_intersect,
@@ -764,21 +722,14 @@ function forward_univariate_tiepnt_2!(k::Int64, op::Int64, child_idx::Int64, set
     new_tie_points = tp1 === Inf
 
     # Perform an evaluation of the univariate function overdubbed with Cassette.jl
-    guard_on = ctx.metadata.guard_on
-    if guard_on
-        outset, tp1, tp2, tp3, tp4 = Cassette.overdub(ctx, double_tp_set, op, tmp_set, setstorage[k],
-                                                      tp1, tp2, tp3, tp4, is_first_eval)
-    else
-        outset, tp1, tp2, tp3, tp4 = double_tp_set(op, tmp_set, setstorage[k], tp1, tp2, tp3, tp4, is_first_eval)
-    end
-    #Cassette.overdub(ctx, double_tp_set, op, tmp_set, setstorage[k], tp1, tp2, tp3, tp4, is_first_eval)
+    outset, tp1, tp2, tp3, tp4 = double_tp_set(op, tmp_set, setstorage[k], tp1, tp2, tp3, tp4, is_first_eval)
 
     # Store new tiepoints if new evaluation
     if new_tie_points
-         tp1storage[tidx1] = tp1
-         tp2storage[tidx1] = tp2
-         tp3storage[tidx2] = tp3
-         tp4storage[tidx2] = tp4
+        tp1storage[tidx1] = tp1
+        tp2storage[tidx1] = tp2
+        tp3storage[tidx2] = tp3
+        tp4storage[tidx2] = tp4
     end
 
     setstorage[k] = overwrite_or_intersect(outset, setstorage[k], x, lbd, ubd, subgrad_tol, sparsity, is_post, is_intersect,
@@ -807,14 +758,7 @@ function forward_univariate_user!(k::Int64, op::Int64, child_idx::Int64, arg_is_
 
     else
         tmp_set = setstorage[child_idx]
-
-        guard_on = ctx.metadata.guard_on
-        if guard_on
-            outset = Cassette.overdub(ctx, f, tmp_set)
-        else
-            outset = f(tmp_set)
-        end
-
+        outset = f(tmp_set)
         setstorage[k] = overwrite_or_intersect(outset, setstorage[k], x, lbd, ubd, subgrad_tol, sparsity,
                                                is_post, is_intersect, interval_intersect)
     end
@@ -835,13 +779,7 @@ function forward_univariate_other!(k::Int64, op::Int64, child_idx::Int64, setsto
                                    ctx::GuardCtx) where V
 
     tmp_set = setstorage[child_idx]
-
-    guard_on = ctx.metadata.guard_on
-    if guard_on
-        outset = Cassette.overdub(ctx, eval_univariate_set, op, tmp_set)
-    else
-        outset = eval_univariate_set(op, tmp_set)
-    end
+    outset = eval_univariate_set(op, tmp_set)
     setstorage[k] = overwrite_or_intersect(outset, setstorage[k], x, lbd, ubd, subgrad_tol, sparsity,
                                            is_post, is_intersect, interval_intersect)
 

@@ -344,7 +344,6 @@ Base.@kwdef mutable struct Evaluator <: MOI.AbstractNLPEvaluator
     "Context used to guard against domain violations & branch on these violations if necessary"
     subgrad_tighten::Bool = false
     reverse_subgrad_tighten::Bool = false
-    ctx::GuardCtx = GuardCtx()
 
     subexpressions::Vector{NonlinearExpression} = NonlinearExpression[]
     subexpressions_eval::Vector{Bool} = Bool[]
@@ -378,11 +377,6 @@ function set_node!(evaluator::Evaluator, n::NodeBB)
     end
     fill!(evaluator.subexpressions_eval, false)
     evaluator.is_first_eval = true
-
-    #@show node_lower_bounds
-    #@show node_upper_bounds
-    #@show eval_lower_bounds
-    #@show eval_upper_bounds
 
     return nothing
 end
