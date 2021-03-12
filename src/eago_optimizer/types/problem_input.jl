@@ -8,37 +8,23 @@ Base.@kwdef mutable struct InputProblem
 
     # variables (set by MOI.add_variable in variables.jl)
     _variable_info::Vector{VariableInfo} = VariableInfo[]
-    _variable_count::Int64 = 0
+    _variable_num::Int64 = 0
 
     # last constraint index added
-    _last_constraint_index::Int = 0
+    _constraint_index_num::Int = 0
 
     # linear constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
-    _linear_leq_constraints::Vector{Tuple{SAF, LT}} = Tuple{SAF, LT}[]
-    _linear_geq_constraints::Vector{Tuple{SAF, GT}} = Tuple{SAF, GT}[]
-    _linear_eq_constraints::Vector{Tuple{SAF, ET}} = Tuple{SAF, ET}[]
-
-    _linear_leq_count::Int = 0
-    _linear_geq_count::Int = 0
-    _linear_eq_count::Int = 0
+    _linear_leq_constraint::Vector{Tuple{SAF, LT}} = Tuple{SAF, LT}[]
+    _linear_geq_constraint::Vector{Tuple{SAF, GT}} = Tuple{SAF, GT}[]
+    _linear_eq_constraint::Vector{Tuple{SAF, ET}} = Tuple{SAF, ET}[]
 
     # quadratic constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
-    _quadratic_leq_constraints::Vector{Tuple{SQF, LT}} = Tuple{SQF, LT}[]
-    _quadratic_geq_constraints::Vector{Tuple{SQF, GT}} = Tuple{SQF, GT}[]
-    _quadratic_eq_constraints::Vector{Tuple{SQF, ET}} = Tuple{SQF, ET}[]
-
-    _quadratic_leq_count::Int = 0
-    _quadratic_geq_count::Int = 0
-    _quadratic_eq_count::Int = 0
+    _quadratic_leq_constraint::Vector{Tuple{SQF, LT}} = Tuple{SQF, LT}[]
+    _quadratic_geq_constraint::Vector{Tuple{SQF, GT}} = Tuple{SQF, GT}[]
+    _quadratic_eq_constraint::Vector{Tuple{SQF, ET}} = Tuple{SQF, ET}[]
 
     # conic constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
-    _conic_second_order::Vector{Tuple{VECOFVAR, SECOND_ORDER_CONE}} = Tuple{VECOFVAR, SECOND_ORDER_CONE}[]
-    _conic_power_corder::Vector{Tuple{VECOFVAR, POWER_CONE}} = Tuple{VECOFVAR, POWER_CONE}[]
-    _conic_exp_order::Vector{Tuple{VECOFVAR, EXP_CONE}} = Tuple{VECOFVAR, EXP_CONE}[]
-
-    _conic_second_order_count::Int = 0
-    _conic_power_count::Int = 0
-    _conic_exp_count::Int = 0
+    _conic_second_order_constraint::Vector{Tuple{VECOFVAR, SECOND_ORDER_CONE}} = Tuple{VECOFVAR, SECOND_ORDER_CONE}[]
 
     # nonlinear constraint storage
     _nonlinear_count::Int = 0
@@ -70,6 +56,81 @@ end
 end
 @inline _optimization_sense(d::InputProblem) = d._optimization_sense
 @inline _objective_type(d::InputProblem)     = d._objective_type
+
+function _add_var(d::InputProblem)
+    d._variable_num += 1
+    push!(d._variable_info, VariableInfo())
+    return VI(d._variable_num)
+end
+
+function _add_var_constraint!(d::InputProblem, f::SV, s::LT)
+    vi = v.variable
+    d._variable_info[vi.value].upper_bound = lt.upper
+    d._variable_info[vi.value].has_upper_bound = true
+    return CI{SV, LT}(vi.value)
+end
+
+function add_var_constraint!(d::InputProblem, v::SV, gt::GT)
+    vi = v.variable
+    d._variable_info[vi.value].lower_bound = gt.lower
+    d._variable_info[vi.value].has_lower_bound = true
+    return CI{SV, GT}(vi.value)
+end
+
+function _add_var_constraint!(d::InputProblem, v::SV, eq::ET)
+    vi = v.variable
+    d._variable_info[vi.value].lower_bound = eq.value
+    d._variable_info[vi.value].upper_bound = eq.value
+    d._variable_info[vi.value].has_lower_bound = true
+    d._variable_info[vi.value].has_upper_bound = true
+    d._variable_info[vi.value].is_fixed = true
+    return CI{SV, ET}(vi.value)
+end
+
+macro define_add_variable_constraint(F, S, array_name)
+    quote
+        function _add_variable_constraint!(d::InputProblem, f::$F, s::$S)
+            push!(d.$(array_name), (f, s))
+            return CI{F, S}(d._constraint_index_num)
+        end
+    end
+end
+
+macro define_addconstraint(F, S, array_name)
+    quote
+        function _add_constraint!(d::InputProblem, f::$F, s::$S)
+            push!(d.$(array_name), (f, s))
+            return CI{F, S}(d._constraint_index_num)
+        end
+    end
+end
+
+macro define_addobjective(F, field_name)
+    quote
+        function _setobjective!(d::InputProblem, func::F)
+            d.$field_name = func
+            d._objective_type = _moi_to_obj_type(func)
+            return nothing
+        end
+    end
+end
+
+@define_addconstraint SAF LT _linear_leq_constraint
+@define_addconstraint SAF GT _linear_geq_constraint
+@define_addconstraint SAF ET _linear_eq_constraint
+
+@define_addconstraint SQF LT _quadratic_leq_constraint
+@define_addconstraint SQF GT _quadratic_geq_constraint
+@define_addconstraint SQF ET _quadratic_eq_constraint
+@define_addconstraint VECOFVAR SECOND_ORDER_CONE _conic_second_order_constraint
+
+_moi_to_obj_type(d::SV) = SINGLE_VARIABLE
+_moi_to_obj_type(d::SAF) = SCALAR_AFFINE
+_moi_to_obj_type(d::SQF) = SCALAR_QUADRATIC
+
+@define_addobjective SV  _objective_sv
+@define_addobjective SAF _objective_saf
+@define_addobjective SQF _objective_sqf
 
 function Base.isempty(x::InputProblem)
 

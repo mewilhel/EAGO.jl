@@ -34,7 +34,7 @@ module EAGO
 
     @reexport using McCormick
     @reexport using SpecialFunctions
-    
+
     using IntervalContractors
 
     const MOI = MathOptInterface
@@ -55,9 +55,11 @@ module EAGO
     const SECOND_ORDER_CONE = MOI.SecondOrderCone
     const POWER_CONE = MOI.PowerCone
     const EXP_CONE = MOI.ExponentialCone
+    const PSDT = MOI.PositiveSemidefiniteConeTriangle
 
     const VI = MOI.VariableIndex
     const CI = MOI.ConstraintIndex
+    const ListCI = MOI.ListOfConstraintIndices
 
     const SCoefC = MOI.ScalarCoefficientChange
     const SConsC = MOI.ScalarConstantChange
