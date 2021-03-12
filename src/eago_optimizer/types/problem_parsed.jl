@@ -82,7 +82,7 @@ function _add_constraint!(wp::ParsedProblem, fs::Tuple{SQF,ET})
     return
 end
 
-function _add_constraint!(wp::ParsedProblem, fs::Tuple{VECVAR,SOCP})
+function _add_constraint!(wp::ParsedProblem, fs::Tuple{VECOFVAR,SOCP})
     soc_func, soc_set = fs
     first_variable_loc = soc_func.variables[1].value
     prior_lbnd = wp._variable_info[first_variable_loc].lower_bound

@@ -392,7 +392,7 @@ function initial_parse!(m::Optimizer)
     return nothing
 end
 
-function _parse_classify_problem(::Val{LP}, ip::InputProblem, wp::ParsedProblem
+function _parse_classify_problem(::Val{LP}, ip::InputProblem, wp::ParsedProblem)
     is_lp =  _objective_type(ip) == SINGLE_VARIABLE
     is_lp |= _objective_type(ip) == SCALAR_AFFINE
     is_lp &= _second_order_cone_num(ip)       == 0
@@ -405,7 +405,7 @@ function _parse_classify_problem(::Val{LP}, ip::InputProblem, wp::ParsedProblem
     return is_lp
 end
 
-function _parse_classify_problem(::Val{MILP}, ip::InputProblem, wp::ParsedProblem
+function _parse_classify_problem(::Val{MILP}, ip::InputProblem, wp::ParsedProblem)
     is_milp =  _objective_type(ip) == SINGLE_VARIABLE
     is_milp |= _objective_type(ip) == SCALAR_AFFINE
     is_milp &= _second_order_cone_num(ip)       == 0
@@ -418,7 +418,7 @@ function _parse_classify_problem(::Val{MILP}, ip::InputProblem, wp::ParsedProble
     return is_milp
 end
 
-function _parse_classify_problem(::Val{SOCP}, ip::InputProblem, wp::ParsedProblem
+function _parse_classify_problem(::Val{SOCP}, ip::InputProblem, wp::ParsedProblem)
     is_socp =  _objective_type(ip) == SINGLE_VARIABLE
     is_socp |= _objective_type(ip) == SCALAR_AFFINE
     is_socp &= _second_order_cone_num(ip)       > 0
@@ -431,6 +431,7 @@ function _parse_classify_problem(::Val{SOCP}, ip::InputProblem, wp::ParsedProble
     return is_socp
 end
 
+#=
 function _parse_classify_problem(::Val{MISOCP}, ip::InputProblem, wp::ParsedProblem)
     is_misocp =  _objective_type(ip) == SINGLE_VARIABLE
     is_misocp |= _objective_type(ip) == SCALAR_AFFINE
@@ -443,13 +444,8 @@ function _parse_classify_problem(::Val{MISOCP}, ip::InputProblem, wp::ParsedProb
     end
     return is_misocp
 end
+=#
 
-function _parse_classify_problem(::Val{MINCVX}, ip::InputProblem, wp::ParsedProblem)
-    wp._problem_type = MINCVX
-    return true
-end
-
-# is most general type support aka always true...
 function _parse_classify_problem(::Val{MINCVX}, ip::InputProblem, wp::ParsedProblem)
     wp._problem_type = MINCVX
     return true
@@ -466,7 +462,7 @@ function _parse_classify_problem!(m::Optimizer)
     _parse_classify_problem(Val{MILP}(), ip, wp)     && return
     _parse_classify_problem(Val{SOCP}(), ip, wp)     && return
     _parse_classify_problem(Val{SDP}(), ip, wp)      && return
-    _parse_classify_problem(Val{MISOCP}(), ip, wp)   && return
+    #_parse_classify_problem(Val{MISOCP}(), ip, wp)   && return
     _parse_classify_problem(Val{MINCVX}(), ip, wp)   && return
     return
 end

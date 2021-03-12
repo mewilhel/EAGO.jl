@@ -21,12 +21,12 @@ DIFF_NCVX   -> APPLY GLOBAL SOLVER (UNLESS USER REQUEST LOCAL SOLVE THEN NLP)
 MINCVX      -> APPLY GLOBAL SOLVER (LOCAL SOLVE OPTION FUTURE FEATURE)
 =#
 
-for (T, optimizer_field) in ((LP, lp_optimizer),
-                             (MILP, mip_optimizer),
-                             (SOCP, second_order_cone_optimizer),
-                             (SDP, semidefinite_optimizer),
-                             (DIFF_CVX, nlp_optimizer),
-                             (MINCVX, minlp_optimizer))
+for (T, optimizer_field) in ((LP, :lp_optimizer),
+                             (MILP, :mip_optimizer),
+                             (SOCP, :second_order_cone_optimizer),
+                             (SDP, :semidefinite_optimizer),
+                             (DIFF_CVX, :nlp_optimizer),
+                             (MICVX, :minlp_optimizer))
 
     @eval function optimize!(::Val{$T}, m::Optimizer)
         opt = m.$optimizer_field

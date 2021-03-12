@@ -24,7 +24,8 @@ module EAGO
                               register_multivariate_operator!
     using JuMP._Derivatives: univariate_operators,
                              univariate_operator_to_id
-    using Ipopt, GLPK
+
+    using Ipopt, COSMO, GLPK, Pavito
 
     using DataStructures: OrderedDict, BinaryMinMaxHeap, popmin!, popmax!, top
     using SparseArrays: SparseMatrixCSC, spzeros, rowvals, nzrange, nonzeros, sparse, findnz
@@ -85,7 +86,7 @@ module EAGO
     include("eago_optimizer/types/types.jl")
 
     # defines routines to add saf, sqf, and nlp block constraints
-    include("eago_optimizer/moi_api.jl")
+    include("eago_optimizer/moi_api_allocate_load.jl")
 
     # functions which print information to console
     include("eago_optimizer/display.jl")

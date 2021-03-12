@@ -16,52 +16,9 @@ MOI.supports(::Optimizer,
                      MOI.ObjectiveFunction{SQF}},
                      ) = true
 
-function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike; kws...)
-    @assert !copy_names
-    input_prob = dest._input_problem
-    idx_map = MOI.Utilities.IndexMap()
-
-    # add variables to index map & input problem
-    list_of_vi = MOI.ListOfVariableIndices()
-    foreach(i -> setindex!(idx_map, i, _add_var(input_prob)), list_of_vi)
-
-    get_ci_list(F, S) = MOI.get(src, MOI.ListOfConstraintIndices{F, S}())
-    get_con_fun(ci) = MOI.get(src, MOI.ConstraintFunction(), ci)
-    get_con_set(ci) = MOI.get(src, MOI.ConstraintSet(), ci)
-    function _populate!(F, S, imap)
-        for ci in get_ci_list(F, S)
-            input_prob._constraint_index_num += 1
-            imap[ci] = CI{F, S}(input_prob._constraint_index_num)
-            _add_constraint!(input_prob, get_con_fun(ci), get_con_set(ci))
-        end
-    end
-    function _populate_var!(F, S, imap)
-        for ci in get_ci_list(F, S)
-            imap[ci] = _add_var_constraint!(input_prob, get_con_fun(ci), get_con_set(ci))
-        end
-    end
-
-    _populate_var!(SV, LT, idx_map)
-    _populate_var!(SV, GT, idx_map)
-    _populate_var!(SV, ET, idx_map)
-
-    _populate!(SAF, LT, idx_map)
-    _populate!(SAF, GT, idx_map)
-    _populate!(SAF, ET, idx_map)
-
-    _populate!(SQF, LT, idx_map)
-    _populate!(SQF, GT, idx_map)
-    _populate!(SQF, ET, idx_map)
-
-    _populate!(VECOFVAR, SECOND_ORDER_CONE, idx_map)
-
-    _set!(input_prob, MOI.ObjectiveSense(), MOI.get(src, MOI.ObjectiveSense()))
-
-    # TODO NLP...
-
-    return idx_map
+function MOI.copy_to(model::Optimizer, src::MOI.ModelLike; copy_names = false)
+    return MOIU.default_copy_to(model, src, copy_names)
 end
-MOIU.supports_allocate_load(::Optimizer, copy_names::Bool) = !copy_names
 
 MOI.get(m::Optimizer, ::MOI.SolverName) = "EAGO: Easy Advanced Global Optimization"
 MOI.get(m::Optimizer, ::MOI.TerminationStatus) = m._termination_status_code
@@ -103,10 +60,17 @@ function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
     return nothing
 end
 
+function MOI.get(m::Optimizer, ::MOI.ListOfVariableIndices)
+    return MOI.VariableIndex[MOI.VariableIndex(i) for i = 1:_variable_num(m._input_problem)]
+end
+
 MOI.get(m::Optimizer, ::MOI.VariablePrimal, vi::MOI.VariableIndex) = m._continuous_solution[vi.value]
 MOI.get(m::Optimizer, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) = MOI.get.(m, p, vi)
 
-const EAGO_OPTIMIZER_ATTRIBUTES = Symbol[:relaxed_optimizer, :relaxed_optimizer_kwargs, :upper_optimizer,
+const EAGO_OPTIMIZER_ATTRIBUTES = Symbol[:relaxed_optimizer, :lp_optimizer, :mip_optimizer,
+                                         :socp_optimizer, :semidefinite_optimizer,
+                                         :nlp_optimizer, :minlp_optimizer,
+                                         :relaxed_optimizer_kwargs, :upper_optimizer,
                                          :enable_optimize_hook, :ext, :ext_type, :_parameters]
 const EAGO_MODEL_STRUCT_ATTRIBUTES = Symbol[:_stack, :_log, :_current_node, :_working_problem, :_input_problem]
 const EAGO_MODEL_NOT_STRUCT_ATTRIBUTES = setdiff(fieldnames(Optimizer), union(EAGO_OPTIMIZER_ATTRIBUTES,
@@ -183,4 +147,31 @@ function MOI.get(m::Optimizer, p::MOI.RawParameter)
     else
         return getfield(m, psym)
     end
+end
+
+MOI.add_variable(d::Optimizer) = MOI.add_variable(d._input_problem)
+
+function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{SV, SAF, SQF},
+                                                             S<:Union{ET, GT, LT}}
+    MOI.add_constraint(d._input_problem, f, s)
+end
+
+function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECOFVAR},
+                                                             S<:Union{SECOND_ORDER_CONE}}
+    MOI.add_constraint(d._input_problem, f, s)
+end
+
+function MOI.set(d::Optimizer, ::MOI.ObjectiveFunction{F}, func::F) where F<:Union{SV, SAF, SQF}
+    MOI.set(d._input_problem, MOI.ObjectiveFunction{F}(), func)
+end
+
+function MOI.set(d::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlock)
+    MOI.set(d._input_problem, MOI.NLPBlock(), nlp_data)
+end
+function MOI.set(d::Optimizer, ::MOI.NLPBlock, ::Nothing)
+    MOI.set(d._input_problem, MOI.NLPBlock(), nothing)
+end
+
+function MOI.set(d::Optimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
+    MOI.set(d._input_problem, MOI.ObjectiveSense(), sense)
 end

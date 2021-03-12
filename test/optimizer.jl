@@ -30,7 +30,7 @@ end
 
     m._parameters.verbosity = 2
     m._parameters.log_on = true
-    MOI.set(m, MOI.Silent(), 1)
+    MOI.set(m, MOI.Silent(), true)
     @test m._parameters.verbosity === 0
     @test m._parameters.log_on === false
 
@@ -76,9 +76,6 @@ end
     indx = @inferred MOI.get(model, MOI.ListOfVariableIndices())
     @test indx == @inferred MOI.VariableIndex[MOI.VariableIndex(1), MOI.VariableIndex(2),
                                     MOI.VariableIndex(3), MOI.VariableIndex(4)]
-
-    @test_nowarn @inferred EAGO.check_inbounds!(model, MOI.VariableIndex(1))
-    @test_throws ErrorException @inferred EAGO.check_inbounds!(model,MOI.VariableIndex(6))
 end
 
 @testset "Variable Bounds" begin
@@ -161,24 +158,24 @@ end
     @inferred MOI.add_constraint(model, func2, set2)
     @inferred MOI.add_constraint(model, func3, set3)
 
-    @test model._input_problem._linear_leq_constraints[1][1].constant == 2.0
-    @test model._input_problem._linear_geq_constraints[1][1].constant == 2.1
-    @test model._input_problem._linear_eq_constraints[1][1].constant == 2.2
-    @test model._input_problem._linear_leq_constraints[1][1].terms[1].coefficient == 5.0
-    @test model._input_problem._linear_geq_constraints[1][1].terms[1].coefficient == 4.0
-    @test model._input_problem._linear_eq_constraints[1][1].terms[1].coefficient == 3.0
-    @test model._input_problem._linear_leq_constraints[1][1].terms[2].coefficient == -2.3
-    @test model._input_problem._linear_geq_constraints[1][1].terms[2].coefficient == -2.2
-    @test model._input_problem._linear_eq_constraints[1][1].terms[2].coefficient == -3.3
-    @test model._input_problem._linear_leq_constraints[1][1].terms[1].variable_index.value == 1
-    @test model._input_problem._linear_geq_constraints[1][1].terms[1].variable_index.value == 2
-    @test model._input_problem._linear_eq_constraints[1][1].terms[1].variable_index.value == 1
-    @test model._input_problem._linear_leq_constraints[1][1].terms[2].variable_index.value == 2
-    @test model._input_problem._linear_geq_constraints[1][1].terms[2].variable_index.value == 3
-    @test model._input_problem._linear_eq_constraints[1][1].terms[2].variable_index.value == 3
-    @test MOI.LessThan{Float64}(1.0) == model._input_problem._linear_leq_constraints[1][2]
-    @test MOI.GreaterThan{Float64}(2.0) == model._input_problem._linear_geq_constraints[1][2]
-    @test MOI.EqualTo{Float64}(3.0) == model._input_problem._linear_eq_constraints[1][2]
+    @test model._input_problem._linear_leq_constraint[1][1].constant == 2.0
+    @test model._input_problem._linear_geq_constraint[1][1].constant == 2.1
+    @test model._input_problem._linear_eq_constraint[1][1].constant == 2.2
+    @test model._input_problem._linear_leq_constraint[1][1].terms[1].coefficient == 5.0
+    @test model._input_problem._linear_geq_constraint[1][1].terms[1].coefficient == 4.0
+    @test model._input_problem._linear_eq_constraint[1][1].terms[1].coefficient == 3.0
+    @test model._input_problem._linear_leq_constraint[1][1].terms[2].coefficient == -2.3
+    @test model._input_problem._linear_geq_constraint[1][1].terms[2].coefficient == -2.2
+    @test model._input_problem._linear_eq_constraint[1][1].terms[2].coefficient == -3.3
+    @test model._input_problem._linear_leq_constraint[1][1].terms[1].variable_index.value == 1
+    @test model._input_problem._linear_geq_constraint[1][1].terms[1].variable_index.value == 2
+    @test model._input_problem._linear_eq_constraint[1][1].terms[1].variable_index.value == 1
+    @test model._input_problem._linear_leq_constraint[1][1].terms[2].variable_index.value == 2
+    @test model._input_problem._linear_geq_constraint[1][1].terms[2].variable_index.value == 3
+    @test model._input_problem._linear_eq_constraint[1][1].terms[2].variable_index.value == 3
+    @test MOI.LessThan{Float64}(1.0) == model._input_problem._linear_leq_constraint[1][2]
+    @test MOI.GreaterThan{Float64}(2.0) == model._input_problem._linear_geq_constraint[1][2]
+    @test MOI.EqualTo{Float64}(3.0) == model._input_problem._linear_eq_constraint[1][2]
 end
 
 @testset "Add Quadratic Constraint " begin

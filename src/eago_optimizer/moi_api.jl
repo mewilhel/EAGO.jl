@@ -53,8 +53,8 @@ end
 #####
 
 function check_inbounds!(m::Optimizer, vi::VI)
-    if !(1 <= vi.value <= m._input_problem._variable_count)
-        error("Invalid variable index $vi. ($(m._input_problem._variable_count) variables in the model.)")
+    if !(1 <= vi.value <= m._input_problem._variable_num)
+        error("Invalid variable index $vi. ($(m._input_problem._variable_num) variables in the model.)")
     end
     return nothing
 end
@@ -141,7 +141,7 @@ function MOI.get(m::Optimizer, ::MOI.ObjectiveValue)
     return mult*m._objective_value
 end
 
-MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = m._input_problem._variable_count
+MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = m._input_problem._variable_num
 
 function MOI.get(m::Optimizer, ::MOI.ObjectiveBound)
     if m._input_problem._optimization_sense === MOI.MAX_SENSE
@@ -251,9 +251,9 @@ macro define_addconstraint_linear(function_type, set_type, array_name, count_nam
     end
 end
 
-@define_addconstraint_linear SAF LT _linear_leq_constraints _linear_leq_count
-@define_addconstraint_linear SAF GT _linear_geq_constraints _linear_geq_count
-@define_addconstraint_linear SAF ET _linear_eq_constraints _linear_eq_count
+@define_addconstraint_linear SAF LT _linear_leq_constraint _linear_leq_count
+@define_addconstraint_linear SAF GT _linear_geq_constraint _linear_geq_count
+@define_addconstraint_linear SAF ET _linear_eq_constraint _linear_eq_count
 
 ##### Supports function and add_constraint for scalar quadratic functions
 MOI.supports_constraint(::Optimizer, ::Type{SQF}, ::Type{S}) where {S <: INEQ_SETS} = true
@@ -305,9 +305,9 @@ is_integer(m::Optimizer, i::Int64) = is_integer(m._input_problem._variable_info[
 
 ##### Add unconstrained variables
 function MOI.add_variable(m::Optimizer)
-    m._input_problem._variable_count += 1
+    m._input_problem._variable_num += 1
     push!(m._input_problem._variable_info, VariableInfo())
-    return VI(m._input_problem._variable_count)
+    return VI(m._input_problem._variable_num)
 end
 MOI.add_variables(m::Optimizer, n::Int) = [MOI.add_variable(m) for i in 1:n]
 

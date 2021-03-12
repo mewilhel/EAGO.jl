@@ -51,7 +51,7 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     "Subsolver used to solve mixed-integer linear programs"
     mip_optimizer::MOI.AbstractOptimizer                = GLPK.Optimizer()
     "Subsolver used to solve second-order conic programs"
-    second_order_cone_optimizer::MOI.AbstractOptimizer  = COSMO.Optimizer()
+    socp_optimizer::MOI.AbstractOptimizer               = COSMO.Optimizer()
     "Semidefinite Programming Optimizer"
     semidefinite_optimizer::MOI.AbstractOptimizer       = COSMO.Optimizer()
     "Subsolver used to locally solve nonlinear programs"
