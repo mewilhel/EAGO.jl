@@ -55,6 +55,10 @@ function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike; kws...)
 
     _populate!(VECOFVAR, SECOND_ORDER_CONE, idx_map)
 
+    _set!(input_prob, MOI.ObjectiveSense(), MOI.get(src, MOI.ObjectiveSense()))
+
+    # TODO NLP...
+
     return idx_map
 end
 MOIU.supports_allocate_load(::Optimizer, copy_names::Bool) = !copy_names
@@ -102,6 +106,8 @@ end
 MOI.get(m::Optimizer, ::MOI.VariablePrimal, vi::MOI.VariableIndex) = m._continuous_solution[vi.value]
 MOI.get(m::Optimizer, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) = MOI.get.(m, p, vi)
 
+const EAGO_OPTIMIZER_ATTRIBUTES = Symbol[:relaxed_optimizer, :relaxed_optimizer_kwargs, :upper_optimizer,
+                                         :enable_optimize_hook, :ext, :ext_type, :_parameters]
 const EAGO_MODEL_STRUCT_ATTRIBUTES = Symbol[:_stack, :_log, :_current_node, :_working_problem, :_input_problem]
 const EAGO_MODEL_NOT_STRUCT_ATTRIBUTES = setdiff(fieldnames(Optimizer), union(EAGO_OPTIMIZER_ATTRIBUTES,
                                                                               EAGO_MODEL_STRUCT_ATTRIBUTES))
@@ -133,23 +139,6 @@ function MOI.is_empty(m::Optimizer)
     return is_empty_flag
 end
 
-#=
-
-#####
-#####
-##### General MOI utilities required
-#####
-#####
-const EAGO_OPTIMIZER_ATTRIBUTES = Symbol[:relaxed_optimizer, :relaxed_optimizer_kwargs, :upper_optimizer,
-                                         :enable_optimize_hook, :ext, :ext_type, :_parameters]
-
-
-#####
-#####
-##### Utilities for checking that JuMP model contains variables used in expression
-#####
-#####
-
 function MOI.get(m::Optimizer, ::MOI.ObjectiveValue)
     mult = 1.0
     if m._input_problem._optimization_sense == MOI.MAX_SENSE
@@ -158,7 +147,7 @@ function MOI.get(m::Optimizer, ::MOI.ObjectiveValue)
     return mult*m._objective_value
 end
 
-MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = m._input_problem._variable_count
+MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = m._input_problem._variable_num
 
 function MOI.get(m::Optimizer, ::MOI.ObjectiveBound)
     if m._input_problem._optimization_sense === MOI.MAX_SENSE
@@ -195,32 +184,3 @@ function MOI.get(m::Optimizer, p::MOI.RawParameter)
         return getfield(m, psym)
     end
 end
-
-#####
-#####
-##### Support, set, and evaluate objective functions
-#####
-#####
-MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
-MOI.supports(::Optimizer, ::MOI.ObjectiveSense) = true
-MOI.supports(::Optimizer, ::MOI.ObjectiveFunction{F}) where {F <: Union{SV, SAF, SQF}} = true
-
-function MOI.set(m::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
-    if nlp_data.has_objective
-        m._input_problem._objective_type = NONLINEAR
-    end
-    m._input_problem._nlp_data = nlp_data
-    return nothing
-end
-
-function MOI.set(m::Optimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
-    m._input_problem._optimization_sense = sense
-    return nothing
-end
-
-##### Access variable information from MOI variable index
-has_upper_bound(m::Optimizer, vi::MOI.VariableIndex) = m._input_problem._variable_info[vi.value].has_upper_bound
-has_lower_bound(m::Optimizer, vi::MOI.VariableIndex) = m._input_problem._variable_info[vi.value].has_lower_bound
-is_fixed(m::Optimizer, vi::MOI.VariableIndex) = m._input_problem._variable_info[vi.value].is_fixed
-is_integer(m::Optimizer, i::Int64) = is_integer(m._input_problem._variable_info[i])
-=#

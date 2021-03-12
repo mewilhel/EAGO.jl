@@ -90,7 +90,7 @@ end
 macro define_add_variable_constraint(F, S, array_name)
     quote
         function _add_variable_constraint!(d::InputProblem, f::$F, s::$S)
-            push!(d.$(array_name), (f, s))
+            push!(d.$(array_name), (copy(f), s))
             return CI{F, S}(d._constraint_index_num)
         end
     end
@@ -99,7 +99,7 @@ end
 macro define_addconstraint(F, S, array_name)
     quote
         function _add_constraint!(d::InputProblem, f::$F, s::$S)
-            push!(d.$(array_name), (f, s))
+            push!(d.$(array_name), (copy(f), s))
             return CI{F, S}(d._constraint_index_num)
         end
     end
@@ -131,6 +131,19 @@ _moi_to_obj_type(d::SQF) = SCALAR_QUADRATIC
 @define_addobjective SV  _objective_sv
 @define_addobjective SAF _objective_saf
 @define_addobjective SQF _objective_sqf
+
+function _set!(d::InputProblem, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
+    if nlp_data.has_objective
+        d._objective_type = NONLINEAR
+    end
+    d._nlp_data = nlp_data
+    return
+end
+
+function _set!(d::InputProblem, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
+    d._optimization_sense = sense
+    return
+end
 
 function Base.isempty(x::InputProblem)
 
