@@ -1,3 +1,4 @@
+#=
 function add_variables(m::Optimizer, optimizer::T, variable_number::Int) where T
 
     variable_index = fill(VI(1), variable_number)
@@ -99,3 +100,12 @@ function optimize!(::Val{LP}, m::Optimizer)
 end
 
 optimize!(::Val{MILP}, m::Optimizer) = optimize!(Val{LP}(), m)
+
+
+function _add_quadratic_constraints!(ip::InputProblem, opt::T) where T
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_leq_constraints(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_geq_constraints(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_eq_constraints(ip))
+    return nothing
+end
+=#

@@ -714,6 +714,26 @@ function fallback_interval_lower_bound!(m::Optimizer, n::NodeBB)
     return nothing
 end
 
+function intrepret_relaxed_solution!(m::Optimizer, d::T) where T
+    valid_flag, feasible_flag = is_globally_optimal(m._lower_termination_status,
+                                                    m._lower_result_status)
+    if valid_flag && feasible_flag
+        set_dual!(m)
+        m._cut_add_flag = true
+        m._lower_feasibility = true
+        m._lower_objective_value = MOI.get(d, MOI.ObjectiveValue())
+        for i = 1:_variable_num(_working_problem(m))
+             m._lower_solution[i] = MOI.get(d, MOI.VariablePrimal(),
+                                               m._relaxed_variable_index[i])
+        end
+    elseif valid_flag
+        m._cut_add_flag = false
+        m._lower_feasibility  = false
+        m._lower_objective_value = -Inf
+    end
+    return valid_flag
+end
+
 """
 $(SIGNATURES)
 
@@ -743,31 +763,9 @@ function lower_problem!(t::ExtensionType, m::Optimizer)
     relax_objective!(m, 1)
 
     # Optimizes the object
-    relaxed_optimizer = m.relaxed_optimizer
-
-    MOI.set(relaxed_optimizer, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-
-    MOI.optimize!(relaxed_optimizer)
-
-    m._lower_termination_status = MOI.get(relaxed_optimizer, MOI.TerminationStatus())
-    m._lower_result_status = MOI.get(relaxed_optimizer, MOI.PrimalStatus())
-    valid_flag, feasible_flag = is_globally_optimal(m._lower_termination_status, m._lower_result_status)
-
-    if valid_flag && feasible_flag
-        set_dual!(m)
-        m._cut_add_flag = true
-        m._lower_feasibility = true
-        m._lower_objective_value = MOI.get(relaxed_optimizer, MOI.ObjectiveValue())
-        for i = 1:m._working_problem._variable_count
-             m._lower_solution[i] = MOI.get(relaxed_optimizer, MOI.VariablePrimal(), m._relaxed_variable_index[i])
-        end
-
-    elseif valid_flag
-        m._cut_add_flag = false
-        m._lower_feasibility  = false
-        m._lower_objective_value = -Inf
-
-    else
+    MOI.set(m.relaxed_optimizer, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.optimize!(m.relaxed_optimizer)
+    if !intrepret_relaxed_solution(m, m.relaxed_optimizer)
         fallback_interval_lower_bound!(m, n)
     end
 

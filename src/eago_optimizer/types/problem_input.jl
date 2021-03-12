@@ -4,7 +4,7 @@ $(TYPEDEF)
 A structure used to hold objectives and constraints added to EAGO model.
 The constraints generally aren't used for relaxations.
 """
-Base.@kwdef mutable struct InputProblem
+Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
 
     # variables (set by MOI.add_variable in variables.jl)
     _variable_info::Vector{VariableInfo} = VariableInfo[]

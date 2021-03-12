@@ -10,7 +10,7 @@
 # throw_optimize_hook!.
 #############################################################################
 
-include("optimize_lp_cone.jl")
+include("optimize_subsolve.jl")
 include("optimize_convex.jl")
 include("optimize_nonconvex.jl")
 

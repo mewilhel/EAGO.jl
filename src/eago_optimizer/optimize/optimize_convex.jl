@@ -12,13 +12,6 @@
 # solve_local_nlp! are also included.
 #############################################################################
 
-function _add_quadratic_constraints!(ip::InputProblem, opt::T) where T
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_leq_constraints(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_geq_constraints(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_eq_constraints(ip))
-    return nothing
-end
-
 """
 
 Shifts the resulting local nlp objective value `f*` by `(1.0 + relative_tolerance/100.0)*f* + absolute_tolerance/100.0`.
@@ -176,13 +169,6 @@ function solve_local_nlp!(m::Optimizer)
         m._upper_objective_value = Inf
 
     end
-
-    return nothing
-end
-
-function optimize!(::Val{DIFF_CVX}, m::Optimizer)
-
-    solve_local_nlp!(m)
 
     return nothing
 end

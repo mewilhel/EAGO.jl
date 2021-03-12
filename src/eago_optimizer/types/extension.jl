@@ -11,4 +11,4 @@ MOIU.map_indices(::Function, x::ExtensionType) = x
 MOIU.map_indices(::Function, x::DefaultExt) = x
 
 @enum(ObjectiveType, UNSET, SINGLE_VARIABLE, SCALAR_AFFINE, SCALAR_QUADRATIC, NONLINEAR)
-@enum(ProblemType, UNCLASSIFIED, LP, MILP, SOCP, MISOCP, DIFF_CVX, MINCVX)
+@enum(ProblemType, UNCLASSIFIED, LP, MILP, SOCP, SDP, DIFF_CVX, MINCVX)
