@@ -31,7 +31,7 @@ for (T, optimizer_field) in ((LP, :lp_optimizer),
     @eval function optimize!(::Val{$T}, m::Optimizer)
         opt = m.$optimizer_field
         MOI.empty!(opt)
-        MOI.copyto!(opt, m._input_problem)
+        MOI.copy_to(opt, m._input_problem)
         set_config!(m, opt)
 
         if m._parameters.verbosity < 5

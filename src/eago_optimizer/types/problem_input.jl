@@ -45,15 +45,18 @@ end
 @inline _variable_num(d::InputProblem) = d._variable_num
 @inline _integer_variable_num(d::InputProblem) = count(is_integer.(d._variable_info))
 @inline function _second_order_cone_num(d::InputProblem)
-    d._conic_second_order_count
+    length(d._conic_second_order_constraint)
 end
 @inline function _quadratic_num(d::InputProblem)
-    d._quadratic_leq_count + d._quadratic_geq_count + d._quadratic_eq_count
+    num = length(d._quadratic_leq_constraint)
+    num += length(d._quadratic_geq_constraint)
+    num += length(d._quadratic_eq_constraint)
+    return num
 end
 @inline function _nl_expr_num(d::InputProblem)
-    nl_expr_number = d._objective_type === NONLINEAR ? 1 : 0
-    nl_expr_number += d._nonlinear_count
-    return nl_expr_number
+    num = d._objective_type === NONLINEAR ? 1 : 0
+    num += d._nonlinear_count
+    return num
 end
 @inline _optimization_sense(d::InputProblem) = d._optimization_sense
 @inline _objective_type(d::InputProblem)     = d._objective_type
@@ -138,25 +141,28 @@ function MOI.add_constraint(d::InputProblem, v::SV, eq::ET)
 end
 
 macro define_addconstraint(F, S, array_name)
-    quote
-        function MOI.add_constraint(d::InputProblem, f::$F, s::$S)
-            _check_inbounds!(d, f)
-            d._constraint_index_num += 1
-            push!(d.$(array_name), (copy(f), s))
-            return CI{$F, $S}(d._constraint_index_num)
-        end
-    end
+    esc(quote
+            function MOI.add_constraint(d::InputProblem, f::$F, s::$S)
+                _check_inbounds!(d, f)
+                d._constraint_index_num += 1
+                push!(d.$(array_name), (copy(f), s))
+                return CI{$F, $S}(d._constraint_index_num)
+            end
+            function ($array_name)(d::InputProblem)
+                return d.$(array_name)
+            end
+        end)
 end
 
 macro define_addobjective(F, field_name)
-    quote
-        function MOI.set(d::InputProblem, ::MOI.ObjectiveFunction{$F}, func::$F)
-            _check_inbounds!(d, f)
-            d.$field_name = func
-            d._objective_type = _moi_to_obj_type(func)
-            return nothing
-        end
-    end
+    esc(quote
+            function MOI.set(d::InputProblem, ::MOI.ObjectiveFunction{$F}, f::$F)
+                _check_inbounds!(d, f)
+                d.$field_name = f
+                d._objective_type = _moi_to_obj_type(f)
+                return nothing
+            end
+    end)
 end
 
 @define_addconstraint SAF LT _linear_leq_constraint

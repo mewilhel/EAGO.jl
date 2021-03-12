@@ -148,7 +148,7 @@ function label_branch_variables!(m::Optimizer)
         append!(m._branch_variables, m._parameters.branch_variable)
     else
 
-        append!(m._branch_variables, fill(false, m._working_problem._variable_count))
+        append!(m._branch_variables, fill(false, m._working_problem._variable_num))
 
         # adds nonlinear terms in quadratic constraints
         sqf_leq = m._working_problem._sqf_leq
@@ -202,7 +202,7 @@ function label_branch_variables!(m::Optimizer)
     end
 
     # add a map of branch/node index to variables in the continuous solution
-    for i = 1:m._working_problem._variable_count
+    for i = 1:m._working_problem._variable_num
         if m._working_problem._variable_info[i].is_fixed
             m._branch_variables[i] = false
             continue
@@ -213,7 +213,7 @@ function label_branch_variables!(m::Optimizer)
     end
 
     # creates reverse map
-    m._sol_to_branch_map = zeros(m._working_problem._variable_count)
+    m._sol_to_branch_map = zeros(m._working_problem._variable_num)
     for i = 1:length(m._branch_to_sol_map)
         j = m._branch_to_sol_map[i]
         m._sol_to_branch_map[j] = i
@@ -228,9 +228,9 @@ function label_branch_variables!(m::Optimizer)
 end
 
 
-add_nonlinear_functions!(m::Optimizer) = add_nonlinear_functions!(m, m._input_problem._nlp_data.evaluator)
-
-add_nonlinear_functions!(m::Optimizer, evaluator::Nothing) = nothing
+add_nonlinear_functions!(m::Optimizer) = add_nonlinear_functions!(m, m._input_problem._nlp_data)
+add_nonlinear_functions!(m::Optimizer, b::Nothing) = nothing
+add_nonlinear_functions!(m::Optimizer, b::MOI.NLPBlockData) = add_nonlinear_functions!(m, b.evaluator)
 add_nonlinear_functions!(m::Optimizer, evaluator::EmptyNLPEvaluator) = nothing
 function add_nonlinear_functions!(m::Optimizer, evaluator::JuMP.NLPEvaluator)
 
@@ -294,12 +294,7 @@ function add_nonlinear_functions!(m::Optimizer, evaluator::JuMP.NLPEvaluator)
     return nothing
 end
 
-function add_nonlinear_evaluator!(m::Optimizer)
-    evaluator = m._input_problem._nlp_data.evaluator
-    add_nonlinear_evaluator!(m, evaluator)
-    return nothing
-end
-
+add_nonlinear_evaluator!(m::Optimizer) = add_nonlinear_evaluator!(m, m._input_problem._nlp_data)
 add_nonlinear_evaluator!(m::Optimizer, evaluator::Nothing) = nothing
 add_nonlinear_evaluator!(m::Optimizer, evaluator::EmptyNLPEvaluator) = nothing
 function add_nonlinear_evaluator!(m::Optimizer, evaluator::JuMP.NLPEvaluator)
@@ -343,20 +338,20 @@ function initial_parse!(m::Optimizer)
 
     # add variables to working model
     wp._variable_info = copy(ip._variable_info)
-    wp._variable_count = ip._variable_count
+    wp._variable_num = ip._variable_num
 
     # add linear constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x), _linear_leq_constraints(ip))
-    foreach(x -> _add_constraint!(wp, x), _linear_geq_constraints(ip))
-    foreach(x -> _add_constraint!(wp, x), _linear_eq_constraints(ip))
+    foreach(x -> _add_constraint!(wp, x), _linear_leq_constraint(ip))
+    foreach(x -> _add_constraint!(wp, x), _linear_geq_constraint(ip))
+    foreach(x -> _add_constraint!(wp, x), _linear_eq_constraint(ip))
 
     # add quadratic constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x), _quadratic_leq_constraints(ip))
-    foreach(x -> _add_constraint!(wp, x), _quadratic_geq_constraints(ip))
-    foreach(x -> _add_constraint!(wp, x), _quadratic_eq_constraints(ip))
+    foreach(x -> _add_constraint!(wp, x), _quadratic_leq_constraint(ip))
+    foreach(x -> _add_constraint!(wp, x), _quadratic_geq_constraint(ip))
+    foreach(x -> _add_constraint!(wp, x), _quadratic_eq_constraint(ip))
 
     # add conic constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x), _second_order_cone_constraints(ip))
+    foreach(x -> _add_constraint!(wp, x), _conic_second_order_constraint(ip))
 
     # set objective function
     m._working_problem._objective_type = ip._objective_type

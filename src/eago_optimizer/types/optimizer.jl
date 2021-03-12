@@ -246,3 +246,6 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     #_relaxed_evaluator::Evaluator = Evaluator{1,NS}()
     #_relaxed_constraint_bounds::Vector{MOI.NLPBoundsPair} = Vector{MOI.NLPBoundsPair}[]
 end
+
+_input_problem(m::Optimizer) = m._input_problem
+_working_problem(m::Optimizer) = m._working_problem

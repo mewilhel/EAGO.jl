@@ -203,27 +203,27 @@ end
     @inferred MOI.add_constraint(model, func2, set2)
     @inferred MOI.add_constraint(model, func3, set3)
 
-    @test model._input_problem._quadratic_leq_constraints[1][1].constant == 2.0
-    @test model._input_problem._quadratic_geq_constraints[1][1].constant == 2.1
-    @test model._input_problem._quadratic_eq_constraints[1][1].constant == 2.2
-    @test model._input_problem._quadratic_leq_constraints[1][1].quadratic_terms[1].coefficient == 2.5
-    @test model._input_problem._quadratic_geq_constraints[1][1].quadratic_terms[1].coefficient == 2.2
-    @test model._input_problem._quadratic_eq_constraints[1][1].quadratic_terms[1].coefficient == 2.1
-    @test model._input_problem._quadratic_leq_constraints[1][1].affine_terms[1].coefficient == 5.0
-    @test model._input_problem._quadratic_geq_constraints[1][1].affine_terms[1].coefficient == 4.0
-    @test model._input_problem._quadratic_eq_constraints[1][1].affine_terms[1].coefficient == 3.0
-    @test model._input_problem._quadratic_leq_constraints[1][1].quadratic_terms[1].variable_index_1.value == 2
-    @test model._input_problem._quadratic_geq_constraints[1][1].quadratic_terms[1].variable_index_1.value == 1
-    @test model._input_problem._quadratic_eq_constraints[1][1].quadratic_terms[1].variable_index_1.value == 1
-    @test model._input_problem._quadratic_leq_constraints[1][1].quadratic_terms[1].variable_index_2.value == 2
-    @test model._input_problem._quadratic_geq_constraints[1][1].quadratic_terms[1].variable_index_2.value == 2
-    @test model._input_problem._quadratic_eq_constraints[1][1].quadratic_terms[1].variable_index_2.value == 1
-    @test model._input_problem._quadratic_leq_constraints[1][1].affine_terms[1].variable_index.value == 1
-    @test model._input_problem._quadratic_geq_constraints[1][1].affine_terms[1].variable_index.value == 2
-    @test model._input_problem._quadratic_eq_constraints[1][1].affine_terms[1].variable_index.value == 3
-    @test MOI.LessThan{Float64}(1.0) == model._input_problem._quadratic_leq_constraints[1][2]
-    @test MOI.GreaterThan{Float64}(2.0) == model._input_problem._quadratic_geq_constraints[1][2]
-    @test MOI.EqualTo{Float64}(3.0) == model._input_problem._quadratic_eq_constraints[1][2]
+    @test model._input_problem._quadratic_leq_constraint[1][1].constant == 2.0
+    @test model._input_problem._quadratic_geq_constraint[1][1].constant == 2.1
+    @test model._input_problem._quadratic_eq_constraint[1][1].constant == 2.2
+    @test model._input_problem._quadratic_leq_constraint[1][1].quadratic_terms[1].coefficient == 2.5
+    @test model._input_problem._quadratic_geq_constraint[1][1].quadratic_terms[1].coefficient == 2.2
+    @test model._input_problem._quadratic_eq_constraint[1][1].quadratic_terms[1].coefficient == 2.1
+    @test model._input_problem._quadratic_leq_constraint[1][1].affine_terms[1].coefficient == 5.0
+    @test model._input_problem._quadratic_geq_constraint[1][1].affine_terms[1].coefficient == 4.0
+    @test model._input_problem._quadratic_eq_constraint[1][1].affine_terms[1].coefficient == 3.0
+    @test model._input_problem._quadratic_leq_constraint[1][1].quadratic_terms[1].variable_index_1.value == 2
+    @test model._input_problem._quadratic_geq_constraint[1][1].quadratic_terms[1].variable_index_1.value == 1
+    @test model._input_problem._quadratic_eq_constraint[1][1].quadratic_terms[1].variable_index_1.value == 1
+    @test model._input_problem._quadratic_leq_constraint[1][1].quadratic_terms[1].variable_index_2.value == 2
+    @test model._input_problem._quadratic_geq_constraint[1][1].quadratic_terms[1].variable_index_2.value == 2
+    @test model._input_problem._quadratic_eq_constraint[1][1].quadratic_terms[1].variable_index_2.value == 1
+    @test model._input_problem._quadratic_leq_constraint[1][1].affine_terms[1].variable_index.value == 1
+    @test model._input_problem._quadratic_geq_constraint[1][1].affine_terms[1].variable_index.value == 2
+    @test model._input_problem._quadratic_eq_constraint[1][1].affine_terms[1].variable_index.value == 3
+    @test MOI.LessThan{Float64}(1.0) == model._input_problem._quadratic_leq_constraint[1][2]
+    @test MOI.GreaterThan{Float64}(2.0) == model._input_problem._quadratic_geq_constraint[1][2]
+    @test MOI.EqualTo{Float64}(3.0) == model._input_problem._quadratic_eq_constraint[1][2]
 end
 
 @testset "Set Objective" begin
