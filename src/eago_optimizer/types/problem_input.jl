@@ -26,7 +26,6 @@ Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
     # conic constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
     _conic_socp::Dict{CI{VECOFVAR,SECOND_ORDER_CONE},Tuple{VECOFVAR,SECOND_ORDER_CONE}} = Dict{CI{VECOFVAR, SECOND_ORDER_CONE},
                                                                                                Tuple{VECOFVAR, SECOND_ORDER_CONE}}()
-
     # nonlinear constraint storage
     _variable_num::Int64 = 0
     _constraint_index_num::Int = 0
@@ -149,26 +148,35 @@ function MOI.add_constraint(d::InputProblem, v::SV, eq::ET)
     return ci
 end
 
-for (S, arr_name) in ((ET, :_variable_eq), (LT, :_variable_lt), (GT, :_variable_gt))
+for (S, dict) in ((ET, :_variable_eq), (LT, :_variable_leq), (GT, :_variable_geq))
     @eval function MOI.get(d::InputProblem, ::MOI.ListOfConstraintIndices{SV,$S})
-        return keys(d.$arr_name)
+        return collect(keys(d.$dict))
+    end
+    @eval function MOI.get(d::InputProblem, ::MOI.ConstraintFunction, ci::CI{SV,$S})
+        return d.$dict[ci]
     end
 end
 
-macro define_constraint(F, S, array_name)
+macro define_constraint(F, S, dict_name)
     esc(quote
             function MOI.add_constraint(d::InputProblem, f::$F, s::$S)
                 _check_inbounds!(d, f)
                 d._constraint_index_num += 1
                 ci = CI{$F,$S}(d._constraint_index_num)
-                d.$(array_name)[ci] = (copy(f), s)
+                d.$(dict_name)[ci] = (copy(f), s)
                 return ci
             end
             function MOI.get(d::InputProblem, ::MOI.ListOfConstraintIndices{$F,$S})
-                return keys(d.$array_name)
+                return collect(keys(d.$dict_name))
             end
-            function ($array_name)(d::InputProblem)
-                return d.$(array_name)
+            function ($dict_name)(d::InputProblem)
+                return d.$(dict_name)
+            end
+            function MOI.get(d::InputProblem, ::MOI.ConstraintFunction, ci::CI{$F,$S})
+                return first(d.$dict_name[ci])
+            end
+            function MOI.get(d::InputProblem, ::MOI.ConstraintSet, ci::CI{$F,$S})
+                return second(d.$dict_name[ci])
             end
         end)
 end
