@@ -377,6 +377,7 @@ end
     @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
 end
 
+#=
 @testset "LP #4" begin
     m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
                                         "presolve_scrubber_flag" => false,
@@ -428,6 +429,7 @@ end
     @test JuMP.termination_status(m) == MOI.OPTIMAL
     @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
 end
+=#
 
 @testset "MILP #1" begin
     m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,

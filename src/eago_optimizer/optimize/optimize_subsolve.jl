@@ -34,8 +34,8 @@ function _unpack_final_solve!(m::Optimizer, opt::T; adjust_bnd::Bool = true) whe
             m._global_lower_bound = MOI.get(opt, MOI.ObjectiveBound())
             m._global_upper_bound = MOI.get(opt, MOI.ObjectiveValue())
         else
-            m._global_lower_bound = MOI.get(opt, MOI.ObjectiveSolution())
-            m._global_upper_bound = MOI.get(opt, MOI.ObjectiveValue())
+            m._global_lower_bound = MOI.get(opt, MOI.ObjectiveValue())
+            m._global_upper_bound = MOI.get(opt, MOI.ObjectiveBound())
         end
     end
 

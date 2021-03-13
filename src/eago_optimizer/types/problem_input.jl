@@ -49,6 +49,7 @@ MOI.supports_constraint(::InputProblem,
                         ::Type{<:Union{SV, SAF, SQF}},
                         ::Type{<:Union{ET, GT, LT}},
                         ) = true
+MOI.supports_constraint(::InputProblem, ::SV, ::ZO) = true
 
 MOI.supports_constraint(::InputProblem,
                         ::Type{<:Union{VECOFVAR}},

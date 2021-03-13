@@ -3,6 +3,7 @@ MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{SV, SAF, SQF}},
                         ::Type{<:Union{ET, GT, LT}},
                         ) = true
+MOI.supports_constraint(::Optimizer, ::SV, ::ZO) = true
 
 MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{VECOFVAR}},
@@ -155,6 +156,7 @@ function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{SV, SAF, S
                                                              S<:Union{ET, GT, LT}}
     MOI.add_constraint(d._input_problem, f, s)
 end
+MOI.add_constraint(d::Optimizer, f::SV, s::ZO) = MOI.add_constraint(d._input_problem, f, s)
 
 function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECOFVAR},
                                                              S<:Union{SECOND_ORDER_CONE}}
