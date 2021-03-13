@@ -361,6 +361,9 @@ end
     @constraint(m, y >= 0)
 
     JuMP.optimize!(m)
+    # OBJECTIVE VALUE AND X VALUE DON'T MATCH
+
+    @show objective_function_type(m)
 
     @test isapprox(JuMP.value(x), -1.0, atol=1E-4)
     @test isapprox(JuMP.value(q), 1.0, atol=1E-4)

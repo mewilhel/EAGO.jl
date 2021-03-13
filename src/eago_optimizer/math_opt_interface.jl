@@ -44,19 +44,10 @@ MOI.set(m::Optimizer, ::MOI.TimeLimitSec, ::Nothing)      = (m._parameters.time_
 MOI.set(m::Optimizer, ::MOI.TimeLimitSec, value::Float64) = (m._parameters.time_limit = value; return)
 
 function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
-    if p.name isa String
-        psym = Symbol(p.name)
-    elseif p.name isa Symbol
-        psym = p.name
-    else
+    if !(p.name isa String) && !(p.name isa Symbol)
         error("EAGO only supports raw parameters with Symbol or String names.")
     end
-
-    if psym in fieldnames(EAGOParameters)
-        setfield!(m._parameters, psym, value)
-    else
-        setfield!(m, psym, value)
-    end
+    setfield!(m, Symbol(p.name), value)
 
     return nothing
 end
