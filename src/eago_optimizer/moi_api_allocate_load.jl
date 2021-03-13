@@ -61,7 +61,7 @@ function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
 end
 
 function MOI.get(m::Optimizer, ::MOI.ListOfVariableIndices)
-    return MOI.VariableIndex[MOI.VariableIndex(i) for i = 1:_variable_num(m._input_problem)]
+    MOI.get(m._input_problem, MOI.ListOfVariableIndices())
 end
 
 MOI.get(m::Optimizer, ::MOI.VariablePrimal, vi::MOI.VariableIndex) = m._continuous_solution[vi.value]

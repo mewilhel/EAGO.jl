@@ -8,6 +8,10 @@ Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
 
     # variables (set by MOI.add_variable in variables.jl)
     _variable_info::Vector{VariableInfo} = VariableInfo[]
+
+    _variable_leq_constraint::Vector{Tuple{SV, LT}} = Tuple{SAF, LT}[]
+    _variable_geq_constraint::Vector{Tuple{SV, GT}} = Tuple{SAF, GT}[]
+    _variable_eq_constraint::Vector{Tuple{SV, ET}} = Tuple{SAF, ET}[]
     _variable_num::Int64 = 0
 
     # last constraint index added
@@ -39,7 +43,7 @@ Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
     _nlp_data::Union{MOI.NLPBlockData,Nothing} = nothing
 
     # objective sense information (set by MOI.set(m, ::ObjectiveSense...) in optimizer.jl)
-    _optimization_sense::MOI.OptimizationSense = MOI.MIN_SENSE
+    _optimization_sense::MOI.OptimizationSense = MOI.FEASIBILITY_SENSE
 end
 
 @inline _variable_num(d::InputProblem) = d._variable_num
@@ -100,6 +104,7 @@ function MOI.add_constraint(d::InputProblem, v::SV, lt::LT)
     elseif _is_fixed(d, vi)
         error("Variable $vi is fixed. Cannot also set upper bound.")
     end
+    push!(d._variable_leq_constraint, (v, lt))
     d._variable_info[vi.value].upper_bound = lt.upper
     d._variable_info[vi.value].has_upper_bound = true
     return CI{SV, LT}(vi.value)
@@ -115,6 +120,7 @@ function MOI.add_constraint(d::InputProblem, v::SV, gt::GT)
     elseif _is_fixed(d, vi)
         error("Variable $vi is fixed. Cannot also set lower bound.")
     end
+    push!(d._variable_leq_constraint, (v, gt))
     d._variable_info[vi.value].lower_bound = gt.lower
     d._variable_info[vi.value].has_lower_bound = true
     return CI{SV, GT}(vi.value)
@@ -132,6 +138,7 @@ function MOI.add_constraint(d::InputProblem, v::SV, eq::ET)
     elseif _is_fixed(d, vi)
         error("Variable $vi is already fixed.")
     end
+    push!(d._variable_leq_constraint, (v, eq))
     d._variable_info[vi.value].lower_bound = eq.value
     d._variable_info[vi.value].upper_bound = eq.value
     d._variable_info[vi.value].has_lower_bound = true
@@ -140,7 +147,7 @@ function MOI.add_constraint(d::InputProblem, v::SV, eq::ET)
     return CI{SV, ET}(vi.value)
 end
 
-macro define_addconstraint(F, S, array_name)
+macro define_constraint(F, S, array_name)
     esc(quote
             function MOI.add_constraint(d::InputProblem, f::$F, s::$S)
                 _check_inbounds!(d, f)
@@ -154,39 +161,40 @@ macro define_addconstraint(F, S, array_name)
         end)
 end
 
-macro define_addobjective(F, field_name)
+macro define_objective(F, field_name)
     esc(quote
             function MOI.set(d::InputProblem, ::MOI.ObjectiveFunction{$F}, f::$F)
                 _check_inbounds!(d, f)
-                d.$field_name = f
+                d.$field_name = copy(f)
                 d._objective_type = _moi_to_obj_type(f)
                 return nothing
             end
+            MOI.get(d::InputProblem, ::MOI.ObjectiveFunction{$F}) = d.$field_name
     end)
 end
 
-@define_addconstraint SAF LT _linear_leq_constraint
-@define_addconstraint SAF GT _linear_geq_constraint
-@define_addconstraint SAF ET _linear_eq_constraint
+@define_constraint SAF LT _linear_leq_constraint
+@define_constraint SAF GT _linear_geq_constraint
+@define_constraint SAF ET _linear_eq_constraint
 
-@define_addconstraint SQF LT _quadratic_leq_constraint
-@define_addconstraint SQF GT _quadratic_geq_constraint
-@define_addconstraint SQF ET _quadratic_eq_constraint
-@define_addconstraint VECOFVAR SECOND_ORDER_CONE _conic_second_order_constraint
+@define_constraint SQF LT _quadratic_leq_constraint
+@define_constraint SQF GT _quadratic_geq_constraint
+@define_constraint SQF ET _quadratic_eq_constraint
+@define_constraint VECOFVAR SECOND_ORDER_CONE _conic_second_order_constraint
 
 _moi_to_obj_type(d::SV) = SINGLE_VARIABLE
 _moi_to_obj_type(d::SAF) = SCALAR_AFFINE
 _moi_to_obj_type(d::SQF) = SCALAR_QUADRATIC
 
-@define_addobjective SV  _objective_sv
-@define_addobjective SAF _objective_saf
-@define_addobjective SQF _objective_sqf
+@define_objective SV  _objective_sv
+@define_objective SAF _objective_saf
+@define_objective SQF _objective_sqf
 
 function MOI.set(d::InputProblem, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     if nlp_data.has_objective
         d._objective_type = NONLINEAR
     end
-    d._nlp_data = nlp_data
+    d._nlp_data = deepcopy(nlp_data)
     return
 end
 MOI.set(d::InputProblem, ::MOI.NLPBlock, ::Nothing) = nothing
@@ -229,4 +237,40 @@ function MOI.isempty(x::InputProblem)
     is_empty_flag &= x._objective_sqf.constant === 0.0
 
     return is_empty_flag
+end
+
+MOI.get(d::InputProblem, ::MOI.NLPBlock) = d._nlp_data
+MOI.get(d::InputProblem, ::MOI.ObjectiveSense) = d._optimization_sense
+
+function MOI.get(d::InputProblem, ::MOI.ListOfVariableIndices)
+    return VI[VI(i) for i = 1:_variable_num(d)]
+end
+
+function MOI.get(d::InputProblem, ::MOI.ListOfConstraints)
+    cons_list = Tuple{MOI.AbstractFunction, MOI.AbstractSet}[]
+
+    !isempty(d._variable_leq_constraint) && push!(cons_list, (SV,LT))
+    !isempty(d._variable_geq_constraint) && push!(cons_list, (SV,GT))
+    !isempty(d._variable_eq_constraint)  && push!(cons_list, (SV,ET))
+
+    !isempty(d._linear_leq_constraint) && push!(cons_list, (SAF,LT))
+    !isempty(d._linear_geq_constraint) && push!(cons_list, (SAF,GT))
+    !isempty(d._linear_eq_constraint)  && push!(cons_list, (SAF,ET))
+
+    !isempty(d._quadratic_leq_constraint) && push!(cons_list, (SQF,LT))
+    !isempty(d._quadratic_geq_constraint) && push!(cons_list, (SQF,GT))
+    !isempty(d._quadratic_eq_constraint)  && push!(cons_list, (SQF,ET))
+
+    !iszero(_second_order_cone_num(d)) && push!(cons_list, (VECOFVAR, SECOND_ORDER_CONE))
+
+    return cons_list
+end
+
+function MOI.get(d::InputProblem, ::MOI.ListOfModelAttributesSet)::Vector{MOI.AbstractModelAttribute}
+    attrs = MOI.AbstractModelAttribute[MOI.ObjectiveSense()]
+    if MOI.get(d, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
+        F = MOI.get(d, MOI.ObjectiveFunctionType())
+        push!(attr, MOI.ObjectiveFunction{F}())
+    end
+    return attrs
 end
