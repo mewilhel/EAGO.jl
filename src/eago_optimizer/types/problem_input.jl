@@ -45,6 +45,26 @@ Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
     _optimization_sense::MOI.OptimizationSense = MOI.FEASIBILITY_SENSE
 end
 
+MOI.supports_constraint(::InputProblem,
+                        ::Type{<:Union{SV, SAF, SQF}},
+                        ::Type{<:Union{ET, GT, LT}},
+                        ) = true
+
+MOI.supports_constraint(::InputProblem,
+                        ::Type{<:Union{VECOFVAR}},
+                        ::Type{<:Union{SECOND_ORDER_CONE}},
+                        ) = true
+
+MOI.supports(::InputProblem,
+             ::Union{MOI.ObjectiveSense,
+                     MOI.NLPBlock,
+                     MOI.ObjectiveFunctionType,
+                     MOI.ObjectiveFunction{SV},
+                     MOI.ObjectiveFunction{SAF},
+                     MOI.ObjectiveFunction{SQF}},
+                     ) = true
+
+
 @inline _variable_num(d::InputProblem) = d._variable_num
 @inline _integer_variable_num(d::InputProblem) = count(is_integer.(d._variable_info))
 @inline function _second_order_cone_num(d::InputProblem)
@@ -195,17 +215,11 @@ macro define_objective(F, field_name)
     esc(quote
             function MOI.set(d::InputProblem, ::MOI.ObjectiveFunction{$F}, f::$F)
                 _check_inbounds!(d, f)
-                @show "input sewt"
-                @show f
                 d.$field_name = copy(f)
-                @show d.$field_name
                 d._objective_type = _moi_to_obj_type(f)
-                @show d._objective_type
                 return nothing
             end
             function MOI.get(d::InputProblem, ::MOI.ObjectiveFunction{$F})
-                @show "output sewt"
-                @show d.$field_name
                 return d.$field_name
             end
     end)
@@ -223,6 +237,13 @@ end
 _moi_to_obj_type(d::SV) = SINGLE_VARIABLE
 _moi_to_obj_type(d::SAF) = SCALAR_AFFINE
 _moi_to_obj_type(d::SQF) = SCALAR_QUADRATIC
+
+function MOI.get(d::InputProblem, ::MOI.ObjectiveFunctionType)
+    obj_type = d._objective_type
+    (obj_type == SCALAR_AFFINE)    && (return SAF)
+    (obj_type == SCALAR_QUADRATIC) && (return SQF)
+    return SV
+end
 
 @define_objective SV  _objective_sv
 @define_objective SAF _objective_saf
@@ -307,9 +328,9 @@ end
 
 function MOI.get(d::InputProblem, ::MOI.ListOfModelAttributesSet)::Vector{MOI.AbstractModelAttribute}
     attrs = MOI.AbstractModelAttribute[MOI.ObjectiveSense()]
-    if MOI.get(d, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
+    if MOI.get(d, MOI.ObjectiveSense()) != MOI.FEASIBILITY_SENSE
         F = MOI.get(d, MOI.ObjectiveFunctionType())
-        push!(attr, MOI.ObjectiveFunction{F}())
+        push!(attrs, MOI.ObjectiveFunction{F}())
     end
     return attrs
 end
