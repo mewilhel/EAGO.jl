@@ -49,7 +49,7 @@ MOI.supports_constraint(::InputProblem,
                         ::Type{<:Union{SV, SAF, SQF}},
                         ::Type{<:Union{ET, GT, LT}},
                         ) = true
-MOI.supports_constraint(::InputProblem, ::SV, ::ZO) = true
+MOI.supports_constraint(::InputProblem, ::Type{SV}, ::Type{ZO}) = true
 
 MOI.supports_constraint(::InputProblem,
                         ::Type{<:Union{VECOFVAR}},
@@ -112,6 +112,20 @@ function MOI.add_variable(d::InputProblem)
     d._variable_num += 1
     push!(d._variable_info, VariableInfo())
     return VI(d._variable_num)
+end
+
+function MOI.add_constraint(d::InputProblem, v::SV, zo::ZO)
+    vi = v.variable
+    _check_inbounds!(d, vi)
+    _has_upper_bound(d, vi) && error("Upper bound on variable $vi already exists.")
+    _has_lower_bound(d, vi) && error("Lower bound on variable $vi already exists.")
+    _is_fixed(d, vi) && error("Variable $vi is fixed. Cannot also set upper bound.")
+    d._variable_info[vi.value].lower_bound = 0.0
+    d._variable_info[vi.value].upper_bound = 1.0
+    d._variable_info[vi.value].has_lower_bound = true
+    d._variable_info[vi.value].has_upper_bound = true
+    d._variable_info[vi.value].is_integer = true
+    return CI{SV, ZO}(vi.value)
 end
 
 function MOI.add_constraint(d::InputProblem, v::SV, lt::LT)

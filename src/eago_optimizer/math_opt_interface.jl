@@ -3,7 +3,7 @@ MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{SV, SAF, SQF}},
                         ::Type{<:Union{ET, GT, LT}},
                         ) = true
-MOI.supports_constraint(::Optimizer, ::SV, ::ZO) = true
+MOI.supports_constraint(::Optimizer, ::Type{SV}, ::Type{ZO}) = true
 
 MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{VECOFVAR}},
