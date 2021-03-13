@@ -12,6 +12,7 @@ Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
     _variable_leq::Dict{CI{SV,LT},Tuple{SV,LT}} = Dict{CI{SV,LT},Tuple{SV,LT}}()
     _variable_geq::Dict{CI{SV,GT},Tuple{SV,GT}} = Dict{CI{SV,GT},Tuple{SV,GT}}()
     _variable_eq::Dict{CI{SV,ET},Tuple{SV,ET}} = Dict{CI{SV,ET},Tuple{SV,ET}}()
+    _variable_zo::Dict{CI{SV,ZO},Tuple{SV,ZO}} = Dict{CI{SV,ZO},Tuple{SV,ZO}}()
 
     # linear constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
     _linear_leq::Dict{CI{SAF,LT},Tuple{SAF,LT}} = Dict{CI{SAF,LT}, Tuple{SAF,LT}}()
@@ -194,11 +195,19 @@ macro define_objective(F, field_name)
     esc(quote
             function MOI.set(d::InputProblem, ::MOI.ObjectiveFunction{$F}, f::$F)
                 _check_inbounds!(d, f)
+                @show "input sewt"
+                @show f
                 d.$field_name = copy(f)
+                @show d.$field_name
                 d._objective_type = _moi_to_obj_type(f)
+                @show d._objective_type
                 return nothing
             end
-            MOI.get(d::InputProblem, ::MOI.ObjectiveFunction{$F}) = d.$field_name
+            function MOI.get(d::InputProblem, ::MOI.ObjectiveFunction{$F})
+                @show "output sewt"
+                @show d.$field_name
+                return d.$field_name
+            end
     end)
 end
 
@@ -281,6 +290,7 @@ function MOI.get(d::InputProblem, ::MOI.ListOfConstraints)
     !isempty(d._variable_leq) && push!(cons_list, (SV,LT))
     !isempty(d._variable_geq) && push!(cons_list, (SV,GT))
     !isempty(d._variable_eq)  && push!(cons_list, (SV,ET))
+    !isempty(d._variable_zo)  && push!(cons_list, (SV,ZO))
 
     !isempty(d._linear_leq) && push!(cons_list, (SAF,LT))
     !isempty(d._linear_geq) && push!(cons_list, (SAF,GT))

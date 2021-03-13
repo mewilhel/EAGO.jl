@@ -76,6 +76,10 @@ function _max_to_min!(m::Optimizer)
     return nothing
 end
 
+#=
+epigraph:  x |-> SlackBridge |-> FunctionizeBridge
+=#
+
 """
 
 Performs an epigraph reformulation assuming the working_problem is a minimization problem.

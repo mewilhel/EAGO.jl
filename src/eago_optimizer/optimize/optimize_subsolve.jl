@@ -25,6 +25,28 @@ function _unpack_final_solve!(m::Optimizer, opt::T; adjust_bnd::Bool = true) whe
 
     m._termination_status_code = MOI.get(opt, MOI.TerminationStatus())
     m._result_status_code = MOI.get(opt, MOI.PrimalStatus())
+
+    @show m._termination_status_code
+    @show m._result_status_code
+    @show MOI.get(opt, MOI.ResultCount())
+    @show MOI.get(opt, MOI.ListOfVariableIndices())
+    @show MOI.get(opt, MOI.VariablePrimal(),MOI.get(opt, MOI.ListOfVariableIndices()))
+    @show MOI.get(opt, MOI.ObjectiveValue())
+    @show MOI.get(opt, MOI.ObjectiveBound())
+    @show MOI.get(opt, MOI.ObjectiveSense())
+    @show MOI.get(opt, MOI.ObjectiveFunctionType())
+
+    @show MOI.get(opt, MOI.ObjectiveFunction{SAF}())
+    @show MOI.get(opt, MOI.ListOfConstraints())
+    @show MOI.get(opt, MOI.ListOfConstraints())
+    cis = MOI.get(opt, MOI.ListOfConstraintIndices{SAF,LT}())
+    @show cis
+    for ci in cis
+        @show MOI.get(opt, MOI.ConstraintFunction(), ci)
+        @show MOI.get(opt, MOI.ConstraintSet(), ci)
+    end
+
+
     if MOI.get(opt, MOI.ResultCount()) > 0
         variable_indices = MOI.get(opt, MOI.ListOfVariableIndices())
         m._continuous_solution = MOI.get(opt, MOI.VariablePrimal(), variable_indices)
@@ -50,7 +72,7 @@ for (T, optimizer_field) in ((LP, :lp_optimizer),
 
     @eval function optimize!(::Val{$T}, m::Optimizer)
         opt = m.$optimizer_field
-        MOI.empty!(opt)
+        #MOI.empty!(opt)
         MOI.copy_to(opt, m._input_problem)
         #set_config!(m, opt)
 

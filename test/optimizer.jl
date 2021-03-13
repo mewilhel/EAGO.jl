@@ -302,7 +302,7 @@ end
 end
 =#
 
-@testset "LP Problems" begin
+@testset "LP #1" begin
     m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
                                         "presolve_scrubber_flag" => false,
                                         "presolve_to_JuMP_flag" => false))
@@ -323,7 +323,9 @@ end
     @test isapprox(JuMP.objective_value(m), 2.0, atol=1E-4)
     @test JuMP.termination_status(m) == MOI.OPTIMAL
     @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
+end
 
+@testset "LP #2" begin
     m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
                                         "presolve_scrubber_flag" => false,
                                         "presolve_to_JuMP_flag" => false))
