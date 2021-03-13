@@ -341,17 +341,17 @@ function initial_parse!(m::Optimizer)
     wp._variable_num = ip._variable_num
 
     # add linear constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x), _linear_leq_constraint(ip))
-    foreach(x -> _add_constraint!(wp, x), _linear_geq_constraint(ip))
-    foreach(x -> _add_constraint!(wp, x), _linear_eq_constraint(ip))
+    foreach(x -> _add_constraint!(wp, x[2]), _linear_leq(ip))
+    foreach(x -> _add_constraint!(wp, x[2]), _linear_geq(ip))
+    foreach(x -> _add_constraint!(wp, x[2]), _linear_eq(ip))
 
     # add quadratic constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x), _quadratic_leq_constraint(ip))
-    foreach(x -> _add_constraint!(wp, x), _quadratic_geq_constraint(ip))
-    foreach(x -> _add_constraint!(wp, x), _quadratic_eq_constraint(ip))
+    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_leq(ip))
+    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_geq(ip))
+    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_eq(ip))
 
     # add conic constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x), _conic_second_order_constraint(ip))
+    foreach(x -> _add_constraint!(wp, x[2]), _conic_socp(ip))
 
     # set objective function
     m._working_problem._objective_type = ip._objective_type

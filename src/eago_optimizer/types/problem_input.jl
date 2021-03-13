@@ -9,28 +9,27 @@ Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
     # variables (set by MOI.add_variable in variables.jl)
     _variable_info::Vector{VariableInfo} = VariableInfo[]
 
-    _variable_leq_constraint::Vector{Tuple{SV, LT}} = Tuple{SAF, LT}[]
-    _variable_geq_constraint::Vector{Tuple{SV, GT}} = Tuple{SAF, GT}[]
-    _variable_eq_constraint::Vector{Tuple{SV, ET}} = Tuple{SAF, ET}[]
-    _variable_num::Int64 = 0
-
-    # last constraint index added
-    _constraint_index_num::Int = 0
+    _variable_leq::Dict{CI{SV,LT},Tuple{SV,LT}} = Dict{CI{SV,LT},Tuple{SV,LT}}()
+    _variable_geq::Dict{CI{SV,GT},Tuple{SV,GT}} = Dict{CI{SV,GT},Tuple{SV,GT}}()
+    _variable_eq::Dict{CI{SV,ET},Tuple{SV,ET}} = Dict{CI{SV,ET},Tuple{SV,ET}}()
 
     # linear constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
-    _linear_leq_constraint::Vector{Tuple{SAF, LT}} = Tuple{SAF, LT}[]
-    _linear_geq_constraint::Vector{Tuple{SAF, GT}} = Tuple{SAF, GT}[]
-    _linear_eq_constraint::Vector{Tuple{SAF, ET}} = Tuple{SAF, ET}[]
+    _linear_leq::Dict{CI{SAF,LT},Tuple{SAF,LT}} = Dict{CI{SAF,LT}, Tuple{SAF,LT}}()
+    _linear_geq::Dict{CI{SAF,GT},Tuple{SAF,GT}} = Dict{CI{SAF,GT}, Tuple{SAF,GT}}()
+    _linear_eq::Dict{CI{SAF,ET},Tuple{SAF,ET}} = Dict{CI{SAF,ET}, Tuple{SAF,ET}}()
 
     # quadratic constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
-    _quadratic_leq_constraint::Vector{Tuple{SQF, LT}} = Tuple{SQF, LT}[]
-    _quadratic_geq_constraint::Vector{Tuple{SQF, GT}} = Tuple{SQF, GT}[]
-    _quadratic_eq_constraint::Vector{Tuple{SQF, ET}} = Tuple{SQF, ET}[]
+    _quadratic_leq::Dict{CI{SQF,LT},Tuple{SQF,LT}} = Dict{CI{SQF,LT},Tuple{SQF,LT}}()
+    _quadratic_geq::Dict{CI{SQF,GT},Tuple{SQF,GT}} = Dict{CI{SQF,GT},Tuple{SQF,GT}}()
+    _quadratic_eq::Dict{CI{SQF,ET},Tuple{SQF,ET}} = Dict{CI{SQF,ET},Tuple{SQF,ET}}()
 
     # conic constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
-    _conic_second_order_constraint::Vector{Tuple{VECOFVAR, SECOND_ORDER_CONE}} = Tuple{VECOFVAR, SECOND_ORDER_CONE}[]
+    _conic_socp::Dict{CI{VECOFVAR,SECOND_ORDER_CONE},Tuple{VECOFVAR,SECOND_ORDER_CONE}} = Dict{CI{VECOFVAR, SECOND_ORDER_CONE},
+                                                                                               Tuple{VECOFVAR, SECOND_ORDER_CONE}}()
 
     # nonlinear constraint storage
+    _variable_num::Int64 = 0
+    _constraint_index_num::Int = 0
     _nonlinear_count::Int = 0
 
     # objective information (set by MOI.set(m, ::ObjectiveFunction...) in optimizer.jl)
@@ -49,12 +48,12 @@ end
 @inline _variable_num(d::InputProblem) = d._variable_num
 @inline _integer_variable_num(d::InputProblem) = count(is_integer.(d._variable_info))
 @inline function _second_order_cone_num(d::InputProblem)
-    length(d._conic_second_order_constraint)
+    length(d._conic_socp)
 end
 @inline function _quadratic_num(d::InputProblem)
-    num = length(d._quadratic_leq_constraint)
-    num += length(d._quadratic_geq_constraint)
-    num += length(d._quadratic_eq_constraint)
+    num = length(d._quadratic_leq)
+    num += length(d._quadratic_geq)
+    num += length(d._quadratic_eq)
     return num
 end
 @inline function _nl_expr_num(d::InputProblem)
@@ -104,10 +103,11 @@ function MOI.add_constraint(d::InputProblem, v::SV, lt::LT)
     elseif _is_fixed(d, vi)
         error("Variable $vi is fixed. Cannot also set upper bound.")
     end
-    push!(d._variable_leq_constraint, (v, lt))
+    ci = CI{SV, LT}(vi.value)
+    d._variable_leq[ci] = (v, lt)
     d._variable_info[vi.value].upper_bound = lt.upper
     d._variable_info[vi.value].has_upper_bound = true
-    return CI{SV, LT}(vi.value)
+    return ci
 end
 
 function MOI.add_constraint(d::InputProblem, v::SV, gt::GT)
@@ -120,10 +120,11 @@ function MOI.add_constraint(d::InputProblem, v::SV, gt::GT)
     elseif _is_fixed(d, vi)
         error("Variable $vi is fixed. Cannot also set lower bound.")
     end
-    push!(d._variable_leq_constraint, (v, gt))
+    ci = CI{SV, GT}(vi.value)
+    d._variable_geq[ci] = (v, gt)
     d._variable_info[vi.value].lower_bound = gt.lower
     d._variable_info[vi.value].has_lower_bound = true
-    return CI{SV, GT}(vi.value)
+    return ci
 end
 
 function MOI.add_constraint(d::InputProblem, v::SV, eq::ET)
@@ -138,13 +139,20 @@ function MOI.add_constraint(d::InputProblem, v::SV, eq::ET)
     elseif _is_fixed(d, vi)
         error("Variable $vi is already fixed.")
     end
-    push!(d._variable_leq_constraint, (v, eq))
+    ci = CI{SV, ET}(vi.value)
+    d._variable_eq[ci] = (v, eq)
     d._variable_info[vi.value].lower_bound = eq.value
     d._variable_info[vi.value].upper_bound = eq.value
     d._variable_info[vi.value].has_lower_bound = true
     d._variable_info[vi.value].has_upper_bound = true
     d._variable_info[vi.value].is_fixed = true
-    return CI{SV, ET}(vi.value)
+    return ci
+end
+
+for (S, arr_name) in ((ET, :_variable_eq), (LT, :_variable_lt), (GT, :_variable_gt))
+    @eval function MOI.get(d::InputProblem, ::MOI.ListOfConstraintIndices{SV,$S})
+        return keys(d.$arr_name)
+    end
 end
 
 macro define_constraint(F, S, array_name)
@@ -152,8 +160,12 @@ macro define_constraint(F, S, array_name)
             function MOI.add_constraint(d::InputProblem, f::$F, s::$S)
                 _check_inbounds!(d, f)
                 d._constraint_index_num += 1
-                push!(d.$(array_name), (copy(f), s))
-                return CI{$F, $S}(d._constraint_index_num)
+                ci = CI{$F,$S}(d._constraint_index_num)
+                d.$(array_name)[ci] = (copy(f), s)
+                return ci
+            end
+            function MOI.get(d::InputProblem, ::MOI.ListOfConstraintIndices{$F,$S})
+                return keys(d.$array_name)
             end
             function ($array_name)(d::InputProblem)
                 return d.$(array_name)
@@ -173,14 +185,14 @@ macro define_objective(F, field_name)
     end)
 end
 
-@define_constraint SAF LT _linear_leq_constraint
-@define_constraint SAF GT _linear_geq_constraint
-@define_constraint SAF ET _linear_eq_constraint
+@define_constraint SAF LT _linear_leq
+@define_constraint SAF GT _linear_geq
+@define_constraint SAF ET _linear_eq
 
-@define_constraint SQF LT _quadratic_leq_constraint
-@define_constraint SQF GT _quadratic_geq_constraint
-@define_constraint SQF ET _quadratic_eq_constraint
-@define_constraint VECOFVAR SECOND_ORDER_CONE _conic_second_order_constraint
+@define_constraint SQF LT _quadratic_leq
+@define_constraint SQF GT _quadratic_geq
+@define_constraint SQF ET _quadratic_eq
+@define_constraint VECOFVAR SECOND_ORDER_CONE _conic_socp
 
 _moi_to_obj_type(d::SV) = SINGLE_VARIABLE
 _moi_to_obj_type(d::SAF) = SCALAR_AFFINE
@@ -247,19 +259,19 @@ function MOI.get(d::InputProblem, ::MOI.ListOfVariableIndices)
 end
 
 function MOI.get(d::InputProblem, ::MOI.ListOfConstraints)
-    cons_list = Tuple{MOI.AbstractFunction, MOI.AbstractSet}[]
+    cons_list = []
 
-    !isempty(d._variable_leq_constraint) && push!(cons_list, (SV,LT))
-    !isempty(d._variable_geq_constraint) && push!(cons_list, (SV,GT))
-    !isempty(d._variable_eq_constraint)  && push!(cons_list, (SV,ET))
+    !isempty(d._variable_leq) && push!(cons_list, (SV,LT))
+    !isempty(d._variable_geq) && push!(cons_list, (SV,GT))
+    !isempty(d._variable_eq)  && push!(cons_list, (SV,ET))
 
-    !isempty(d._linear_leq_constraint) && push!(cons_list, (SAF,LT))
-    !isempty(d._linear_geq_constraint) && push!(cons_list, (SAF,GT))
-    !isempty(d._linear_eq_constraint)  && push!(cons_list, (SAF,ET))
+    !isempty(d._linear_leq) && push!(cons_list, (SAF,LT))
+    !isempty(d._linear_geq) && push!(cons_list, (SAF,GT))
+    !isempty(d._linear_eq)  && push!(cons_list, (SAF,ET))
 
-    !isempty(d._quadratic_leq_constraint) && push!(cons_list, (SQF,LT))
-    !isempty(d._quadratic_geq_constraint) && push!(cons_list, (SQF,GT))
-    !isempty(d._quadratic_eq_constraint)  && push!(cons_list, (SQF,ET))
+    !isempty(d._quadratic_leq) && push!(cons_list, (SQF,LT))
+    !isempty(d._quadratic_geq) && push!(cons_list, (SQF,GT))
+    !isempty(d._quadratic_eq)  && push!(cons_list, (SQF,ET))
 
     !iszero(_second_order_cone_num(d)) && push!(cons_list, (VECOFVAR, SECOND_ORDER_CONE))
 
