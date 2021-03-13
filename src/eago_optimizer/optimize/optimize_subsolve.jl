@@ -30,13 +30,9 @@ function _unpack_final_solve!(m::Optimizer, opt::T; adjust_bnd::Bool = true) whe
         variable_indices = MOI.get(opt, MOI.ListOfVariableIndices())
         m._continuous_solution = MOI.get(opt, MOI.VariablePrimal(), variable_indices)
         m._objective_value = MOI.get(opt, MOI.ObjectiveValue())
-        if MOI.get(opt, MOI.ObjectiveSense()) == MOI.MIN_SENSE
-            m._global_lower_bound = MOI.get(opt, MOI.ObjectiveBound())
-            m._global_upper_bound = MOI.get(opt, MOI.ObjectiveValue())
-        else
-            m._global_lower_bound = MOI.get(opt, MOI.ObjectiveValue())
-            m._global_upper_bound = MOI.get(opt, MOI.ObjectiveBound())
-        end
+        m._objective_bound = MOI.get(opt, MOI.ObjectiveBound())
+        @show m._objective_value
+        @show m._objective_bound 
     end
 
     return nothing

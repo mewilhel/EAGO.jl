@@ -19,14 +19,11 @@ end
     m._result_status_code = MOI.OTHER_RESULT_STATUS
     @test MOI.get(m, MOI.ResultCount()) === 0
 
-    m._global_lower_bound = 4.0
-    m._global_upper_bound = 6.0
+    m._objective_value = 4.0
+    m._objective_bound = 6.0
     m._input_problem._optimization_sense = MOI.MIN_SENSE
     @test isapprox(MOI.get(m, MOI.RelativeGap()), 0.33333333, atol=1E-5)
-
-    m._input_problem._optimization_sense = MOI.MAX_SENSE
-    @test MOI.get(m, MOI.RelativeGap()) === 0.5
-    @test MOI.get(m, MOI.ObjectiveBound()) === -4.0
+    @test MOI.get(m, MOI.ObjectiveBound()) == 6.0
 
     m._parameters.verbosity = 2
     m._parameters.log_on = true
@@ -302,58 +299,34 @@ end
 end
 =#
 
+macro check_feasible_problem!(m, sol_x, obj_value, tol)
+    esc(quote
+        for i in length($sol_x)
+            isapprox(JuMP.value(x[i]), $sol_x[i], atol = $tol)
+        end
+        @test isapprox(JuMP.objective_value(m), $obj_value, atol = $tol)
+        @test JuMP.termination_status(m) == MOI.OPTIMAL
+        @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
+    end)
+end
+
 @testset "LP #1" begin
-    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
-                                        "presolve_scrubber_flag" => false,
-                                        "presolve_to_JuMP_flag" => false))
+    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0))
 
-    @variable(m, 1 <= x <= 3)
-    @variable(m, 1 <= y <= 3)
-
-    @objective(m, Min, x + y)
-
-    @constraint(m, x + y <= 10)
-    @constraint(m, x - y <= 10)
-    @constraint(m, y >= 0)
+    @variable(m, 1 <= x[i=1:2] <= 3)
+    @constraints(m, begin
+            x[1] + x[2] <= 10
+            x[1] - x[2] <= 10
+                   x[2] >= 0
+    end)
+    @objective(m, Min, x[1] + x[2])
 
     JuMP.optimize!(m)
-
-    @test isapprox(JuMP.value(x), 1.0, atol=1E-4)
-    @test isapprox(JuMP.value(y), 1.0, atol=1E-4)
-    @test isapprox(JuMP.objective_value(m), 2.0, atol=1E-4)
-    @test JuMP.termination_status(m) == MOI.OPTIMAL
-    @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
+    @check_feasible_problem!(m, Float64[1.0,1.0], 2.0, 1E-4)
 end
 
 @testset "LP #2" begin
-    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
-                                        "presolve_scrubber_flag" => false,
-                                        "presolve_to_JuMP_flag" => false))
-
-    @variable(m, -3 <= x <= -1)
-    @variable(m, -2 <= y <= 2)
-    @variable(m, 1 <= z <= 3)
-
-    @objective(m, Min, x - y + 2z)
-
-    @constraint(m, x + 2y >= -10)
-    @constraint(m, z - 2y <= 2)
-    @constraint(m, y >= 0)
-
-    JuMP.optimize!(m)
-
-    @test isapprox(JuMP.value(x), -3.0, atol=1E-4)
-    @test isapprox(JuMP.value(y), 2.0, atol=1E-4)
-    @test isapprox(JuMP.value(z), 1.0, atol=1E-4)
-    @test isapprox(JuMP.objective_value(m), -3.0, atol=1E-4)
-    @test JuMP.termination_status(m) == MOI.OPTIMAL
-    @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
-end
-
-@testset "LP #3" begin
-    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
-                                        "presolve_scrubber_flag" => false,
-                                        "presolve_to_JuMP_flag" => false))
+    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0))
 
     @variable(m, -3 <= x <= -1)
     @variable(m, -2 <= y <= 2)
@@ -362,26 +335,19 @@ end
 
     @objective(m, Min, 2x - 3y + 2z)
 
-    @constraint(m, x + 2y >= -10)
-    @constraint(m, z - 2y <= 2)
-    @constraint(m, y >= 0)
-    @constraint(m, q-3*z-y >= 0)
+    @constraints(m, begin
+          x + 2y >= -10
+          z - 2y <= 2
+               y >= 0
+        -3*z - y >= 0
+    end)
 
     JuMP.optimize!(m)
-
-    @test isapprox(JuMP.value(x), -3.0, atol=1E-4)
-    @test isapprox(JuMP.value(y), 2.0, atol=1E-4)
-    @test isapprox(JuMP.value(z), 1.0, atol=1E-4)
-    @test isapprox(JuMP.objective_value(m), -10.0, atol=1E-4)
-    @test JuMP.termination_status(m) == MOI.OPTIMAL
-    @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
+    @test JuMP.termination_status(m) == MOI.INFEASIBLE
 end
 
-#=
-@testset "LP #4" begin
-    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
-                                        "presolve_scrubber_flag" => false,
-                                        "presolve_to_JuMP_flag" => false))
+@testset "LP #3" begin
+    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0))
 
     @variable(m, -3 <= x <= -1)
     @variable(m, -2 <= y <= 2)
@@ -403,10 +369,8 @@ end
     @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
 end
 
-@testset "LP #5" begin
-    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
-                                        "presolve_scrubber_flag" => false,
-                                        "presolve_to_JuMP_flag" => false))
+@testset "LP #4" begin
+    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0))
 
     @variable(m, -3 <= x <= -1)
     @variable(m, -2 <= y <= 2)
@@ -429,21 +393,21 @@ end
     @test JuMP.termination_status(m) == MOI.OPTIMAL
     @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
 end
-=#
+
 
 @testset "MILP #1" begin
-    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
-                                        "presolve_scrubber_flag" => false,
-                                        "presolve_to_JuMP_flag" => false))
+    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0))
 
     @variable(m, x, Bin)
     @variable(m, 1 <= y <= 3)
 
     @objective(m, Min, x + y)
 
-    @constraint(m, x + y <= 10)
-    @constraint(m, x - y <= 10)
-    @constraint(m, y >= 0)
+    @constraints(m, begin
+            x + y <= 10
+            x - y <= 10
+                y >= 0
+    end)
 
     JuMP.optimize!(m)
 
@@ -455,34 +419,7 @@ end
 end
 
 @testset "MILP #2" begin
-    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
-                                        "presolve_scrubber_flag" => false,
-                                        "presolve_to_JuMP_flag" => false))
-
-    @variable(m, x, Bin)
-    @variable(m, -2 <= y <= 2)
-    @variable(m, 1 <= z <= 3)
-
-    @objective(m, Min, x - y + 2z)
-
-    @constraint(m, x + 2y >= -10)
-    @constraint(m, z - 2y <= 2)
-    @constraint(m, y >= 0)
-
-    JuMP.optimize!(m)
-
-    @test isapprox(JuMP.value(x), -3.0, atol=1E-4)
-    @test isapprox(JuMP.value(y), 2.0, atol=1E-4)
-    @test isapprox(JuMP.value(z), 1.0, atol=1E-4)
-    @test isapprox(JuMP.objective_value(m), -3.0, atol=1E-4)
-    @test JuMP.termination_status(m) == MOI.OPTIMAL
-    @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
-end
-
-@testset "MILP #3" begin
-    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
-                                        "presolve_scrubber_flag" => false,
-                                        "presolve_to_JuMP_flag" => false))
+    m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0))
 
     @variable(m, x, Bin)
     @variable(m, -2 <= y <= 2)
@@ -506,7 +443,7 @@ end
     @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
 end
 
-@testset "MILP #4" begin
+@testset "MILP #3" begin
     m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
                                         "presolve_scrubber_flag" => false,
                                         "presolve_to_JuMP_flag" => false))
@@ -531,7 +468,7 @@ end
     @test JuMP.primal_status(m) == MOI.FEASIBLE_POINT
 end
 
-@testset "MILP #5" begin
+@testset "MILP #4" begin
     m = Model(optimizer_with_attributes(EAGO.Optimizer, "verbosity" => 0,
                                         "presolve_scrubber_flag" => false,
                                         "presolve_to_JuMP_flag" => false))

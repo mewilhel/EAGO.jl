@@ -104,28 +104,13 @@ function MOI.is_empty(m::Optimizer)
     return is_empty_flag
 end
 
-function MOI.get(m::Optimizer, ::MOI.ObjectiveValue)
-    mult = 1.0
-    if m._input_problem._optimization_sense == MOI.MAX_SENSE
-        mult *= -1.0
-    end
-    return mult*m._objective_value
-end
-
+MOI.get(m::Optimizer, ::MOI.ObjectiveValue) = m._objective_value
+MOI.get(m::Optimizer, ::MOI.ObjectiveBound) = m._objective_bound
 MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = m._input_problem._variable_num
 
-function MOI.get(m::Optimizer, ::MOI.ObjectiveBound)
-    if m._input_problem._optimization_sense === MOI.MAX_SENSE
-        bound = -m._global_lower_bound
-    else
-        bound = m._global_upper_bound
-    end
-    return bound
-end
-
 function MOI.get(m::Optimizer, ::MOI.RelativeGap)
-    LBD = m._global_lower_bound
-    UBD = m._global_upper_bound
+    LBD = m._objective_value
+    UBD = m._objective_bound
     if m._input_problem._optimization_sense === MOI.MAX_SENSE
         gap = abs(UBD - LBD)/abs(LBD)
     else

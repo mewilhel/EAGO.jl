@@ -170,7 +170,8 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     _solution_value::Float64 = 0.0
     _feasible_solution_found::Bool = false
     _first_solution_node::Int64 = -1
-    _objective_value::Float64 = -Inf
+    _objective_value::Float64 = Inf
+    _objective_bound::Float64 = -Inf
     _best_upper_value::Float64 = Inf
 
     # Optimality-Based Bound Tightening (OBBT) Options

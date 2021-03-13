@@ -1132,3 +1132,15 @@ function global_solve!(m::Optimizer)
 end
 
 optimize!(::Val{MINCVX}, m::Optimizer) = global_solve!(m)
+
+
+#=
+TODO: SET SOLVE AT END OF NONCONVEX
+if MOI.get(opt, MOI.ObjectiveSense()) == MOI.MIN_SENSE
+    m._global_lower_bound = MOI.get(opt, MOI.ObjectiveBound())
+    m._global_upper_bound = MOI.get(opt, MOI.ObjectiveValue())
+else
+    m._global_lower_bound = MOI.get(opt, MOI.ObjectiveValue())
+    m._global_upper_bound = MOI.get(opt, MOI.ObjectiveBound())
+end
+=#
