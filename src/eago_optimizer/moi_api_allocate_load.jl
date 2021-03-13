@@ -165,6 +165,7 @@ function MOI.set(d::Optimizer, ::MOI.ObjectiveFunction{F}, func::F) where F<:Uni
     MOI.set(d._input_problem, MOI.ObjectiveFunction{F}(), func)
 end
 
+MOI.supports(d::Optimizer, ::MOI.NLPBlock) = true
 function MOI.set(d::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlock)
     MOI.set(d._input_problem, MOI.NLPBlock(), nlp_data)
 end

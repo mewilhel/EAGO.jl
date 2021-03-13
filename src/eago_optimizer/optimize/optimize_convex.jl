@@ -30,7 +30,6 @@ function stored_adjusted_upper_bound!(d::Optimizer, v::Float64)
     return nothing
 end
 
-
 revert_adjusted_upper_bound!(t::ExtensionType, d::Optimizer) = nothing
 
 function revert_adjusted_upper_bound!(t::DefaultExt, d::Optimizer)

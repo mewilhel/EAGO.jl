@@ -153,7 +153,13 @@ for (S, dict) in ((ET, :_variable_eq), (LT, :_variable_leq), (GT, :_variable_geq
         return collect(keys(d.$dict))
     end
     @eval function MOI.get(d::InputProblem, ::MOI.ConstraintFunction, ci::CI{SV,$S})
-        return d.$dict[ci]
+        return d.$dict[ci][1]
+    end
+    @eval function MOI.get(d::InputProblem, ::MOI.ConstraintSet, ci::CI{SV,$S})
+        return d.$dict[ci][2]
+    end
+    @eval function MOI.get(d::InputProblem, ::MOI.ListOfConstraintAttributesSet{SV,$S})
+        return MOI.AbstractConstraintAttribute[]
     end
 end
 
@@ -173,10 +179,13 @@ macro define_constraint(F, S, dict_name)
                 return d.$(dict_name)
             end
             function MOI.get(d::InputProblem, ::MOI.ConstraintFunction, ci::CI{$F,$S})
-                return first(d.$dict_name[ci])
+                return d.$dict_name[ci][1]
             end
             function MOI.get(d::InputProblem, ::MOI.ConstraintSet, ci::CI{$F,$S})
-                return second(d.$dict_name[ci])
+                return d.$dict_name[ci][2]
+            end
+            function MOI.get(d::InputProblem, ::MOI.ListOfConstraintAttributesSet{$F,$S})
+                return MOI.AbstractConstraintAttribute[]
             end
         end)
 end
@@ -293,4 +302,8 @@ function MOI.get(d::InputProblem, ::MOI.ListOfModelAttributesSet)::Vector{MOI.Ab
         push!(attr, MOI.ObjectiveFunction{F}())
     end
     return attrs
+end
+
+function MOI.get(d::InputProblem, ::MathOptInterface.ListOfVariableAttributesSet)
+    return MOI.AbstractVariableAttribute[]
 end
