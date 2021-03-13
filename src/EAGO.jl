@@ -86,7 +86,7 @@ module EAGO
     include("eago_optimizer/types/types.jl")
 
     # defines routines to add saf, sqf, and nlp block constraints
-    include("eago_optimizer/moi_api_allocate_load.jl")
+    include("eago_optimizer/math_opt_interface.jl")
 
     # functions which print information to console
     include("eago_optimizer/display.jl")
