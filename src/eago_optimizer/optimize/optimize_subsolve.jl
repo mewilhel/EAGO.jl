@@ -23,15 +23,18 @@ MINCVX      -> APPLY GLOBAL SOLVER (LOCAL SOLVE OPTION FUTURE FEATURE)
 
 function _unpack_final_solve!(m::Optimizer, opt::T, idx_map; adjust_bnd::Bool = true) where T
 
+    # TODO: ASSUMES NO BRIDGING NECESSARY, MAY NEED TO ADD SUPPORT LATER FOR BRIDGES
     m._termination_status_code = MOI.get(opt, MOI.TerminationStatus())
     m._result_status_code = MOI.get(opt, MOI.PrimalStatus())
 
     if MOI.get(opt, MOI.ResultCount()) > 0
         variable_indices = MOI.get(opt, MOI.ListOfVariableIndices())
         m._solution = MOI.get(opt, MOI.VariablePrimal(), variable_indices)
-        for (F, S) = MOI.get(opt, MOI.ListOfConstraints())
-            for ci in MOI.ListOfConstraintIndices{F,S}()
-                primal_val = MOI.get(opt, MOI.ConstraintPrimal(), ci)
+        # TODO: Improve this... type stability etc..
+        for (F, S) = MOI.get(m, MOI.ListOfConstraints())
+            for ci in MOI.get(m, MOI.ListOfConstraintIndices{F,S}())
+                subsolver_ci = idx_map[ci]
+                primal_val = MOI.get(opt, MOI.ConstraintPrimal(), subsolver_ci)
                  _set_cons_primal!(m, ci, primal_val)
              end
         end
@@ -51,10 +54,9 @@ for (T, optimizer_field) in ((LP, :lp_optimizer),
 
     @eval function optimize!(::Val{$T}, m::Optimizer)
 
-        opt = MOIB.full_bridge_optimizer(m.$optimizer_field, T)
-        MOI.empty!(opt)
+        opt = m.$optimizer_field
         idx_map = MOI.copy_to(opt, m._input_problem)
-        #set_config!(m, opt)
+        #set_config!(m, opt)                            # TODO: Bridge optimizers as necessary
 
         if m.verbosity < 5
             MOI.set(opt, MOI.Silent(), true)

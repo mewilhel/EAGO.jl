@@ -52,22 +52,36 @@ function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
     return nothing
 end
 
-function MOI.get(m::Optimizer, ::MOI.ListOfVariableIndices)
-    MOI.get(m._input_problem, MOI.ListOfVariableIndices())
+for attr in (MOI.ListOfVariableIndices, MOI.ListOfConstraints)
+    @eval function MOI.get(m::Optimizer, ::$attr)
+        MOI.get(m._input_problem, $attr())
+    end
+end
+
+for attr in (MOI.ListOfConstraintAttributesSet, MOI.ListOfConstraintIndices)
+    @eval function MOI.get(d::Optimizer, ::$attr{F,S}) where {F,S}
+        return MOI.get(d._input_problem, $attr{F,S}())
+    end
+end
+
+for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F,S}
+        return MOI.get(d._input_problem, $attr(), ci)
+    end
 end
 
 MOI.get(m::Optimizer, ::MOI.VariablePrimal, vi::MOI.VariableIndex) = m._solution[vi.value]
 MOI.get(m::Optimizer, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) = MOI.get.(m, p, vi)
 
 function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: MOI.AbstractFunction, S <: MOI.AbstractScalarSet}
-    indx = ci.value
-    # TODO
-    return
+    i = ci.value
+    os = opt._input_problem._constraint_offset
+    return opt._primal_constraint_value[os[i]]
 end
 function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: MOI.AbstractFunction, S <: MOI.AbstractVectorSet}
-    indx = ci.value
-    # TODO
-    return
+    i = ci.value
+    os = opt._input_problem._constraint_offset
+    return opt._primal_constraint_value[(os[i] + 1):os[i + 1]]
 end
 MOI.get(opt::Optimizer, a::MOI.ConstraintPrimal, ci::Vector{MOI.ConstraintIndex}) = MOI.get.(opt, a, ci)
 
@@ -135,12 +149,16 @@ MOI.add_variable(d::Optimizer) = MOI.add_variable(d._input_problem)
 
 function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{SV, SAF, SQF},
                                                              S<:Union{ET, GT, LT}}
+    push!(d._primal_constraint_value, 0.0)
     MOI.add_constraint(d._input_problem, f, s)
 end
-MOI.add_constraint(d::Optimizer, f::SV, s::ZO) = MOI.add_constraint(d._input_problem, f, s)
-
+function MOI.add_constraint(d::Optimizer, f::SV, s::ZO)
+    push!(d._primal_constraint_value, 0.0)
+    MOI.add_constraint(d._input_problem, f, s)
+end
 function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECOFVAR},
                                                              S<:Union{SECOND_ORDER_CONE}}
+    append!(d._primal_constraint_value, zeros(MOI.dimension(s)))
     MOI.add_constraint(d._input_problem, f, s)
 end
 
@@ -150,6 +168,7 @@ end
 
 MOI.supports(d::Optimizer, ::MOI.NLPBlock) = true
 function MOI.set(d::Optimizer, ::MOI.NLPBlock, nlp_data)
+    # TODO: Update d._primal_constraint_value
     MOI.set(d._input_problem, MOI.NLPBlock(), nlp_data)
 end
 function MOI.set(d::Optimizer, ::MOI.NLPBlock, ::Nothing)

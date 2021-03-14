@@ -240,11 +240,15 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     # set by MOI manipulations (see Input problem structure)
     _input_problem::InputProblem = InputProblem()
 
-    # loaded from _input_problem by TODO
-    _working_problem::ParsedProblem = ParsedProblem()
 
     _termination_status_code::MOI.TerminationStatusCode = MOI.OPTIMIZE_NOT_CALLED
     _result_status_code::MOI.ResultStatusCode = MOI.OTHER_RESULT_STATUS
+
+    _solution::Vector{Float64}                = Float64[]
+    _primal_constraint_value::Vector{Float64} = Float64[]
+
+    # loaded from _input_problem by TODO
+    _working_problem::ParsedProblem = ParsedProblem()
 
     _stack::BinaryMinMaxHeap{NodeBB} = BinaryMinMaxHeap{NodeBB}()
 
@@ -265,8 +269,6 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     _branch_variable_count::Int = 0
     _branch_to_sol_map::Vector{Int} = Int[]
     _sol_to_branch_map::Vector{Int} = Int[]
-
-    _solution::Vector{Float64} = Float64[]
 
     # all subproblem immutable subproblem status are set in global_solve in corresponding routines
     # in optimize_nonconvex.jl
@@ -305,10 +307,7 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
 
     _postprocess_feasibility::Bool = true
 
-    # set to time limit in initial_parse! in parse.jl, decremented throughout global_solve in optimize_nonconvex.jl
     _time_left::Float64 = 1000.0
-
-    # set constructor reset on empty! and  to zero in initial parse! in parse.jl
     _start_time::Float64 = 0.0
     _run_time::Float64 = 0.0
     _parse_time::Float64 = 0.0
@@ -410,3 +409,19 @@ end
 
 _input_problem(m::Optimizer) = m._input_problem
 _working_problem(m::Optimizer) = m._working_problem
+
+function _set_cons_primal!(m::Optimizer, ci::CI{F,S}, v::Float64) where{F <: MOI.AbstractFunction,
+                                                                        S <: MOI.AbstractScalarSet}
+    i = ci.value
+    os = m._input_problem._constraint_offset
+    m._primal_constraint_value[os[i]] = v
+    return
+end
+
+function _set_cons_primal!(m::Optimizer, ci::CI{F,S}, v::Vector{Float64}) where{F <: MOI.AbstractFunction,
+                                                                                S <: MOI.AbstractVectorSet}
+    i = ci.value
+    os = m._input_problem._constraint_offset
+    m._primal_constraint_value[(os[i] + 1):os[i + 1]] .= v
+    return
+end

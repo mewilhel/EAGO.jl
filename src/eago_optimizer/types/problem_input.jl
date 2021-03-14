@@ -28,9 +28,12 @@ Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
     _conic_socp::Dict{CI{VECOFVAR,SECOND_ORDER_CONE},Tuple{VECOFVAR,SECOND_ORDER_CONE}} = Dict{CI{VECOFVAR, SECOND_ORDER_CONE},
                                                                                                Tuple{VECOFVAR, SECOND_ORDER_CONE}}()
     # nonlinear constraint storage
-    _variable_num::Int64 = 0
-    _constraint_index_num::Int = 0
-    _nonlinear_count::Int = 0
+    _nonlinear_count::Int             = 0
+
+    _variable_num::Int64                 = 0
+    _constraint_index_num::Int           = 0
+    _constraint_row_num::Int             = 0
+    _constraint_offset::Vector{Int}      = Int[]
 
     # objective information (set by MOI.set(m, ::ObjectiveFunction...) in optimizer.jl)
     _objective_sv::SV = SV(VI(-1))
@@ -206,6 +209,8 @@ macro define_constraint(F, S, dict_name)
                 d._constraint_index_num += 1
                 ci = CI{$F,$S}(d._constraint_index_num)
                 d.$(dict_name)[ci] = (copy(f), s)
+                d._constraint_row_num += MOI.dimension(s)
+                push!(d._constraint_offset, d._constraint_row_num)
                 return ci
             end
             function MOI.get(d::InputProblem, ::MOI.ListOfConstraintIndices{$F,$S})
