@@ -101,7 +101,7 @@ function _check_inbounds!(d::InputProblem, quad::SQF)
     end
     return nothing
 end
-_check_inbounds!(d::InputProblem, v::VECOFVAR) = foreach(x -> check_inbounds!(d, x), v.variables)
+_check_inbounds!(d::InputProblem, v::VECOFVAR) = foreach(x -> _check_inbounds!(d, x), v.variables)
 
 @inline _has_upper_bound(d::InputProblem, vi::MOI.VariableIndex) = d._variable_info[vi.value].has_upper_bound
 @inline _has_lower_bound(d::InputProblem, vi::MOI.VariableIndex) = d._variable_info[vi.value].has_lower_bound

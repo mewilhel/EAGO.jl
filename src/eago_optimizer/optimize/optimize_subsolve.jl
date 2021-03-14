@@ -28,13 +28,9 @@ function _unpack_final_solve!(m::Optimizer, opt::T; adjust_bnd::Bool = true) whe
 
     if MOI.get(opt, MOI.ResultCount()) > 0
         variable_indices = MOI.get(opt, MOI.ListOfVariableIndices())
-        @show variable_indices
-        @show MOI.get(opt, MOI.VariablePrimal(), variable_indices)
         m._continuous_solution = MOI.get(opt, MOI.VariablePrimal(), variable_indices)
         m._objective_value = MOI.get(opt, MOI.ObjectiveValue())
         m._objective_bound = MOI.get(opt, MOI.ObjectiveBound())
-        @show m._objective_value
-        @show m._objective_bound
     end
 
     return nothing
