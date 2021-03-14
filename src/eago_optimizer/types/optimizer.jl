@@ -266,7 +266,7 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     _branch_to_sol_map::Vector{Int} = Int[]
     _sol_to_branch_map::Vector{Int} = Int[]
 
-    _continuous_solution::Vector{Float64} = Float64[]
+    _solution::Vector{Float64} = Float64[]
 
     # all subproblem immutable subproblem status are set in global_solve in corresponding routines
     # in optimize_nonconvex.jl

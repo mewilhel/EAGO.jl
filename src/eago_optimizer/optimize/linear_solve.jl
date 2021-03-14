@@ -69,7 +69,7 @@ function _unpack_local_solve!(m::Optimizer, opt::T) where T
         m._solution_value = objective_value
     end
 
-    map!(x -> MOI.get(opt, MOI.VariablePrimal(), x), m._continuous_solution, m._relaxed_variable_index)
+    map!(x -> MOI.get(opt, MOI.VariablePrimal(), x), m._solution, m._relaxed_variable_index)
 
     m._run_time = time() - m._start_time
 

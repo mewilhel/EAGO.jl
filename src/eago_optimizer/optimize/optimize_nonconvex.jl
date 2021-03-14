@@ -161,7 +161,7 @@ function presolve_global!(t::ExtensionType, m::Optimizer)
     # to use a reformulated upper problem presents itself
     m._lower_solution      = zeros(Float64, m._working_problem._variable_count)
     m._cut_solution        = zeros(Float64, m._working_problem._variable_count)
-    m._continuous_solution = zeros(Float64, m._working_problem._variable_count)
+    m._solution = zeros(Float64, m._working_problem._variable_count)
     m._upper_solution      = zeros(Float64, m._working_problem._variable_count)
     m._upper_variables     = fill(VI(-1), m._working_problem._variable_count)
 
@@ -990,7 +990,7 @@ function store_candidate_solution!(m::Optimizer)
         m._first_solution_node = m._maximum_node_id
         m._solution_value = m._upper_objective_value
         m._global_upper_bound = m._upper_objective_value
-        @__dot__ m._continuous_solution = m._upper_solution
+        @__dot__ m._solution = m._upper_solution
 
     end
     return nothing
