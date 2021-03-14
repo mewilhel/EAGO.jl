@@ -19,8 +19,8 @@ This assumes that the local solvers relative tolerance and absolute tolerance is
 tolerance (local problem is minimum).
 """
 function stored_adjusted_upper_bound!(d::Optimizer, v::Float64)
-    adj_atol = d._parameters.absolute_tolerance/100.0
-    adj_rtol = d._parameters.relative_tolerance/100.0
+    adj_atol = d.absolute_tolerance/100.0
+    adj_rtol = d.relative_tolerance/100.0
     if v > 0.0
         d._upper_objective_value = v*(1.0 + adj_rtol) + adj_atol
     else
@@ -34,8 +34,8 @@ revert_adjusted_upper_bound!(t::ExtensionType, d::Optimizer) = nothing
 
 function revert_adjusted_upper_bound!(t::DefaultExt, d::Optimizer)
 
-    adj_atol = d._parameters.absolute_tolerance/100.0
-    adj_rtol = d._parameters.relative_tolerance/100.0
+    adj_atol = d.absolute_tolerance/100.0
+    adj_rtol = d.relative_tolerance/100.0
 
     adj_objective_value = d._global_upper_bound
     adj_objective_value -= adj_atol

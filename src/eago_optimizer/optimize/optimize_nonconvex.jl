@@ -190,9 +190,9 @@ function presolve_global!(t::ExtensionType, m::Optimizer)
     end
 
     # set subgradient refinement flag
-    wp._relaxed_evaluator.is_post = m._parameters.subgrad_tighten
-    wp._relaxed_evaluator.subgrad_tighten = m._parameters.subgrad_tighten
-    wp._relaxed_evaluator.reverse_subgrad_tighten =  m._parameters.reverse_subgrad_tighten
+    wp._relaxed_evaluator.is_post = m.subgrad_tighten
+    wp._relaxed_evaluator.subgrad_tighten = m.subgrad_tighten
+    wp._relaxed_evaluator.reverse_subgrad_tighten =  m.reverse_subgrad_tighten
 
     m._presolve_time = time() - m._parse_time
 
@@ -251,8 +251,8 @@ function branch_node!(t::ExtensionType, m::Optimizer)
     si   = m._branch_to_sol_map[max_pos]
     lsol = m._lower_solution[si]
 
-    cvx_f = m._parameters.branch_cvx_factor
-    cvx_g = m._parameters.branch_offset
+    cvx_f = m.branch_cvx_factor
+    cvx_g = m.branch_offset
 
     branch_pnt = cvx_f*lsol + (1.0 - cvx_f)*(lvb + uvb)/2.0
     if branch_pnt < lvb*(1.0 - cvx_g) + cvx_g*uvb
@@ -372,43 +372,43 @@ function termination_check(t::ExtensionType, m::Optimizer)
         if m._first_solution_node > 0
             m._termination_status_code = MOI.OPTIMAL
             m._result_status_code = MOI.FEASIBLE_POINT
-            (m._parameters.verbosity >= 3) && println("Empty Stack: Exhaustive Search Finished")
+            (m.verbosity >= 3) && println("Empty Stack: Exhaustive Search Finished")
 
         else
             m._termination_status_code = MOI.INFEASIBLE
             m._result_status_code = MOI.INFEASIBILITY_CERTIFICATE
-            (m._parameters.verbosity >= 3) && println("Empty Stack: Infeasible")
+            (m.verbosity >= 3) && println("Empty Stack: Infeasible")
         end
 
-    elseif node_in_stack >= m._parameters.node_limit
+    elseif node_in_stack >= m.node_limit
 
         m._termination_status_code = MOI.NODE_LIMIT
         m._result_status_code = MOI.UNKNOWN_RESULT_STATUS
-        (m._parameters.verbosity >= 3) && println("Node Limit Exceeded")
+        (m.verbosity >= 3) && println("Node Limit Exceeded")
 
-    elseif m._iteration_count >= m._parameters.iteration_limit
+    elseif m._iteration_count >= m.iteration_limit
 
         m._termination_status_code = MOI.ITERATION_LIMIT
         m._result_status_code = MOI.UNKNOWN_RESULT_STATUS
-        (m._parameters.verbosity >= 3) && println("Maximum Iteration Exceeded")
+        (m.verbosity >= 3) && println("Maximum Iteration Exceeded")
 
-    elseif ~relative_tolerance(L, U, m._parameters.relative_tolerance)
-
-        m._termination_status_code = MOI.OPTIMAL
-        m._result_status_code = MOI.FEASIBLE_POINT
-        (m._parameters.verbosity >= 3) && println("Relative Tolerance Achieved")
-
-    elseif (U - L) < m._parameters.absolute_tolerance
+    elseif ~relative_tolerance(L, U, m.relative_tolerance)
 
         m._termination_status_code = MOI.OPTIMAL
         m._result_status_code = MOI.FEASIBLE_POINT
-        (m._parameters.verbosity >= 3) && println("Absolute Tolerance Achieved")
+        (m.verbosity >= 3) && println("Relative Tolerance Achieved")
 
-    elseif m._run_time > m._parameters.time_limit
+    elseif (U - L) < m.absolute_tolerance
+
+        m._termination_status_code = MOI.OPTIMAL
+        m._result_status_code = MOI.FEASIBLE_POINT
+        (m.verbosity >= 3) && println("Absolute Tolerance Achieved")
+
+    elseif m._run_time > m.time_limit
 
         m._termination_status_code = MOI.TIME_LIMIT
         m._result_status_code = MOI.UNKNOWN_RESULT_STATUS
-        (m._parameters.verbosity >= 3) && println("Time Limit Exceeded")
+        (m.verbosity >= 3) && println("Time Limit Exceeded")
 
     else
 
@@ -428,9 +428,9 @@ function convergence_check(t::ExtensionType, m::Optimizer)
 
   L = m._lower_objective_value
   U = m._global_upper_bound
-  t = (U - L) <= m._parameters.absolute_tolerance
+  t = (U - L) <= m.absolute_tolerance
   if (U < Inf) && (L > Inf)
-      t |= (abs(U - L)/(max(abs(L), abs(U))) <= m._parameters.relative_tolerance)
+      t |= (abs(U - L)/(max(abs(L), abs(U))) <= m.relative_tolerance)
   end
 
   if t && m._min_converged_value < Inf
@@ -559,7 +559,7 @@ function preprocess!(t::ExtensionType, m::Optimizer)
 
     if params.fbbt_lp_depth >= m._iteration_count
         load_fbbt_buffer!(m)
-        for i = 1:m._parameters.fbbt_lp_repetitions
+        for i = 1:m.fbbt_lp_repetitions
             if feasible_flag
                 for j = 1:wp._saf_leq_count
                     !feasible_flag && break
@@ -585,25 +585,25 @@ function preprocess!(t::ExtensionType, m::Optimizer)
     cp_walk_count = 0
     perform_cp_walk_flag = feasible_flag
     perform_cp_walk_flag &= (params.cp_depth >= m._iteration_count)
-    perform_cp_walk_flag &= (cp_walk_count < m._parameters.cp_repetitions)
+    perform_cp_walk_flag &= (cp_walk_count < m.cp_repetitions)
     while perform_cp_walk_flag
         feasible_flag &= set_constraint_propagation_fbbt!(m)
         !feasible_flag && break
         cp_walk_count += 1
-        perform_cp_walk_flag = (cp_walk_count < m._parameters.cp_repetitions)
+        perform_cp_walk_flag = (cp_walk_count < m.cp_repetitions)
     end
 
     obbt_count = 0
     perform_obbt_flag = feasible_flag
     perform_obbt_flag &= (params.obbt_depth >= m._iteration_count)
-    perform_obbt_flag &= (obbt_count < m._parameters.obbt_repetitions)
+    perform_obbt_flag &= (obbt_count < m.obbt_repetitions)
 
     while perform_obbt_flag
         feasible_flag &= obbt!(m)
         m._obbt_performed_flag = true
         !feasible_flag && break
         obbt_count += 1
-        perform_obbt_flag     = (obbt_count < m._parameters.obbt_repetitions)
+        perform_obbt_flag     = (obbt_count < m.obbt_repetitions)
     end
 
     m._final_volume = prod(upper_variable_bounds(m._current_node) -
@@ -744,7 +744,7 @@ function lower_problem!(t::ExtensionType, m::Optimizer)
 
     n = m._current_node
 
-    m._working_problem._relaxed_evaluator.is_post = m._parameters.subgrad_tighten
+    m._working_problem._relaxed_evaluator.is_post = m.subgrad_tighten
     if !m._obbt_performed_flag
         if m._nonlinear_evaluator_created
             set_node!(m._working_problem._relaxed_evaluator, n)
@@ -820,18 +820,18 @@ function cut_condition(t::ExtensionType, m::Optimizer)
     # the number of cuts is less than the maximum and the distance between
     # prior solutions exceeded a tolerance.
     continue_cut_flag = m._cut_add_flag
-    continue_cut_flag &= (m._cut_iterations < m._parameters.cut_max_iterations)
+    continue_cut_flag &= (m._cut_iterations < m.cut_max_iterations)
 
     # compute distance between prior solutions and compare to tolerances
     n = m._current_node
     ns_indx = m._branch_to_sol_map
 
-    cvx_factor =  m._parameters.cut_cvx
+    cvx_factor =  m.cut_cvx
     xsol = (m._cut_iterations > 1) ? m._cut_solution[ns_indx] : m._lower_solution[ns_indx]
     xnew = (1.0 - cvx_factor)*mid(n) + cvx_factor*xsol
 
-    continue_cut_flag &= (norm((xsol - xnew)/diam(n), 1) > m._parameters.cut_tolerance)
-    continue_cut_flag |= (m._cut_iterations < m._parameters.cut_min_iterations)
+    continue_cut_flag &= (norm((xsol - xnew)/diam(n), 1) > m.cut_tolerance)
+    continue_cut_flag |= (m._cut_iterations < m.cut_min_iterations)
 
     # update reference point for new cut
     if continue_cut_flag
@@ -930,10 +930,10 @@ afterwards.
 """
 function default_nlp_heurestic(m::Optimizer)
     bool = false
-    ubd_limit = m._parameters.upper_bounding_depth
+    ubd_limit = m.upper_bounding_depth
     depth = m._current_node.depth
     bool |= (depth <= ubd_limit)
-    bool |= (rand() < 0.5^(depth - m._parameters.upper_bounding_depth))
+    bool |= (rand() < 0.5^(depth - m.upper_bounding_depth))
     return bool
 end
 
@@ -965,7 +965,7 @@ Default postprocess perfoms duality-based bound tightening on the `y`.
 """
 function postprocess!(t::ExtensionType, m::Optimizer)
 
-    if m._parameters.dbbt_depth > m._iteration_count
+    if m.dbbt_depth > m._iteration_count
         variable_dbbt!(m._current_node, m._lower_lvd, m._lower_uvd,
                        m._lower_objective_value, m._global_upper_bound,
                        m._branch_variable_count)
@@ -1042,8 +1042,8 @@ function global_solve!(m::Optimizer)
     parse_global!(m)
     presolve_global!(m)
 
-    logging_on = m._parameters.log_on
-    verbosity = m._parameters.verbosity
+    logging_on = m.log_on
+    verbosity = m.verbosity
 
     # terminates when max nodes or iteration is reach, or when node stack is empty
     while !termination_check(m)
@@ -1116,7 +1116,7 @@ function global_solve!(m::Optimizer)
         end
         set_global_lower_bound!(m)
         m._run_time = time() - m._start_time
-        m._time_left = m._parameters.time_limit - m._run_time
+        m._time_left = m.time_limit - m._run_time
         log_iteration!(m)
         print_iteration!(m)
         m._iteration_count += 1

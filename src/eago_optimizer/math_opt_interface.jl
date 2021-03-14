@@ -85,13 +85,6 @@ function MOI.is_empty(m::Optimizer)
     is_empty_flag &= isempty(m._input_problem)
     is_empty_flag &= isempty(m._working_problem)
 
-    new_optimizer = Optimizer()
-    for field in EAGO_MODEL_NOT_STRUCT_ATTRIBUTES
-        if getfield(m, field) != getfield(new_optimizer, field)
-            is_empty_flag = false
-            break
-        end
-    end
     return is_empty_flag
 end
 

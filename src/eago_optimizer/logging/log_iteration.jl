@@ -19,10 +19,10 @@ subproblems are logged every 'log_interval'.
 """
 function log_iteration!(x::Optimizer)
 
-    if x._parameters.log_on
+    if x.log_on
         log = x._log
-        if (mod(x._iteration_count, x._parameters.log_interval) == 0 || x._iteration_count == 1)
-            if x._parameters.log_subproblem_info
+        if (mod(x._iteration_count, x.log_interval) == 0 || x._iteration_count == 1)
+            if x.log_subproblem_info
                 if x._input_problem._optimization_sense === MOI.MIN_SENSE
                     push!(log.current_lower_bound, x._lower_objective_value)
                     push!(log.current_upper_bound, x._upper_objective_value)

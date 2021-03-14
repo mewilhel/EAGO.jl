@@ -88,7 +88,7 @@ function optimize!(::Val{LP}, m::Optimizer)
     _add_sv_or_aff_obj!(ip, lp_optimizer)
     _set_sense!(ip, lp_optimizer)
 
-    if m._parameters.verbosity < 5
+    if m.verbosity < 5
         MOI.set(lp_optimizer, MOI.Silent(), true)
     end
     m._parse_time = time() - m._start_time

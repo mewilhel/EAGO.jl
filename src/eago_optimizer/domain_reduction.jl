@@ -51,7 +51,7 @@ Excludes OBBT on variable indices that are tight for the solution of the relaxat
 """
 function trivial_filtering!(m::Optimizer, n::NodeBB)
 
-    obbt_tolerance = m._parameters.obbt_tolerance
+    obbt_tolerance = m.obbt_tolerance
     m._preprocess_termination_status = MOI.get(m.relaxed_optimizer, MOI.TerminationStatus())
     m._preprocess_result_status = MOI.get(m.relaxed_optimizer, MOI.PrimalStatus())
     valid_flag, feasible_flag = is_globally_optimal(m._preprocess_termination_status,
@@ -125,7 +125,7 @@ function aggressive_filtering!(m::Optimizer, n::NodeBB)
     end
 
     # Begin the main algorithm
-    for k = 1:m._parameters.obbt_aggressive_max_iteration
+    for k = 1:m.obbt_aggressive_max_iteration
 
         # Set index differences and vector for filtering direction
         bool_indx_diff(m._lower_indx_diff, m._old_low_index, m._new_low_index)
@@ -144,7 +144,7 @@ function aggressive_filtering!(m::Optimizer, n::NodeBB)
         # Termination Condition
         ((~any(m._new_low_index) & ~any(m._new_upp_index)) || (iszero(v))) && break
         if k >= 2
-            if (count(m._lower_indx_diff) + count(m._upper_indx_diff)) < m._parameters.obbt_aggressive_min_dimension
+            if (count(m._lower_indx_diff) + count(m._upper_indx_diff)) < m.obbt_aggressive_min_dimension
                 break
             end
         end
@@ -285,7 +285,7 @@ function obbt!(m::Optimizer)
 
     # Applies an aggressive filter to eliminate indices that
     # cannot be tightened by obbt
-    if m._parameters.obbt_aggressive_on
+    if m.obbt_aggressive_on
         feasibility = aggressive_filtering!(m, n)
     end
 
@@ -670,7 +670,7 @@ function set_constraint_propagation_fbbt!(m::Optimizer)
             end
         end
 
-        evaluator.is_post = m._parameters.subgrad_tighten
+        evaluator.is_post = m.subgrad_tighten
 
         m._working_problem._relaxed_evaluator.is_first_eval = m._new_eval_objective
         if feasible_flag && (m._working_problem._objective_type === NONLINEAR)

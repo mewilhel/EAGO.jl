@@ -28,11 +28,13 @@ function _unpack_final_solve!(m::Optimizer, opt::T; adjust_bnd::Bool = true) whe
 
     if MOI.get(opt, MOI.ResultCount()) > 0
         variable_indices = MOI.get(opt, MOI.ListOfVariableIndices())
+        @show variable_indices
+        @show MOI.get(opt, MOI.VariablePrimal(), variable_indices)
         m._continuous_solution = MOI.get(opt, MOI.VariablePrimal(), variable_indices)
         m._objective_value = MOI.get(opt, MOI.ObjectiveValue())
         m._objective_bound = MOI.get(opt, MOI.ObjectiveBound())
         @show m._objective_value
-        @show m._objective_bound 
+        @show m._objective_bound
     end
 
     return nothing
@@ -52,7 +54,7 @@ for (T, optimizer_field) in ((LP, :lp_optimizer),
         MOI.copy_to(opt, m._input_problem)
         #set_config!(m, opt)
 
-        if m._parameters.verbosity < 5
+        if m.verbosity < 5
             MOI.set(opt, MOI.Silent(), true)
         end
         m._parse_time = time() - m._start_time

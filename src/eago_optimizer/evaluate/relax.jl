@@ -21,9 +21,9 @@ i) ``|b| <= safe b`, ii) `safe_l <= abs(ai) <= safe u`, and iii) violates
 """
 function is_safe_cut!(m::Optimizer, f::SAF)
 
-    safe_l = m._parameters.cut_safe_l
-    safe_u = m._parameters.cut_safe_u
-    safe_b = m._parameters.cut_safe_b
+    safe_l = m.cut_safe_l
+    safe_u = m.cut_safe_u
+    safe_b = m.cut_safe_b
 
     # violates |b| <= safe_b
     (abs(f.constant) > safe_b) && return false
@@ -167,7 +167,7 @@ $(TYPEDSIGNATURES)
 """
 function relax!(m::Optimizer, f::BufferedQuadraticIneq, indx::Int, check_safe::Bool)
 
-    constraint_tol = m._parameters.absolute_constraint_feas_tolerance
+    constraint_tol = m.absolute_constraint_feas_tolerance
     finite_cut_generated = affine_relax_quadratic!(f.func, f.buffer, f.saf, m._current_node, m._sol_to_branch_map, m._current_xref)
     if finite_cut_generated
         if !check_safe || is_safe_cut!(m, f.saf)
@@ -187,7 +187,7 @@ $(TYPEDSIGNATURES)
 """
 function relax!(m::Optimizer, f::BufferedQuadraticEq, indx::Int, check_safe::Bool)
 
-    constraint_tol = m._parameters.absolute_constraint_feas_tolerance
+    constraint_tol = m.absolute_constraint_feas_tolerance
     finite_cut_generated = affine_relax_quadratic!(f.func, f.buffer, f.saf, m._current_node, m._sol_to_branch_map, m._current_xref)
     if finite_cut_generated
         if !check_safe || is_safe_cut!(m, f.saf)
@@ -267,7 +267,7 @@ $(TYPEDSIGNATURES)
 """
 function check_set_affine_nl!(m::Optimizer, f::BufferedNonlinearFunction{MC{N,T}}, finite_cut_generated::Bool, check_safe::Bool) where {N,T<:RelaxTag}
 
-    constraint_tol = m._parameters.absolute_constraint_feas_tolerance
+    constraint_tol = m.absolute_constraint_feas_tolerance
     if finite_cut_generated
         if !check_safe || is_safe_cut!(m, f.saf)
             lt = LT(-f.saf.constant + constraint_tol)
@@ -365,7 +365,7 @@ function relax_objective!(t::ExtensionType, m::Optimizer, q::Int64)
     # Add objective
     wp = m._working_problem
     obj_type = wp._objective_type
-    check_safe = (q === 1) ? false : m._parameters.cut_safe_on
+    check_safe = (q === 1) ? false : m.cut_safe_on
 
     if obj_type === SINGLE_VARIABLE
         MOI.set(relaxed_optimizer, MOI.ObjectiveFunction{SV}(), wp._objective_sv)
@@ -412,7 +412,7 @@ function objective_cut_nonlinear!(m::Optimizer, wp::ParsedProblem, UBD::Float64,
     relaxed_evaluator.is_first_eval = new_flag
     finite_cut_generated = affine_relax_nonlinear!(buffered_nl, relaxed_evaluator, true, new_flag, false)
 
-    constraint_tol = m._parameters.absolute_constraint_feas_tolerance
+    constraint_tol = m.absolute_constraint_feas_tolerance
     if finite_cut_generated
         copyto!(wp._objective_saf.terms, buffered_nl.saf.terms)
         wp._objective_saf.constant = 0.0
@@ -438,8 +438,8 @@ Adds linear objective cut constraint to the `x.relaxed_optimizer`.
 function objective_cut!(m::Optimizer, check_safe::Bool)
 
     UBD = m._global_upper_bound
-    constraint_tol = m._parameters.absolute_constraint_feas_tolerance
-    if m._parameters.objective_cut_on && m._global_upper_bound < Inf
+    constraint_tol = m.absolute_constraint_feas_tolerance
+    if m.objective_cut_on && m._global_upper_bound < Inf
 
         wp = m._working_problem
         obj_type = wp._objective_type
@@ -498,7 +498,7 @@ set to `false` indicating that the objective expression was evaluated.
 """
 function relax_all_constraints!(t::ExtensionType, m::Optimizer, q::Int64)
 
-    check_safe = (q === 1) ? false : m._parameters.cut_safe_on
+    check_safe = (q === 1) ? false : m.cut_safe_on
     m._working_problem._relaxed_evaluator.is_first_eval = m._new_eval_constraint
 
     sqf_leq_list = m._working_problem._sqf_leq

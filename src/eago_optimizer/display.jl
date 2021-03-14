@@ -21,7 +21,7 @@ Prints solution information for the B&B problem. Displays first node found, solu
 solution, and time spent solving subproblems.
 """
 function print_solution!(m::Optimizer)
-    if m._parameters.verbosity > 0
+    if m.verbosity > 0
         println(" ")
         println("First Solution Found at Node $(m._first_solution_node)")
         lower_bound = m._min_converged_value
@@ -64,17 +64,17 @@ every `header_interval`, the iteration info is displayed every `iteration_interv
 """
 function print_iteration!(m::Optimizer)
 
-    if m._parameters.verbosity > 0
+    if m.verbosity > 0
 
         # prints header line every B.hdr_intv times
-        if mod(m._iteration_count, m._parameters.header_iterations) === 0 || m._iteration_count === 1
+        if mod(m._iteration_count, m.header_iterations) === 0 || m._iteration_count === 1
             println("-----------------------------------------------------------------------------------------------------------------------------")
             println("|  Iteration #  |     Nodes    | Lower Bound  |  Upper Bound  |      Gap     |     Ratio    |     Time     |    Time Left   |")
             println("-----------------------------------------------------------------------------------------------------------------------------")
         end
 
         # prints iteration summary every B.itr_intv times
-        if mod(m._iteration_count, m._parameters.output_iterations) === 0
+        if mod(m._iteration_count, m.output_iterations) === 0
 
             print_str = "| "
 
@@ -145,7 +145,7 @@ $(FUNCTIONNAME)
 Prints the results of a single bounding problem.
 """
 function print_results!(m::Optimizer, flag::Bool)
-    if m._parameters.verbosity > 1
+    if m.verbosity > 1
         println(" ")
         if flag
             obj_val = m._lower_objective_value
@@ -179,7 +179,7 @@ $(FUNCTIONNAME)
 Prints the results after performing various cuts.
 """
 function print_results_post_cut!(m::Optimizer)
-    if m._parameters.verbosity > 1
+    if m.verbosity > 1
         println(" ")
         if m._input_problem._optimization_sense === MOI.MIN_SENSE
             print("Lower Bound (Last Iteration): $(m._lower_objective_value)")

@@ -86,7 +86,7 @@ Performs an epigraph reformulation assuming the working_problem is a minimizatio
 """
 function reform_epigraph!(m::Optimizer)
 
-    if m._parameters.presolve_epigraph_flag
+    if m.presolve_epigraph_flag
         #=
         # add epigraph variable
         obj_variable_index = MOI.add_variable(m)
@@ -147,9 +147,9 @@ Detects any variables participating in nonconvex terms and populates the
 """
 function label_branch_variables!(m::Optimizer)
 
-    m._user_branch_variables = !isempty(m._parameters.branch_variable)
+    m._user_branch_variables = !isempty(m.branch_variable)
     if m._user_branch_variables
-        append!(m._branch_variables, m._parameters.branch_variable)
+        append!(m._branch_variables, m.branch_variable)
     else
 
         append!(m._branch_variables, fill(false, m._working_problem._variable_num))
@@ -262,14 +262,14 @@ function add_nonlinear_functions!(m::Optimizer, evaluator::JuMP.NLPEvaluator)
             subexpr = evaluator.subexpressions[i]
             push!(relax_evaluator.subexpressions, NonlinearExpression!(subexpr, dict_sparsity, i,
                                                                       evaluator.subexpression_linearity,
-                                                                      m._parameters.relax_tag))
+                                                                      m.relax_tag))
         end
     end
 
     # scrubs udf functions using Cassette to remove odd data structures...
     # alternatively convert udfs to JuMP scripts...
-    m._parameters.presolve_scrubber_flag && Script.scrub!(m._working_problem._nlp_data)
-    if m._parameters.presolve_to_JuMP_flag
+    m.presolve_scrubber_flag && Script.scrub!(m._working_problem._nlp_data)
+    if m.presolve_to_JuMP_flag
         Script.udf_loader!(m)
     end
 
@@ -279,7 +279,7 @@ function add_nonlinear_functions!(m::Optimizer, evaluator::JuMP.NLPEvaluator)
     if evaluator.has_nlobj
         m._working_problem._objective_nl = BufferedNonlinearFunction(evaluator.objective, MOI.NLPBoundsPair(-Inf, Inf),
                                                                      dict_sparsity, evaluator.subexpression_linearity,
-                                                                     m._parameters.relax_tag)
+                                                                     m.relax_tag)
     end
 
     # add nonlinear constraints
@@ -289,7 +289,7 @@ function add_nonlinear_functions!(m::Optimizer, evaluator::JuMP.NLPEvaluator)
         bnds = constraint_bounds[i]
         push!(m._working_problem._nonlinear_constr, BufferedNonlinearFunction(constraint, bnds, dict_sparsity,
                                                                               evaluator.subexpression_linearity,
-                                                                              m._parameters.relax_tag))
+                                                                              m.relax_tag))
     end
 
     m._input_problem._nonlinear_count = length(m._working_problem._nonlinear_constr)
@@ -313,9 +313,9 @@ function add_nonlinear_evaluator!(m::Optimizer, evaluator::JuMP.NLPEvaluator)
     relax_evaluator.x                     = zeros(relax_evaluator.variable_count)
     relax_evaluator.num_mv_buffer         = zeros(relax_evaluator.variable_count)
     relax_evaluator.treat_x_as_number     = fill(false, relax_evaluator.variable_count)
-    relax_evaluator.ctx                   = GuardCtx(metadata = GuardTracker(m._parameters.domain_violation_ϵ,
-                                                                             m._parameters.domain_violation_guard_on))
-    relax_evaluator.subgrad_tol           = m._parameters.subgrad_tol
+    relax_evaluator.ctx                   = GuardCtx(metadata = GuardTracker(m.domain_violation_ϵ,
+                                                                             m.domain_violation_guard_on))
+    relax_evaluator.subgrad_tol           = m.subgrad_tol
 
     m._nonlinear_evaluator_created = true
 
@@ -335,7 +335,7 @@ Translates input problem to working problem. Routines and checks and optional ma
 function initial_parse!(m::Optimizer)
 
     # reset initial time and solution statistics
-    m._time_left = m._parameters.time_limit
+    m._time_left = m.time_limit
 
     ip = _input_problem(m)
     wp = _working_problem(m)
