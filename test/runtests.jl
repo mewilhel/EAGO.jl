@@ -1,12 +1,12 @@
 #!/usr/bin/env julia
 
-using Test
-using EAGO, JuMP, MathOptInterface, Ipopt, ForwardDiff
-using IntervalArithmetic, SpecialFunctions
+using Test, EAGO, MathOptInterface #, MINLPTests
+
 const MOI = MathOptInterface
+
 const MOIT = MOI.Test
 const MOIU = MOI.Utilities
-using ForwardDiff: Dual, Partials
+const MOIB = MOI.Bridges
 
 unit_excludes = String[
     "number_threads",                # EAGO won't support number of threads in near future
@@ -44,8 +44,10 @@ intlinear_excludes = String[
 ]
 
 contconic_excludes = String[
+    #=
     "normone",
     "norminf",
+    =#
     "sdp",
     "normnuc",
     "dualexp",
@@ -118,6 +120,11 @@ function test_moi(T::Type{<:Real}; solver_options...)
         MOIT.nlptest(MOIB.full_bridge_optimizer(optimizer, T), config, nlp_excludes)
     end
 end
+
+
+#, JuMP, Ipopt, ForwardDiff
+#using IntervalArithmetic, SpecialFunctions
+#using ForwardDiff: Dual, Partials
 
 #include("branch_bound.jl")
 #include("domain_reduction.jl")

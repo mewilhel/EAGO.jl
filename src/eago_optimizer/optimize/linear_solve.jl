@@ -25,13 +25,6 @@ function add_variables(m::Optimizer, optimizer::T, variable_number::Int) where T
 end
 
 ### LP and MILP routines
-function _add_linear_constraints!(ip::InputProblem, opt::T) where T
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_leq_constraints(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_geq_constraints(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_eq_constraints(ip))
-    return nothing
-end
-
 
 function add_sv_or_aff_obj!(m::Optimizer, opt::T) where T
     if _objective_type(_input_problem(m)) == SINGLE_VARIABLE

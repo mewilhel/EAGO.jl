@@ -61,7 +61,7 @@ function solve_local_nlp!(m::Optimizer)
     set_default_config!(nlp_optimizer)
 
     upper_variables = m._upper_variables
-    for i = 1:m._working_problem._variable_count
+    for i = 1:m._working_problem._variable_num
         @inbounds upper_variables[i] = MOI.add_variable(nlp_optimizer)
     end
 
@@ -75,7 +75,7 @@ function solve_local_nlp!(m::Optimizer)
     uvb = 0.0
     x0 = 0.0
 
-    for i = 1:m._input_problem._variable_count
+    for i = 1:m._input_problem._variable_num
         vinfo = @inbounds variable_info[i]
         single_variable = MOI.SingleVariable(@inbounds upper_variables[i])
 

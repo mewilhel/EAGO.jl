@@ -266,7 +266,7 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     # set in label_branch_variables! and label_fixed_variables! respectively in parse.jl
     _user_branch_variables::Bool = false
     _fixed_variable::Vector{Bool} = Bool[]
-    _branch_variable_count::Int = 0
+    _branch_variable_num::Int = 0
     _branch_to_sol_map::Vector{Int} = Int[]
     _sol_to_branch_map::Vector{Int} = Int[]
 
@@ -344,7 +344,7 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     _new_low_index::Vector{Bool} = Bool[]
     _new_upp_index::Vector{Bool} = Bool[]
     _obbt_variables::Vector{VI} = VI[]
-    _obbt_variable_count::Int = 0
+    _obbt_variable_num::Int = 0
     _obbt_performed_flag::Bool = false
 
     # Buffers for fbbt, set in presolve, used in preprocess

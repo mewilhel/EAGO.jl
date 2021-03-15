@@ -10,6 +10,14 @@
 # bound routine called by EAGO.
 #############################################################################
 
+function _add_linear_constraints!(ip::InputProblem, opt::T) where T
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_leq_constraint(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_geq_constraint(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_eq_constraint(ip))
+    return nothing
+end
+
+
 function set_evaluator_flags!(d, is_post, is_intersect, is_first_eval, interval_intersect)
 
     d.is_post = is_post
@@ -41,12 +49,12 @@ Creates an initial node with initial box constraints and adds it to the stack.
 """
 function create_initial_node!(m::Optimizer)
 
-    branch_variable_count = m._branch_variable_count
-    lower_bound = zeros(Float64, branch_variable_count)
-    upper_bound = zeros(Float64, branch_variable_count)
+    branch_variable_num = m._branch_variable_num
+    lower_bound = zeros(Float64, branch_variable_num)
+    upper_bound = zeros(Float64, branch_variable_num)
     branch_count = 1
 
-    for i = 1:m._working_problem._variable_count
+    for i = 1:m._working_problem._variable_num
         vi = m._working_problem._variable_info[i]
         if vi.branch_on === BRANCH
             lower_bound[branch_count] = vi.lower_bound
@@ -75,9 +83,9 @@ function load_relaxed_problem!(m::Optimizer)
 
     # add variables and indices and constraints
     wp = m._working_problem
-    branch_variable_count = 0
+    branch_variable_num = 0
 
-    variable_count = wp._variable_count
+    variable_count = wp._variable_num
     for i = 1:variable_count
 
         relaxed_variable_indx = MOI.add_variable(relaxed_optimizer)
@@ -88,14 +96,14 @@ function load_relaxed_problem!(m::Optimizer)
 
         is_branch_variable =  m._branch_variables[i]
         vinfo.branch_on = is_branch_variable ? BRANCH : NO_BRANCH
-        is_branch_variable && (branch_variable_count += 1)
+        is_branch_variable && (branch_variable_num += 1)
 
         if vinfo.is_integer
 
         elseif vinfo.is_fixed
             ci_sv_et = MOI.add_constraint(relaxed_optimizer, relaxed_variable, ET(vinfo.lower_bound))
             if is_branch_variable
-                push!(m._relaxed_variable_eq, (ci_sv_et, branch_variable_count))
+                push!(m._relaxed_variable_eq, (ci_sv_et, branch_variable_num))
                 wp._var_eq_count += 1
             end
 
@@ -103,7 +111,7 @@ function load_relaxed_problem!(m::Optimizer)
             if vinfo.has_lower_bound
                 ci_sv_gt = MOI.add_constraint(relaxed_optimizer, relaxed_variable, GT(vinfo.lower_bound))
                 if is_branch_variable
-                    push!(m._relaxed_variable_gt, (ci_sv_gt, branch_variable_count))
+                    push!(m._relaxed_variable_gt, (ci_sv_gt, branch_variable_num))
                     wp._var_geq_count += 1
                 end
             end
@@ -111,7 +119,7 @@ function load_relaxed_problem!(m::Optimizer)
             if vinfo.has_upper_bound
                 ci_sv_lt = MOI.add_constraint(relaxed_optimizer, relaxed_variable, LT(vinfo.upper_bound))
                 if is_branch_variable
-                    push!(m._relaxed_variable_lt, (ci_sv_lt, branch_variable_count))
+                    push!(m._relaxed_variable_lt, (ci_sv_lt, branch_variable_num))
                     wp._var_leq_count += 1
                 end
             end
@@ -119,8 +127,8 @@ function load_relaxed_problem!(m::Optimizer)
     end
 
     # set node index to single variable constraint index maps
-    m._node_to_sv_leq_ci = fill(CI{SV,LT}(-1), branch_variable_count)
-    m._node_to_sv_geq_ci = fill(CI{SV,GT}(-1), branch_variable_count)
+    m._node_to_sv_leq_ci = fill(CI{SV,LT}(-1), branch_variable_num)
+    m._node_to_sv_geq_ci = fill(CI{SV,GT}(-1), branch_variable_num)
     for i = 1:wp._var_leq_count
         ci_sv_lt, branch_index = m._relaxed_variable_lt[i]
         m._node_to_sv_leq_ci[branch_index] = ci_sv_lt
@@ -131,10 +139,10 @@ function load_relaxed_problem!(m::Optimizer)
     end
 
     # set number of variables to branch on
-    m._branch_variable_count = branch_variable_count
+    m._branch_variable_num = branch_variable_num
 
     # add linear constraints
-    add_linear_constraints!(m, relaxed_optimizer)
+    _add_linear_constraints!(m._input_problem, relaxed_optimizer)
 
     # sets relaxed problem objective sense to Min as all problems
     # are internally converted in Min problems in EAGO
@@ -147,38 +155,38 @@ function presolve_global!(t::ExtensionType, m::Optimizer)
     load_relaxed_problem!(m)
     create_initial_node!(m)
 
-    branch_variable_count = m._branch_variable_count
+    branch_variable_num = m._branch_variable_num
 
-    m._current_xref             = fill(0.0, branch_variable_count)
-    m._candidate_xref           = fill(0.0, branch_variable_count)
-    m._current_objective_xref   = fill(0.0, branch_variable_count)
-    m._prior_objective_xref     = fill(0.0, branch_variable_count)
-    m._lower_lvd                = fill(0.0, branch_variable_count)
-    m._lower_uvd                = fill(0.0, branch_variable_count)
+    m._current_xref             = fill(0.0, branch_variable_num)
+    m._candidate_xref           = fill(0.0, branch_variable_num)
+    m._current_objective_xref   = fill(0.0, branch_variable_num)
+    m._prior_objective_xref     = fill(0.0, branch_variable_num)
+    m._lower_lvd                = fill(0.0, branch_variable_num)
+    m._lower_uvd                = fill(0.0, branch_variable_num)
 
     # populate in full space until local MOI nlp solves support constraint deletion
     # uses input model for local nlp solves... may adjust this if a convincing reason
     # to use a reformulated upper problem presents itself
-    m._lower_solution      = zeros(Float64, m._working_problem._variable_count)
-    m._cut_solution        = zeros(Float64, m._working_problem._variable_count)
-    m._solution = zeros(Float64, m._working_problem._variable_count)
-    m._upper_solution      = zeros(Float64, m._working_problem._variable_count)
-    m._upper_variables     = fill(VI(-1), m._working_problem._variable_count)
+    m._lower_solution      = zeros(Float64, m._working_problem._variable_num)
+    m._cut_solution        = zeros(Float64, m._working_problem._variable_num)
+    m._solution = zeros(Float64, m._working_problem._variable_num)
+    m._upper_solution      = zeros(Float64, m._working_problem._variable_num)
+    m._upper_variables     = fill(VI(-1), m._working_problem._variable_num)
 
     # add storage for fbbt
-    m._lower_fbbt_buffer   = zeros(Float64, m._working_problem._variable_count)
-    m._upper_fbbt_buffer   = zeros(Float64, m._working_problem._variable_count)
+    m._lower_fbbt_buffer   = zeros(Float64, m._working_problem._variable_num)
+    m._upper_fbbt_buffer   = zeros(Float64, m._working_problem._variable_num)
 
     # add storage for obbt ( perform obbt on all relaxed variables, potentially)
-    m._obbt_working_lower_index = fill(false, branch_variable_count)
-    m._obbt_working_upper_index = fill(false, branch_variable_count)
-    m._old_low_index            = fill(false, branch_variable_count)
-    m._old_upp_index            = fill(false, branch_variable_count)
-    m._new_low_index            = fill(false, branch_variable_count)
-    m._new_upp_index            = fill(false, branch_variable_count)
-    m._lower_indx_diff          = fill(false, branch_variable_count)
-    m._upper_indx_diff          = fill(false, branch_variable_count)
-    m._obbt_variable_count      = branch_variable_count
+    m._obbt_working_lower_index = fill(false, branch_variable_num)
+    m._obbt_working_upper_index = fill(false, branch_variable_num)
+    m._old_low_index            = fill(false, branch_variable_num)
+    m._old_upp_index            = fill(false, branch_variable_num)
+    m._new_low_index            = fill(false, branch_variable_num)
+    m._new_upp_index            = fill(false, branch_variable_num)
+    m._lower_indx_diff          = fill(false, branch_variable_num)
+    m._upper_indx_diff          = fill(false, branch_variable_num)
+    m._obbt_variable_num      = branch_variable_num
 
     # add storage for objective cut if quadratic or nonlinear
     wp = m._working_problem
@@ -233,7 +241,7 @@ function branch_node!(t::ExtensionType, m::Optimizer)
     temp_max = 0.0
 
     flag = true
-    for i = 1:m._branch_variable_count
+    for i = 1:m._branch_variable_num
         si = m._branch_to_sol_map[i]
         vi = m._working_problem._variable_info[si]
         if vi.branch_on === BRANCH
@@ -968,7 +976,7 @@ function postprocess!(t::ExtensionType, m::Optimizer)
     if m.dbbt_depth > m._iteration_count
         variable_dbbt!(m._current_node, m._lower_lvd, m._lower_uvd,
                        m._lower_objective_value, m._global_upper_bound,
-                       m._branch_variable_count)
+                       m._branch_variable_num)
     end
 
     return nothing

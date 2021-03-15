@@ -104,18 +104,18 @@ Excludes OBBT on variable indices after a search in a filtering direction.
 function aggressive_filtering!(m::Optimizer, n::NodeBB)
 
     # Initial filtering vector (negative one direction per remark in Gleixner2017)
-    variable_number = m._working_problem._variable_count
+    variable_number = m._working_problem._variable_num
     v = -ones(variable_number)
 
     # Copy prior index set (ignores linear and binary terms)
-    obbt_variable_count = m._obbt_variable_count
+    obbt_variable_num = m._obbt_variable_num
     copyto!(m._old_low_index, m._obbt_working_lower_index)
     copyto!(m._old_upp_index, m._obbt_working_upper_index)
     copyto!(m._new_low_index, m._obbt_working_lower_index)
     copyto!(m._new_upp_index, m._obbt_working_upper_index)
 
     # Exclude unbounded directions
-    for i = 1:obbt_variable_count
+    for i = 1:obbt_variable_num
         if @inbounds m._new_low_index[i] && @inbounds n.lower_variable_bounds[i] === -Inf
             @inbounds m._new_low_index[i] = false
         end
@@ -131,7 +131,7 @@ function aggressive_filtering!(m::Optimizer, n::NodeBB)
         bool_indx_diff(m._lower_indx_diff, m._old_low_index, m._new_low_index)
         bool_indx_diff(m._upper_indx_diff, m._old_upp_index, m._new_upp_index)
 
-        for i = 1:obbt_variable_count
+        for i = 1:obbt_variable_num
             vi = @inbounds v[i]
             if @inbounds m._lower_indx_diff[i] && vi < 0.0
                 @inbounds v[i] = 0.0
@@ -166,7 +166,7 @@ function aggressive_filtering!(m::Optimizer, n::NodeBB)
             variable_primal = MOI.get(m.relaxed_optimizer, MOI.VariablePrimal(), m._relaxed_variable_index)
             copyto!(m._new_low_index, m._old_low_index)
             copyto!(m._new_upp_index, m._old_upp_index)
-            for i = 1:obbt_variable_count
+            for i = 1:obbt_variable_num
                 vp_value =  @inbounds variable_primal[i]
                 if @inbounds m._old_low_index[i] && vp_value == @inbounds n.lower_variable_bounds[i]
                     @inbounds m._new_low_index[i] = false
@@ -209,7 +209,7 @@ function set_reference_point!(m::Optimizer)
     current_xref = m._current_xref
 
     new_reference_point = false
-    for node_i = 1:m._branch_variable_count
+    for node_i = 1:m._branch_variable_num
         solution_i = m._branch_to_sol_map[node_i]
 
         node_x = current_xref[node_i]
@@ -275,7 +275,7 @@ function obbt!(m::Optimizer)
     MOI.optimize!(relaxed_optimizer)
 
     # Sets indices to attempt OBBT on
-    obbt_variable_count = m._obbt_variable_count
+    obbt_variable_num = m._obbt_variable_num
     fill!(m._obbt_working_lower_index, true)
     fill!(m._obbt_working_upper_index, true)
 
@@ -311,7 +311,7 @@ function obbt!(m::Optimizer)
 
         # min of xLP - yL on active
         if any(m._obbt_working_lower_index)
-            for i = 1:obbt_variable_count
+            for i = 1:obbt_variable_num
                 if @inbounds m._obbt_working_lower_index[i]
                     sol_indx = branch_to_sol_map[i]
                     temp_value = @inbounds xLP[sol_indx] - n.lower_variable_bounds[i]
@@ -326,7 +326,7 @@ function obbt!(m::Optimizer)
 
         # min of yU - xLP on active
         if any(m._obbt_working_upper_index)
-            for i = 1:obbt_variable_count
+            for i = 1:obbt_variable_num
                 if @inbounds m._obbt_working_upper_index[i]
                     sol_indx = branch_to_sol_map[i]
                     temp_value = @inbounds n.upper_variable_bounds[i] - xLP[sol_indx]
@@ -446,7 +446,7 @@ function load_fbbt_buffer!(m::Optimizer)
     lower_variable_bounds = n.lower_variable_bounds
     upper_variable_bounds = n.upper_variable_bounds
 
-    for i = 1:m._working_problem._variable_count
+    for i = 1:m._working_problem._variable_num
         if @inbounds m._branch_variables[i]
             indx = @inbounds sol_to_branch[i]
             @inbounds m._lower_fbbt_buffer[i] = lower_variable_bounds[indx]
@@ -472,7 +472,7 @@ function unpack_fbbt_buffer!(m::Optimizer)
     lower_variable_bounds = n.lower_variable_bounds
     upper_variable_bounds = n.upper_variable_bounds
 
-    for i = 1:m._working_problem._variable_count
+    for i = 1:m._working_problem._variable_num
         if m._branch_variables[i]
             indx = sol_to_branch[i]
             if m._lower_fbbt_buffer[i] > lower_variable_bounds[indx]

@@ -32,7 +32,7 @@ function print_solution!(m::Optimizer)
         println("UBD = $(MOI.get(m, MOI.ObjectiveValue()))")
         println("Solution is :")
         if m._feasible_solution_found
-            for i = 1:m._input_problem._variable_count
+            for i = 1:m._input_problem._variable_num
                 println("    X[$i] = $(m._solution[i])")
             end
         end
