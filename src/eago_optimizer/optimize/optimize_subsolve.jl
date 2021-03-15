@@ -48,7 +48,7 @@ end
 
 for (T, optimizer_field) in ((LP, :lp_optimizer),
                              (MILP, :mip_optimizer),
-                             (SOCP, :second_order_cone_optimizer),
+                             (SOCP, :socp_optimizer),
                              (SDP, :semidefinite_optimizer),
                              (DIFF_CVX, :nlp_optimizer),
                              (MICVX, :minlp_optimizer))
