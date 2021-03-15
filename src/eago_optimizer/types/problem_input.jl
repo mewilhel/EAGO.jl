@@ -120,9 +120,6 @@ end
 function MOI.add_constraint(d::InputProblem, v::SV, zo::ZO)
     vi = v.variable
     _check_inbounds!(d, vi)
-    _has_upper_bound(d, vi) && error("Upper bound on variable $vi already exists.")
-    _has_lower_bound(d, vi) && error("Lower bound on variable $vi already exists.")
-    _is_fixed(d, vi) && error("Variable $vi is fixed. Cannot also set upper bound.")
     d._variable_info[vi.value].lower_bound = 0.0
     d._variable_info[vi.value].upper_bound = 1.0
     d._variable_info[vi.value].has_lower_bound = true
@@ -134,13 +131,6 @@ end
 function MOI.add_constraint(d::InputProblem, v::SV, lt::LT)
     vi = v.variable
     _check_inbounds!(d, vi)
-    if isnan(lt.upper)
-        error("Invalid upper bound value $(lt.upper).")
-    elseif _has_upper_bound(d, vi)
-        error("Upper bound on variable $vi already exists.")
-    elseif _is_fixed(d, vi)
-        error("Variable $vi is fixed. Cannot also set upper bound.")
-    end
     ci = CI{SV, LT}(vi.value)
     d._variable_leq[ci] = (v, lt)
     d._variable_info[vi.value].upper_bound = lt.upper
@@ -151,13 +141,6 @@ end
 function MOI.add_constraint(d::InputProblem, v::SV, gt::GT)
     vi = v.variable
     _check_inbounds!(d, vi)
-    if isnan(gt.lower)
-        error("Invalid lower bound value $(gt.lower).")
-    elseif _has_lower_bound(d, vi)
-        error("Lower bound on variable $vi already exists.")
-    elseif _is_fixed(d, vi)
-        error("Variable $vi is fixed. Cannot also set lower bound.")
-    end
     ci = CI{SV, GT}(vi.value)
     d._variable_geq[ci] = (v, gt)
     d._variable_info[vi.value].lower_bound = gt.lower
@@ -168,15 +151,6 @@ end
 function MOI.add_constraint(d::InputProblem, v::SV, eq::ET)
     vi = v.variable
     _check_inbounds!(d, vi)
-    if isnan(eq.value)
-        error("Invalid fixed value $(gt.lower).")
-    elseif _has_lower_bound(d, vi)
-        error("Variable $vi has a lower bound. Cannot be fixed.")
-    elseif _has_upper_bound(d, vi)
-        error("Variable $vi has an upper bound. Cannot be fixed.")
-    elseif _is_fixed(d, vi)
-        error("Variable $vi is already fixed.")
-    end
     ci = CI{SV, ET}(vi.value)
     d._variable_eq[ci] = (v, eq)
     d._variable_info[vi.value].lower_bound = eq.value
