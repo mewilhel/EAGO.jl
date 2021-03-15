@@ -72,13 +72,16 @@ end
 
 MOI.get(m::Optimizer, ::MOI.VariablePrimal, vi::MOI.VariableIndex) = m._solution[vi.value]
 MOI.get(m::Optimizer, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) = MOI.get.(m, p, vi)
+function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{ET, GT, LT}}
+    return opt._solution[ci.value]
+end
 
-function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: MOI.AbstractFunction, S <: MOI.AbstractScalarSet}
+function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{SAF, SQF}, S <: Union{ET, GT, LT}}
     i = ci.value
     os = opt._input_problem._constraint_offset
     return opt._primal_constraint_value[os[i]]
 end
-function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: MOI.AbstractFunction, S <: MOI.AbstractVectorSet}
+function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{VECOFVAR}, S <: Union{SECOND_ORDER_CONE}}
     i = ci.value
     os = opt._input_problem._constraint_offset
     return opt._primal_constraint_value[(os[i] + 1):os[i + 1]]

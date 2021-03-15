@@ -31,11 +31,13 @@ function _unpack_final_solve!(m::Optimizer, opt::T, idx_map; adjust_bnd::Bool = 
         variable_indices = MOI.get(opt, MOI.ListOfVariableIndices())
         m._solution = MOI.get(opt, MOI.VariablePrimal(), variable_indices)
         # TODO: Improve this... type stability etc..
-        for (F, S) = MOI.get(m, MOI.ListOfConstraints())
-            for ci in MOI.get(m, MOI.ListOfConstraintIndices{F,S}())
-                subsolver_ci = idx_map[ci]
-                primal_val = MOI.get(opt, MOI.ConstraintPrimal(), subsolver_ci)
-                 _set_cons_primal!(m, ci, primal_val)
+        for (F, S) in MOI.get(m, MOI.ListOfConstraints())
+            if !(F == SV)
+                for ci in MOI.get(m, MOI.ListOfConstraintIndices{F,S}())
+                    subsolver_ci = idx_map[ci]
+                    primal_val = MOI.get(opt, MOI.ConstraintPrimal(), subsolver_ci)
+                     _set_cons_primal!(m, ci, primal_val)
+                 end
              end
         end
         m._objective_value = MOI.get(opt, MOI.ObjectiveValue())

@@ -9,16 +9,13 @@ const MOIU = MOI.Utilities
 using ForwardDiff: Dual, Partials
 
 unit_excludes = String[
-    #"solve_singlevariable_obj",
     "number_threads",
     "solve_qcp_edge_cases",
     "solve_zero_one_with_bounds_1",
-    "solve_with_lowerbound",
     "delete_nonnegative_variables",
     "solve_affine_greaterthan",
     "solve_farkas_interval_lower",
     "solve_duplicate_terms_vector_affine",
-    "solve_constant_obj",
     "solve_duplicate_terms_obj",
     "raw_status_string",
     "solve_affine_equalto",
@@ -29,19 +26,14 @@ unit_excludes = String[
     "solve_integer_edge_cases",
     "silent",
     "update_dimension_nonnegative_variables",
-    "solve_blank_obj",
     "solve_zero_one_with_bounds_3",
     "solve_affine_interval",
-    "solve_with_upperbound" ,
     "solve_duplicate_terms_scalar_affine",
     "solve_farkas_variable_lessthan",
     "time_limit_sec" ,
-    "delete_soc_variables",
-    "getvariable",
     "solve_zero_one_with_bounds_2",
     "solve_qp_edge_cases",
     "solve_result_index",
-    "solve_affine_lessthan",
     "solve_objbound_edge_cases",
     "solve_affine_deletion_edge_cases"
 ]
@@ -50,12 +42,7 @@ contlinear_excludes = String[
     "linear14",
     "linear4",
     "linear1",
-    "linear2",
     "partial_start",
-    "linear7",
-    "linear10b",
-    "linear10",
-    #"linear15",      # Fails if not bridged...
     "linear13"
 ]
 
