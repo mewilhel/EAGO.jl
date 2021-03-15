@@ -394,6 +394,7 @@ end
 function _parse_classify_problem(::Val{LP}, ip::InputProblem, wp::ParsedProblem)
     is_lp =  _objective_type(ip) == SINGLE_VARIABLE
     is_lp |= _objective_type(ip) == SCALAR_AFFINE
+    is_lp |= _objective_type(ip) == UNSET
     is_lp &= _second_order_cone_num(ip)       == 0
     is_lp &= _quadratic_num(ip)               == 0
     is_lp &= _nl_expr_num(ip)                 == 0
@@ -407,6 +408,7 @@ end
 function _parse_classify_problem(::Val{MILP}, ip::InputProblem, wp::ParsedProblem)
     is_milp =  _objective_type(ip) == SINGLE_VARIABLE
     is_milp |= _objective_type(ip) == SCALAR_AFFINE
+    is_milp |= _objective_type(ip) == UNSET
     is_milp &= _second_order_cone_num(ip)       == 0
     is_milp &= _quadratic_num(ip)               == 0
     is_milp &= _nl_expr_num(ip)                 == 0
@@ -420,6 +422,7 @@ end
 function _parse_classify_problem(::Val{SOCP}, ip::InputProblem, wp::ParsedProblem)
     is_socp =  _objective_type(ip) == SINGLE_VARIABLE
     is_socp |= _objective_type(ip) == SCALAR_AFFINE
+    is_socp |= _objective_type(ip) == UNSET
     is_socp &= _second_order_cone_num(ip)       > 0
     is_socp &= _quadratic_num(ip)               == 0
     is_socp &= _nl_expr_num(ip)                 == 0
@@ -433,6 +436,7 @@ end
 function _parse_classify_problem(::Val{SDP}, ip::InputProblem, wp::ParsedProblem)
     is_sdp =  _objective_type(ip) == SINGLE_VARIABLE
     is_sdp |= _objective_type(ip) == SCALAR_AFFINE
+    is_sdp |= _objective_type(ip) == UNSET
     is_sdp &= _psd_cone_num(ip)           > 0
     is_sdp &= _quadratic_num(ip)          == 0
     is_sdp &= _nl_expr_num(ip)            == 0

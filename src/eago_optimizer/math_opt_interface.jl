@@ -24,7 +24,9 @@ end
 MOI.get(m::Optimizer, ::MOI.SolverName) = "EAGO: Easy Advanced Global Optimization"
 MOI.get(m::Optimizer, ::MOI.TerminationStatus) = m._termination_status_code
 function MOI.get(m::Optimizer, v::MOI.PrimalStatus)
-    MOI.check_result_index_bounds(m, v)
+    if v.N > 1
+        MOI.check_result_index_bounds(m, v)
+    end
     m._result_status_code
 end
 MOI.get(m::Optimizer, ::MOI.SolveTime) = m._run_time

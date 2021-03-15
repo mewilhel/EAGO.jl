@@ -21,28 +21,27 @@ unit_excludes = String[
     "solve_objbound_edge_cases",
 
     "solve_zero_one_with_bounds_3",   # GLPK has a non-standard return code
-    "solve_result_index",             # TODO: Should throw error when querying for multiple results...
+    "solve_result_index",             # TODO: Should throw error when querying for multiple results... (expected behavior?)
 ]
 
 contlinear_excludes = String[
     "partial_start",                 # EAGO doesn't support VariablePrimalStart
-    #"linear14",                     # Variable primal & constraint primal access mixed up
-    #"linear4",
-    #"linear1",
-    #"linear13"
+    "linear14",                     # Variable primal & constraint primal access mixed up
+    "linear4",
+    "linear1"
 ]
 
 intlinear_excludes = String[
-    "int1",
-    "int2",
-    "int3",
-    "indicator1",
+    "indicator1",    # doesn't currently support indicator sets
     "indicator2",
     "indicator3",
     "indicator4",
+
+    "int1",
+    "int2",
+    "int3",
     "semiinttest",
-    "knapsack",
-    "semiconttest"
+    "knapsack"
 ]
 
 contconic_excludes = String[
