@@ -28,9 +28,8 @@ function _unpack_final_solve!(m::Optimizer, opt::T, idx_map; adjust_bnd::Bool = 
     m._result_status_code = MOI.get(opt, MOI.PrimalStatus())
 
     if MOI.get(opt, MOI.ResultCount()) > 0
-        variable_indices = MOI.get(opt, MOI.ListOfVariableIndices())
+        variable_indices = [idx_map[vi] for vi in MOI.get(opt, MOI.ListOfVariableIndices())]
         m._solution = MOI.get(opt, MOI.VariablePrimal(), variable_indices)
-        # TODO: Improve this... type stability etc..
         for (F, S) in MOI.get(m, MOI.ListOfConstraints())
             if !(F == SV)
                 for ci in MOI.get(m, MOI.ListOfConstraintIndices{F,S}())
