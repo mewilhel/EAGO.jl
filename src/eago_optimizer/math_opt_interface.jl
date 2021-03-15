@@ -29,19 +29,20 @@ MOI.get(m::Optimizer, ::MOI.NodeCount) = m._maximum_node_id
 MOI.get(m::Optimizer, ::MOI.ResultCount) = (m._result_status_code === MOI.FEASIBLE_POINT) ? 1 : 0
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
-function MOI.set(m::Optimizer, ::MOI.Silent, value::Bool)
-    if value
-        m._parameters.verbosity = 0
-        m._parameters.log_on = false
+function MOI.set(m::Optimizer, ::MOI.Silent, b::Bool)
+    if !b && iszero(m.verbosity)
+        m.verbosity = 1
+    elseif b
+        m.verbosity = 0
     end
     return
 end
-MOI.get(opt::Optimizer, ::MOI.Silent) = iszero(m._parameters.verbosity) && !m._parameters.log_on
+MOI.get(m::Optimizer, ::MOI.Silent) = iszero(m.verbosity)
 
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
-MOI.get(m::Optimizer, ::MOI.TimeLimitSec) = isfinite(m._parameters.time_limit) ? m._parameters.time_limit : nothing
-MOI.set(m::Optimizer, ::MOI.TimeLimitSec, ::Nothing)      = (m._parameters.time_limit = Inf;   return)
-MOI.set(m::Optimizer, ::MOI.TimeLimitSec, value::Float64) = (m._parameters.time_limit = value; return)
+MOI.get(m::Optimizer, ::MOI.TimeLimitSec) = isfinite(m.time_limit) ? m.time_limit : nothing
+MOI.set(m::Optimizer, ::MOI.TimeLimitSec, ::Nothing)      = (m.time_limit = Inf;   return)
+MOI.set(m::Optimizer, ::MOI.TimeLimitSec, value::Float64) = (m.time_limit = value; return)
 
 function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
     if !(p.name isa String) && !(p.name isa Symbol)

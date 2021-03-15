@@ -9,33 +9,20 @@ const MOIU = MOI.Utilities
 using ForwardDiff: Dual, Partials
 
 unit_excludes = String[
-    "number_threads",
+    "number_threads",                # EAGO won't support number of threads in near future
     "solve_qcp_edge_cases",
     "solve_zero_one_with_bounds_1",
-    "delete_nonnegative_variables",
-    "solve_affine_greaterthan",
-    "solve_farkas_interval_lower",
-    "solve_duplicate_terms_vector_affine",
-    "solve_duplicate_terms_obj",
-    "raw_status_string",
-    "solve_affine_equalto",
+    "raw_status_string",             # TODO: ADD internal status states to EAGO
     "solve_farkas_lessthan",
     "solve_farkas_interval_upper",
     "solve_qp_zero_offdiag",
-    "variablenames",
+    #"variablenames",                # SEEMS LIKE A FALSE PASS
     "solve_integer_edge_cases",
-    "silent",
-    "update_dimension_nonnegative_variables",
     "solve_zero_one_with_bounds_3",
-    "solve_affine_interval",
-    "solve_duplicate_terms_scalar_affine",
-    "solve_farkas_variable_lessthan",
-    "time_limit_sec" ,
     "solve_zero_one_with_bounds_2",
     "solve_qp_edge_cases",
     "solve_result_index",
     "solve_objbound_edge_cases",
-    "solve_affine_deletion_edge_cases"
 ]
 
 contlinear_excludes = String[
@@ -111,7 +98,7 @@ function test_moi(T::Type{<:Real}; solver_options...)
     )
 
     @testset "unit tests" begin
-        MOIT.unittest(optimizer, config, unit_excludes)
+        MOIT.unittest(MOIB.full_bridge_optimizer(optimizer, T), config, unit_excludes)
     end
 
     @testset "continuous linear tests" begin
