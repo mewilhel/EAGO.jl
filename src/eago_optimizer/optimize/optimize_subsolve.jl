@@ -56,15 +56,16 @@ for (T, optimizer_field) in ((LP, :lp_optimizer),
     @eval function optimize!(::Val{$T}, m::Optimizer)
 
         opt = m.$optimizer_field
-        idx_map = MOI.copy_to(opt, m._input_problem)
-        #set_config!(m, opt)                            # TODO: Bridge optimizers as necessary
+        #set_config!(m, opt)
+        bridged_opt = MOIB.full_bridge_optimizer(opt, Float64)
+        idx_map = MOIU.default_copy_to(bridged_opt, m._input_problem)
 
         if m.verbosity < 5
-            MOI.set(opt, MOI.Silent(), true)
+            MOI.set(bridged_opt, MOI.Silent(), true)
         end
         m._parse_time = time() - m._start_time
 
-        MOI.optimize!(opt)
-        _unpack_final_solve!(m, opt, idx_map)
+        MOI.optimize!(bridged_opt)
+        _unpack_final_solve!(m, bridged_opt, idx_map)
     end
 end

@@ -39,6 +39,8 @@ module EAGO
     using IntervalContractors
 
     const MOI = MathOptInterface
+    const MOIU = MathOptInterface.Utilities
+    const MOIB = MathOptInterface.Bridges
 
     const SV = MOI.SingleVariable
     const SAF = MOI.ScalarAffineFunction{Float64}

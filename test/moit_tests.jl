@@ -46,7 +46,7 @@ const contconic_excludes = String[
     "relentr",
     "rsoc",
     "pow",
-    "geomean"
+    #"geomean"
 ]
 
 const contquadratic_excludes = String[
