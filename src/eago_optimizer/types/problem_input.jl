@@ -147,9 +147,9 @@ function MOI.add_constraint(d::InputProblem, v::SV, s::GT)
     return ci
 end
 
-function MOI.add_constraint(d::InputProblem, v::SV, eq::ET)
+function MOI.add_constraint(d::InputProblem, v::SV, s::ET)
     ci = _add_variable_constraint(d, v, s)
-    d._variable_eq[ci] = (v, eq)
+    d._variable_eq[ci] = (v, s)
     return ci
 end
 
@@ -159,23 +159,23 @@ const VARIABLE_TO_DICT = ((ET, :_variable_eq), (LT, :_variable_leq),
 for (S, Sdict) in VARIABLE_TO_DICT
     for (T, Tdict) in VARIABLE_TO_DICT
         if S == T
-            function MOI.set(d::Optimizer, ::MOI.ConstraintFunction, ci::CI{SV,$S}, f::$S)
+            @eval function MOI.set(d::InputProblem, ::MOI.ConstraintFunction, ci::CI{SV,$S}, f::$S)
                 d.$(Sdict)[ci] = (f, d.$(Sdict)[ci][2])
                 return
             end
-            function MOI.set(d::Optimizer, ::MOI.ConstraintSet, ci::CI{SV,$S}, s::$S)
+            @eval function MOI.set(d::InputProblem, ::MOI.ConstraintSet, ci::CI{SV,$S}, s::$S)
                 d.$(Sdict)[ci] = (d.$(Sdict)[ci][1], s)
                 return
             end
         else
-            function MOI.set(d::Optimizer, ::MOI.ConstraintFunction, ci::CI{SV,$S}, f::$T)
-                s = (d.$(Sdict)[ci][2]
+            @eval function MOI.set(d::InputProblem, ::MOI.ConstraintFunction, ci::CI{SV,$S}, f::$T)
+                s = d.$(Sdict)[ci][2]
                 delete!(d.$(Sdict), ci)
                 d.$(Tdict)[ci] = (f, s)
                 return
             end
-            function MOI.set(d::Optimizer, ::MOI.ConstraintSet, ci::CI{SV,$S}, s::$T)
-                f = (d.$(Sdict)[ci][1]
+            @eval function MOI.set(d::InputProblem, ::MOI.ConstraintSet, ci::CI{SV,$S}, s::$T)
+                f = d.$(Sdict)[ci][1]
                 delete!(d.$(Sdict), ci)
                 d.$(Tdict)[ci] = (f, s)
                 return
@@ -183,7 +183,7 @@ for (S, Sdict) in VARIABLE_TO_DICT
         end
     end
     @eval function MOI.get(d::InputProblem, ::MOI.ListOfConstraintIndices{SV,$S})
-        return collect(keys(d.$dict))
+        return collect(keys(d.$Sdict))
     end
     @eval function MOI.get(d::InputProblem, ::MOI.ConstraintFunction, ci::CI{SV,$S})
         return d.$Sdict[ci][1]

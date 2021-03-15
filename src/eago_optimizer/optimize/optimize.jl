@@ -22,10 +22,7 @@ function MOI.optimize!(m::Optimizer)
 
     # Runs the branch and bound routine
     if !m.enable_optimize_hook
-
-        # Need to eliminate fixed variables prior to checking
-        # for convex quadratic constraints
-        initial_parse!(m)
+        #initial_parse!(m)
 
         # Determines if the problem is an LP, MILP, SOCP, MISCOP,
         # CONVEX, OF MINCVX PROBLEM TYPE as entered

@@ -23,7 +23,10 @@ end
 
 MOI.get(m::Optimizer, ::MOI.SolverName) = "EAGO: Easy Advanced Global Optimization"
 MOI.get(m::Optimizer, ::MOI.TerminationStatus) = m._termination_status_code
-MOI.get(m::Optimizer, ::MOI.PrimalStatus) = m._result_status_code
+function MOI.get(m::Optimizer, v::MOI.PrimalStatus)
+    MOI.check_result_index_bounds(m, v)
+    m._result_status_code
+end
 MOI.get(m::Optimizer, ::MOI.SolveTime) = m._run_time
 MOI.get(m::Optimizer, ::MOI.NodeCount) = m._maximum_node_id
 MOI.get(m::Optimizer, ::MOI.ResultCount) = (m._result_status_code === MOI.FEASIBLE_POINT) ? 1 : 0
@@ -69,38 +72,44 @@ for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{SV,ZO})
         return MOI.get(d._input_problem, $attr(), ci)
     end
-    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where F <: Union{SV, SAF, SQF}, S <: Union{ET, GT, LT}
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{ET, GT, LT}}
         return MOI.get(d._input_problem, $attr(), ci)
     end
-    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where F <: Union{VECOFVAR}, S <: Union{SECOND_ORDER_CONE, PSD_CONE}
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECOFVAR}, S <: Union{SECOND_ORDER_CONE, PSD_CONE}}
         return MOI.get(d._input_problem, $attr(), ci)
     end
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,ZO}, v)
         return MOI.get(d._input_problem, $attr(), ci, v)
     end
-    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where F <: Union{SV, SAF, SQF}, S <: Union{ET, GT, LT}
+    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{ET, GT, LT}}
         return MOI.get(d._input_problem, $attr(), ci, v)
     end
-    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where F <: Union{VECOFVAR}, S <: Union{SECOND_ORDER_CONE, PSD_CONE}
+    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECOFVAR}, S <: Union{SECOND_ORDER_CONE, PSD_CONE}}
         return MOI.get(d._input_problem, $attr(), ci, v)
     end
 end
 
-MOI.get(m::Optimizer, ::MOI.VariablePrimal, vi::MOI.VariableIndex) = m._solution[vi.value]
+function MOI.get(m::Optimizer, v::MOI.VariablePrimal, vi::MOI.VariableIndex)
+    MOI.check_result_index_bounds(m, v)
+    m._solution[vi.value]
+end
 MOI.get(m::Optimizer, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) = MOI.get.(m, p, vi)
-function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{ET, GT, LT}}
-    return opt._solution[ci.value]
+function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{ET, GT, LT}}
+    MOI.check_result_index_bounds(m, v)
+    return m._solution[ci.value]
 end
 
-function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{SAF, SQF}, S <: Union{ET, GT, LT}}
+function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{SAF, SQF}, S <: Union{ET, GT, LT}}
+    MOI.check_result_index_bounds(m, v)
     i = ci.value
-    os = opt._input_problem._constraint_offset
-    return opt._primal_constraint_value[os[i]]
+    os = m._input_problem._constraint_offset
+    return m._primal_constraint_value[os[i]]
 end
-function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{VECOFVAR}, S <: Union{SECOND_ORDER_CONE, PSD_CONE}}
+function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{VECOFVAR}, S <: Union{SECOND_ORDER_CONE, PSD_CONE}}
+    MOI.check_result_index_bounds(m, v)
     i = ci.value
-    os = opt._input_problem._constraint_offset
-    return opt._primal_constraint_value[(os[i] + 1):os[i + 1]]
+    os = m._input_problem._constraint_offset
+    return m._primal_constraint_value[(os[i] + 1):os[i + 1]]
 end
 MOI.get(opt::Optimizer, a::MOI.ConstraintPrimal, ci::Vector{MOI.ConstraintIndex}) = MOI.get.(opt, a, ci)
 
@@ -133,7 +142,10 @@ function MOI.is_empty(m::Optimizer)
     return is_empty_flag
 end
 
-MOI.get(m::Optimizer, ::MOI.ObjectiveValue) = m._objective_value
+function MOI.get(m::Optimizer, v::MOI.ObjectiveValue)
+    MOI.check_result_index_bounds(m, v)
+    m._objective_value
+end
 MOI.get(m::Optimizer, ::MOI.ObjectiveBound) = m._objective_bound
 MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = m._input_problem._variable_num
 

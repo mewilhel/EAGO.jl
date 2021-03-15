@@ -9,25 +9,27 @@ const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 
 unit_excludes = String[
-    "number_threads",                # EAGO won't support number of threads in near future
-    "raw_status_string",             # TODO: ADD internal status states to EAGO
-    #"variablenames",                # SEEMS LIKE A FALSE PASS
-    "solve_qcp_edge_cases",
+    "number_threads",                 # EAGO won't support number of threads in near future
+    "raw_status_string",              # TODO: ADD internal status states to EAGO
+    "variablenames",                  # SEEMS LIKE A FALSE PASS
+
+    "solve_qcp_edge_cases",           # Need to update nonconvex...
     "solve_qp_zero_offdiag",
-    "solve_integer_edge_cases",
-    "solve_zero_one_with_bounds_3",
-    "solve_zero_one_with_bounds_2",
-    "solve_qp_edge_cases",
-    "solve_result_index",
+     "solve_qp_edge_cases",
+
+    "solve_integer_edge_cases",       # Integer valued variable not currently supported.
     "solve_objbound_edge_cases",
+
+    "solve_zero_one_with_bounds_3",   # GLPK has a non-standard return code
+    "solve_result_index",             # TODO: Should throw error when querying for multiple results...
 ]
 
 contlinear_excludes = String[
     "partial_start",                 # EAGO doesn't support VariablePrimalStart
-    "linear14",                     # Variable primal & constraint primal access mixed up
+    #"linear14",                     # Variable primal & constraint primal access mixed up
     #"linear4",
-    "linear1",
-    "linear13"
+    #"linear1",
+    #"linear13"
 ]
 
 intlinear_excludes = String[

@@ -50,6 +50,6 @@ VariableInfo(gt::GT) = VariableInfo(has_lower_bound = true,
 VariableInfo(et::ET) = VariableInfo(has_lower_bound = true,
                                     has_upper_bound = true,
                                     has_constraints = true,
-                                    is_fixed = true
+                                    is_fixed = true,
                                     lower_bound = et.value,
                                     upper_bound = et.value)
