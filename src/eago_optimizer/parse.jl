@@ -430,6 +430,19 @@ function _parse_classify_problem(::Val{SOCP}, ip::InputProblem, wp::ParsedProble
     return is_socp
 end
 
+function _parse_classify_problem(::Val{SDP}, ip::InputProblem, wp::ParsedProblem)
+    is_sdp =  _objective_type(ip) == SINGLE_VARIABLE
+    is_sdp |= _objective_type(ip) == SCALAR_AFFINE
+    is_sdp &= _psd_cone_num(ip)           > 0
+    is_sdp &= _quadratic_num(ip)          == 0
+    is_sdp &= _nl_expr_num(ip)            == 0
+    is_sdp &= _integer_variable_num(ip)   == 0
+    if is_sdp
+        wp._problem_type = SDP
+    end
+    return is_sdp
+end
+
 #=
 function _parse_classify_problem(::Val{MISOCP}, ip::InputProblem, wp::ParsedProblem)
     is_misocp =  _objective_type(ip) == SINGLE_VARIABLE

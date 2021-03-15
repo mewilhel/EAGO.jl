@@ -7,7 +7,7 @@ MOI.supports_constraint(::Optimizer, ::Type{SV}, ::Type{ZO}) = true
 
 MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{VECOFVAR}},
-                        ::Type{<:Union{SECOND_ORDER_CONE}},
+                        ::Type{<:Union{SECOND_ORDER_CONE, PSD_CONE}},
                         ) = true
 
 MOI.supports(::Optimizer,
@@ -82,7 +82,7 @@ function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex
     os = opt._input_problem._constraint_offset
     return opt._primal_constraint_value[os[i]]
 end
-function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{VECOFVAR}, S <: Union{SECOND_ORDER_CONE}}
+function MOI.get(opt::Optimizer, ::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{VECOFVAR}, S <: Union{SECOND_ORDER_CONE, PSD_CONE}}
     i = ci.value
     os = opt._input_problem._constraint_offset
     return opt._primal_constraint_value[(os[i] + 1):os[i + 1]]
@@ -161,7 +161,7 @@ function MOI.add_constraint(d::Optimizer, f::SV, s::ZO)
     MOI.add_constraint(d._input_problem, f, s)
 end
 function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECOFVAR},
-                                                             S<:Union{SECOND_ORDER_CONE}}
+                                                             S<:Union{SECOND_ORDER_CONE, PSD_CONE}}
     append!(d._primal_constraint_value, zeros(MOI.dimension(s)))
     MOI.add_constraint(d._input_problem, f, s)
 end

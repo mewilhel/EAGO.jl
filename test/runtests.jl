@@ -10,10 +10,10 @@ using ForwardDiff: Dual, Partials
 
 unit_excludes = String[
     "number_threads",                # EAGO won't support number of threads in near future
-    "solve_qcp_edge_cases",
     "raw_status_string",             # TODO: ADD internal status states to EAGO
-    "solve_qp_zero_offdiag",
     #"variablenames",                # SEEMS LIKE A FALSE PASS
+    "solve_qcp_edge_cases",
+    "solve_qp_zero_offdiag",
     "solve_integer_edge_cases",
     "solve_zero_one_with_bounds_3",
     "solve_zero_one_with_bounds_2",
@@ -23,15 +23,14 @@ unit_excludes = String[
 ]
 
 contlinear_excludes = String[
+    "partial_start",                 # EAGO doesn't support VariablePrimalStart
     "linear14",
     "linear4",
     "linear1",
-    "partial_start",
     "linear13"
 ]
 
 intlinear_excludes = String[
-    #=
     "int1",
     "int2",
     "int3",
@@ -42,7 +41,6 @@ intlinear_excludes = String[
     "semiinttest",
     "knapsack",
     "semiconttest"
-    =#
 ]
 
 contconic_excludes = String[

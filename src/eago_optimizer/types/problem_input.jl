@@ -27,6 +27,7 @@ Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
     # conic constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
     _conic_socp::Dict{CI{VECOFVAR,SECOND_ORDER_CONE},Tuple{VECOFVAR,SECOND_ORDER_CONE}} = Dict{CI{VECOFVAR, SECOND_ORDER_CONE},
                                                                                                Tuple{VECOFVAR, SECOND_ORDER_CONE}}()
+    _conic_sdp::Dict{CI{VECOFVAR,PSD_CONE},Tuple{VECOFVAR,PSD_CONE}} = Dict{CI{VECOFVAR, PSD_CONE},Tuple{VECOFVAR, PSD_CONE}}()
     # nonlinear constraint storage
     _nonlinear_count::Int             = 0
 
@@ -56,7 +57,7 @@ MOI.supports_constraint(::InputProblem, ::Type{SV}, ::Type{ZO}) = true
 
 MOI.supports_constraint(::InputProblem,
                         ::Type{<:Union{VECOFVAR}},
-                        ::Type{<:Union{SECOND_ORDER_CONE}},
+                        ::Type{<:Union{SECOND_ORDER_CONE, PSD_CONE}},
                         ) = true
 
 MOI.supports(::InputProblem,
@@ -72,7 +73,10 @@ MOI.supports(::InputProblem,
 @inline _variable_num(d::InputProblem) = d._variable_num
 @inline _integer_variable_num(d::InputProblem) = count(is_integer.(d._variable_info))
 @inline function _second_order_cone_num(d::InputProblem)
-    length(d._conic_socp)
+    return length(d._conic_socp)
+end
+@inline function _psd_cone_num(d::InputProblem)
+    return length(d._conic_sdp)
 end
 @inline function _quadratic_num(d::InputProblem)
     num = length(d._quadratic_leq)
@@ -227,6 +231,7 @@ end
 @define_constraint SQF GT _quadratic_geq
 @define_constraint SQF ET _quadratic_eq
 @define_constraint VECOFVAR SECOND_ORDER_CONE _conic_socp
+@define_constraint VECOFVAR PSD_CONE _conic_sdp
 
 _moi_to_obj_type(d::SV) = SINGLE_VARIABLE
 _moi_to_obj_type(d::SAF) = SCALAR_AFFINE

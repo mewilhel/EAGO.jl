@@ -56,7 +56,7 @@ module EAGO
     const SECOND_ORDER_CONE = MOI.SecondOrderCone
     const POWER_CONE = MOI.PowerCone
     const EXP_CONE = MOI.ExponentialCone
-    const PSDT = MOI.PositiveSemidefiniteConeTriangle
+    const PSD_CONE = MOI.PositiveSemidefiniteConeTriangle
 
     const VI = MOI.VariableIndex
     const CI = MOI.ConstraintIndex
