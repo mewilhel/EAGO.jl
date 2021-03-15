@@ -6,9 +6,6 @@ The constraints generally aren't used for relaxations.
 """
 Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
 
-    # variables (set by MOI.add_variable in variables.jl)
-    _variable_info::Vector{VariableInfo} = VariableInfo[]
-
     _variable_leq::Dict{CI{SV,LT},Tuple{SV,LT}} = Dict{CI{SV,LT},Tuple{SV,LT}}()
     _variable_geq::Dict{CI{SV,GT},Tuple{SV,GT}} = Dict{CI{SV,GT},Tuple{SV,GT}}()
     _variable_eq::Dict{CI{SV,ET},Tuple{SV,ET}} = Dict{CI{SV,ET},Tuple{SV,ET}}()
@@ -71,7 +68,10 @@ MOI.supports(::InputProblem,
 
 
 @inline _variable_num(d::InputProblem) = d._variable_num
-@inline _integer_variable_num(d::InputProblem) = count(is_integer.(d._variable_info))
+@inline function _integer_variable_num(d::InputProblem)
+    single_variable_zo = first.(values(d._variable_zo))
+    return length(unique(single_variable_zo))
+end
 @inline function _second_order_cone_num(d::InputProblem)
     return length(d._conic_socp)
 end
@@ -92,12 +92,13 @@ end
 @inline _optimization_sense(d::InputProblem) = d._optimization_sense
 @inline _objective_type(d::InputProblem)     = d._objective_type
 
-function _check_inbounds!(d::InputProblem, vi::VI)
-    if !(1 <= vi.value <= d._variable_num)
+function _check_inbounds!(d::InputProblem, val::T) where T <: Number
+    if !(1 <= val <= d._variable_num)
         error("Invalid variable index $vi. ($(m._input_problem._variable_num) variables in the model.)")
     end
     return nothing
 end
+_check_inbounds!(d::InputProblem, vi::VI) = _check_inbounds!(d, vi.value)
 _check_inbounds!(d::InputProblem, var::SV) = _check_inbounds!(d, var.variable)
 _check_inbounds!(d::InputProblem, aff::SAF) = foreach(x -> _check_inbounds!(d, x.variable_index), aff.terms)
 function _check_inbounds!(d::InputProblem, quad::SQF)
@@ -110,70 +111,85 @@ function _check_inbounds!(d::InputProblem, quad::SQF)
 end
 _check_inbounds!(d::InputProblem, v::VECOFVAR) = foreach(x -> _check_inbounds!(d, x), v.variables)
 
+#=
 @inline _has_upper_bound(d::InputProblem, vi::MOI.VariableIndex) = d._variable_info[vi.value].has_upper_bound
 @inline _has_lower_bound(d::InputProblem, vi::MOI.VariableIndex) = d._variable_info[vi.value].has_lower_bound
 @inline _is_fixed(d::InputProblem, vi::MOI.VariableIndex) = d._variable_info[vi.value].is_fixed
 @inline _is_integer(d::InputProblem, i::Int) = is_integer(d._variable_info[i])
+=#
 
 function MOI.add_variable(d::InputProblem)
     d._variable_num += 1
-    push!(d._variable_info, VariableInfo())
     return VI(d._variable_num)
 end
 
-function MOI.add_constraint(d::InputProblem, v::SV, zo::ZO)
+function _add_variable_constraint(d::InputProblem, v::SV, s::S) where S <: Union{ZO, LT, GT, ET}
     vi = v.variable
     _check_inbounds!(d, vi)
-    d._variable_info[vi.value].lower_bound = 0.0
-    d._variable_info[vi.value].upper_bound = 1.0
-    d._variable_info[vi.value].has_lower_bound = true
-    d._variable_info[vi.value].has_upper_bound = true
-    d._variable_info[vi.value].is_integer = true
-    return CI{SV, ZO}(vi.value)
+    return CI{SV, S}(vi.value)
 end
 
-function MOI.add_constraint(d::InputProblem, v::SV, lt::LT)
-    vi = v.variable
-    _check_inbounds!(d, vi)
-    ci = CI{SV, LT}(vi.value)
-    d._variable_leq[ci] = (v, lt)
-    d._variable_info[vi.value].upper_bound = lt.upper
-    d._variable_info[vi.value].has_upper_bound = true
+function MOI.add_constraint(d::InputProblem, v::SV, s::ZO)
+    ci = _add_variable_constraint(d, v, s)
+    d._variable_zo[ci] = (v, s)
     return ci
 end
 
-function MOI.add_constraint(d::InputProblem, v::SV, gt::GT)
-    vi = v.variable
-    _check_inbounds!(d, vi)
-    ci = CI{SV, GT}(vi.value)
-    d._variable_geq[ci] = (v, gt)
-    d._variable_info[vi.value].lower_bound = gt.lower
-    d._variable_info[vi.value].has_lower_bound = true
+function MOI.add_constraint(d::InputProblem, v::SV, s::LT)
+    ci = _add_variable_constraint(d, v, s)
+    d._variable_leq[ci] = (v, s)
+    return ci
+end
+
+function MOI.add_constraint(d::InputProblem, v::SV, s::GT)
+    ci = _add_variable_constraint(d, v, s)
+    d._variable_geq[ci] = (v, s)
     return ci
 end
 
 function MOI.add_constraint(d::InputProblem, v::SV, eq::ET)
-    vi = v.variable
-    _check_inbounds!(d, vi)
-    ci = CI{SV, ET}(vi.value)
+    ci = _add_variable_constraint(d, v, s)
     d._variable_eq[ci] = (v, eq)
-    d._variable_info[vi.value].lower_bound = eq.value
-    d._variable_info[vi.value].upper_bound = eq.value
-    d._variable_info[vi.value].has_lower_bound = true
-    d._variable_info[vi.value].has_upper_bound = true
-    d._variable_info[vi.value].is_fixed = true
     return ci
 end
 
-for (S, dict) in ((ET, :_variable_eq), (LT, :_variable_leq), (GT, :_variable_geq))
+const VARIABLE_TO_DICT = ((ET, :_variable_eq), (LT, :_variable_leq),
+                         (GT, :_variable_geq), (ZO, :_variable_zo))
+
+for (S, Sdict) in VARIABLE_TO_DICT
+    for (T, Tdict) in VARIABLE_TO_DICT
+        if S == T
+            function MOI.set(d::Optimizer, ::MOI.ConstraintFunction, ci::CI{SV,$S}, f::$S)
+                d.$(Sdict)[ci] = (f, d.$(Sdict)[ci][2])
+                return
+            end
+            function MOI.set(d::Optimizer, ::MOI.ConstraintSet, ci::CI{SV,$S}, s::$S)
+                d.$(Sdict)[ci] = (d.$(Sdict)[ci][1], s)
+                return
+            end
+        else
+            function MOI.set(d::Optimizer, ::MOI.ConstraintFunction, ci::CI{SV,$S}, f::$T)
+                s = (d.$(Sdict)[ci][2]
+                delete!(d.$(Sdict), ci)
+                d.$(Tdict)[ci] = (f, s)
+                return
+            end
+            function MOI.set(d::Optimizer, ::MOI.ConstraintSet, ci::CI{SV,$S}, s::$T)
+                f = (d.$(Sdict)[ci][1]
+                delete!(d.$(Sdict), ci)
+                d.$(Tdict)[ci] = (f, s)
+                return
+            end
+        end
+    end
     @eval function MOI.get(d::InputProblem, ::MOI.ListOfConstraintIndices{SV,$S})
         return collect(keys(d.$dict))
     end
     @eval function MOI.get(d::InputProblem, ::MOI.ConstraintFunction, ci::CI{SV,$S})
-        return d.$dict[ci][1]
+        return d.$Sdict[ci][1]
     end
     @eval function MOI.get(d::InputProblem, ::MOI.ConstraintSet, ci::CI{SV,$S})
-        return d.$dict[ci][2]
+        return d.$Sdict[ci][2]
     end
     @eval function MOI.get(d::InputProblem, ::MOI.ListOfConstraintAttributesSet{SV,$S})
         return MOI.AbstractConstraintAttribute[]

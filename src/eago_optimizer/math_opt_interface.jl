@@ -66,8 +66,23 @@ for attr in (MOI.ListOfConstraintAttributesSet, MOI.ListOfConstraintIndices)
 end
 
 for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
-    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F,S}
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{SV,ZO})
         return MOI.get(d._input_problem, $attr(), ci)
+    end
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where F <: Union{SV, SAF, SQF}, S <: Union{ET, GT, LT}
+        return MOI.get(d._input_problem, $attr(), ci)
+    end
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where F <: Union{VECOFVAR}, S <: Union{SECOND_ORDER_CONE, PSD_CONE}
+        return MOI.get(d._input_problem, $attr(), ci)
+    end
+    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,ZO}, v)
+        return MOI.get(d._input_problem, $attr(), ci, v)
+    end
+    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where F <: Union{SV, SAF, SQF}, S <: Union{ET, GT, LT}
+        return MOI.get(d._input_problem, $attr(), ci, v)
+    end
+    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where F <: Union{VECOFVAR}, S <: Union{SECOND_ORDER_CONE, PSD_CONE}
+        return MOI.get(d._input_problem, $attr(), ci, v)
     end
 end
 

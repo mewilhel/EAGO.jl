@@ -24,8 +24,8 @@ unit_excludes = String[
 
 contlinear_excludes = String[
     "partial_start",                 # EAGO doesn't support VariablePrimalStart
-    "linear14",
-    "linear4",
+    "linear14",                     # Variable primal & constraint primal access mixed up
+    #"linear4",
     "linear1",
     "linear13"
 ]
