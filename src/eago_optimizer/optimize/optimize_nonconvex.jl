@@ -221,21 +221,21 @@ function _add_decision_variables!(wp, ip)
 end
 
 function _add_linear_constraints!(opt::T, ip::InputProblem) where T
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_leq(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_geq(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_eq(ip))
+    foreach(fs -> _add_constraint!(opt, fs[2]), _linear_leq(ip))
+    foreach(fs -> _add_constraint!(opt, fs[2]), _linear_geq(ip))
+    foreach(fs -> _add_constraint!(opt, fs[2]), _linear_eq(ip))
     return nothing
 end
 
 function _add_quadratic_constraints!(opt::T, ip::InputProblem) where T
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_leq(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_geq(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_eq(ip))
+    foreach(fs -> _add_constraint(opt, fs[2]), _quadratic_leq(ip))
+    foreach(fs -> _add_constraint(opt, fs[2]), _quadratic_geq(ip))
+    foreach(fs -> _add_constraint(opt, fs[2]), _quadratic_eq(ip))
     return nothing
 end
 
 function _add_conic_constraints!(opt::T, ip::InputProblem) where T
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _conic_socp(ip))
+    foreach(fs -> MOI.add_constraint(opt, fs[1][1], fs[1][2]), _conic_socp(ip))
     return nothing
 end
 

@@ -4,7 +4,7 @@ $(TYPEDEF)
 A structure used to expressions and problem descriptions EAGO uses to formulate
 relaxed problems.
 """
-Base.@kwdef mutable struct ParsedProblem
+Base.@kwdef mutable struct ParsedProblem <: MOI.ModelLike
 
     # Problem classification (set in parse_classify_problem!)
     _problem_type::ProblemType = UNCLASSIFIED
@@ -29,21 +29,11 @@ Base.@kwdef mutable struct ParsedProblem
     _sqf_eq::Vector{BufferedQuadraticEq} = BufferedQuadraticEq[]
     _conic_second_order::Vector{BufferedSOC} = BufferedSOC[]
 
-    # count of non-single variable constraints (set in initial_parse)
-    _saf_leq_count::Int = 0
-    _saf_eq_count::Int = 0
-    _sqf_leq_count::Int = 0
-    _sqf_eq_count::Int = 0
-    _conic_second_order_count::Int = 0
-
     # nlp constraints (set in initial_parse)
     _nlp_data::MOI.NLPBlockData = empty_nlp_data()
 
     # storage for nonlinear functions
     _nonlinear_constr::Vector{BufferedNonlinearFunction} = BufferedNonlinearFunction[]
-
-    # nonlinear constraint storage
-    _nonlinear_count::Int = 0
 
     # nonlinear evaluator
     _relaxed_evaluator = Evaluator()
@@ -51,47 +41,29 @@ Base.@kwdef mutable struct ParsedProblem
     # variables (set in initial_parse)
     _variable_info::Vector{VariableInfo} = VariableInfo[]
     _variable_num::Int = 0
-
-    # count of single variable constraint types (set in load_relaxed_problem!)
-    _var_leq_count::Int = 0
-    _var_geq_count::Int = 0
-    _var_eq_count::Int = 0
 end
 
-function _add_constraint!(wp::ParsedProblem, fs::T) where T <: Union{Tuple{SAF,LT},
-                                                                     Tuple{SAF,GT}}
-    push!(wp._saf_leq, AffineFunctionIneq(fs[1], fs[2]))
-    wp._saf_leq_count += 1
-    return
+function MOI.add_constraint(wp::ParsedProblem, f::SAF, s::Type{<:Union{LT,GT}})
+    push!(wp._saf_leq, AffineFunctionIneq(f, s)); return
 end
-function _add_constraint!(wp::ParsedProblem, fs::Tuple{SAF,ET})
-    push!(wp._saf_eq, AffineFunctionEq(fs[1], fs[2]))
-    wp._saf_eq_count += 1
-    return
+function MOI.add_constraint(wp::ParsedProblem, f::SAF, s::ET)
+    push!(wp._saf_eq, AffineFunctionEq(f, s)); return
 end
 
-function _add_constraint!(wp::ParsedProblem, fs::T) where T <: Union{Tuple{SQF,LT},
-                                                                     Tuple{SQF,GT}}
-    push!(wp._sqf_leq, BufferedQuadraticIneq(fs[1], fs[2]))
-    wp._sqf_leq_count += 1
-    return
+function MOI.add_constraint(wp::ParsedProblem, f::SQF, s::Type{<:Union{LT,GT}})
+    push!(wp._sqf_leq, BufferedQuadraticIneq(f, s)); return
 end
-function _add_constraint!(wp::ParsedProblem, fs::Tuple{SQF,ET})
-    push!(wp._sqf_eq, BufferedQuadraticEq(fs[1], fs[2]))
-    wp._sqf_eq_count += 1
-    return
+function MOI.add_constraint(wp::ParsedProblem, f::SQF, s::ET)
+    push!(wp._sqf_eq, BufferedQuadraticEq(f,s)); return
 end
 
-function _add_constraint!(wp::ParsedProblem, fs::Tuple{VECOFVAR,SOCP})
-    soc_func, soc_set = fs
-    first_variable_loc = soc_func.variables[1].value
+function MOI.add_constraint(wp::ParsedProblem, f::VECOFVAR, s::SECOND_ORDER_CONE)
+    first_variable_loc = f.variables[1].value
     prior_lbnd = wp._variable_info[first_variable_loc].lower_bound
     wp._variable_info[first_variable_loc].lower_bound = max(prior_lbnd, 0.0)
-    push!(wp._conic_second_order, BufferedSOC(soc_func, soc_set))
-    wp._conic_second_order_count += 1
+    push!(wp._conic_second_order, BufferedSOC(f, s))
     return
 end
-
 
 function _mod_decision_variables!(wp::ParsedProblem, d::Dict{S,T}) where {S,T}
     for (k,v) in d
