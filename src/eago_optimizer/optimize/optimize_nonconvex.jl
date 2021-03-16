@@ -77,9 +77,9 @@ function add_variables(m::Optimizer, optimizer::T, variable_number::Int) where T
 end
 
 function _add_linear_constraints!(ip::InputProblem, opt::T) where T
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_leq_constraint(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_geq_constraint(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_eq_constraint(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_leq(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_geq(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_eq(ip))
     return nothing
 end
 
@@ -218,6 +218,52 @@ end
 
 function presolve_global!(t::ExtensionType, m::Optimizer)
 
+    ip = _input_problem(m)
+    wp = _working_problem(m)
+
+    # add variables to working model
+    _initialize_variables!(wp, ip)
+    wp._variable_num = ip._variable_num
+
+    # add linear constraints to the working problem
+    foreach(x -> _add_constraint!(wp, x[2]), _linear_leq(ip))
+    foreach(x -> _add_constraint!(wp, x[2]), _linear_geq(ip))
+    foreach(x -> _add_constraint!(wp, x[2]), _linear_eq(ip))
+
+    # add quadratic constraints to the working problem
+    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_leq(ip))
+    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_geq(ip))
+    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_eq(ip))
+
+    # add conic constraints to the working problem
+    foreach(x -> _add_constraint!(wp, x[2]), _conic_socp(ip))
+
+    # set objective function
+    m._working_problem._objective_type = ip._objective_type
+    m._working_problem._objective_sv = ip._objective_sv
+    m._working_problem._objective_saf = ip._objective_saf
+    m._working_problem._objective_saf_parsed = AffineFunctionIneq(ip._objective_saf, LT_ZERO)
+    m._working_problem._objective_sqf = BufferedQuadraticIneq(ip._objective_sqf, LT_ZERO)
+
+    # add nonlinear constraints
+    # the nonlinear evaluator loads with populated subexpressions which are then used
+    # to asssess the linearity of subexpressions
+    add_nonlinear_evaluator!(m)
+    add_nonlinear_functions!(m)
+    add_subexpression_buffers!(m)
+
+    # converts a maximum problem to a minimum problem (internally) if necessary
+    # this is placed after adding nonlinear functions as this prior routine
+    # copies the nlp_block from the input_problem to the working problem
+    _max_to_min!(m)
+    reform_epigraph!(m)
+
+    # labels the variable info and the _fixed_variable vector for each fixed variable
+    label_fixed_variables!(m)
+
+    # labels variables to branch on
+    label_branch_variables!(m)
+
     load_relaxed_problem!(m)
     create_initial_node!(m)
 
@@ -257,9 +303,9 @@ function presolve_global!(t::ExtensionType, m::Optimizer)
     # add storage for objective cut if quadratic or nonlinear
     wp = m._working_problem
     obj_type = wp._objective_type
-    if obj_type === SCALAR_QUADRATIC
+    if obj_type == SCALAR_QUADRATIC
         wp._objective_saf.terms = copy(wp._objective_sqf.saf.terms)
-    elseif obj_type === NONLINEAR
+    elseif obj_type == NONLINEAR
         wp._objective_saf.terms = copy(wp._objective_nl.saf.terms)
     end
 
@@ -441,7 +487,7 @@ function termination_check(t::ExtensionType, m::Optimizer)
     L = m._global_lower_bound
     U = m._global_upper_bound
 
-    if node_in_stack === 0
+    if node_in_stack == 0
 
         if m._first_solution_node > 0
             m._termination_status_code = MOI.OPTIMAL
@@ -567,19 +613,19 @@ function is_feasible_solution(t::MOI.TerminationStatusCode, r::MOI.ResultStatusC
     termination_flag = false
     result_flag = false
 
-    (t === MOI.OPTIMAL) && (termination_flag = true)
-    (t === MOI.LOCALLY_SOLVED) && (termination_flag = true)
+    (t == MOI.OPTIMAL) && (termination_flag = true)
+    (t == MOI.LOCALLY_SOLVED) && (termination_flag = true)
 
     # This is default solver specific... the acceptable constraint tolerances
     # are set to the same values as the basic tolerance. As a result, an
     # acceptably solved solution is feasible but non necessarily optimal
     # so it should be treated as a feasible point
-    if (t === MOI.ALMOST_LOCALLY_SOLVED) && (r === MOI.NEARLY_FEASIBLE_POINT)
+    if (t == MOI.ALMOST_LOCALLY_SOLVED) && (r == MOI.NEARLY_FEASIBLE_POINT)
         termination_flag = true
         result_flag = true
     end
 
-    (r === MOI.FEASIBLE_POINT) && (result_flag = true)
+    (r == MOI.FEASIBLE_POINT) && (result_flag = true)
 
     return (termination_flag && result_flag)
 end
@@ -592,20 +638,9 @@ Retrieves the lower and upper duals for variable bounds from the
 `_lower_lvd` and `_lower_uvd` storage fields.
 """
 function set_dual!(m::Optimizer)
-
-    relaxed_optimizer = m.relaxed_optimizer
-    relaxed_variable_lt = m._relaxed_variable_lt
-    relaxed_variable_gt = m._relaxed_variable_gt
-
-    for i = 1:m._working_problem._var_leq_count
-        ci_lt, i_lt = @inbounds relaxed_variable_lt[i]
-        @inbounds m._lower_uvd[i_lt] = MOI.get(relaxed_optimizer, MOI.ConstraintDual(), ci_lt)
-    end
-    for i = 1:m._working_problem._var_geq_count
-        ci_gt, i_gt = @inbounds relaxed_variable_gt[i]
-        @inbounds m._lower_lvd[i_gt] = MOI.get(relaxed_optimizer, MOI.ConstraintDual(), ci_gt)
-    end
-
+    opt = m.relaxed_optimizer
+    foreach(t -> (m._lower_uvd[t[2]] = MOI.get(opt, MOI.ConstraintDual(), t[1]);), m._relaxed_variable_lt)
+    foreach(t -> (m._lower_lvd[t[2]] = MOI.get(opt, MOI.ConstraintDual(), t[1]);), m._relaxed_variable_gt)
     return nothing
 end
 
@@ -621,7 +656,6 @@ function preprocess!(t::ExtensionType, m::Optimizer)
     reset_relaxation!(m)
 
     wp = m._working_problem
-    params = m._parameters
 
     # Sets initial feasibility
     feasible_flag = true
@@ -631,7 +665,7 @@ function preprocess!(t::ExtensionType, m::Optimizer)
     m._initial_volume = prod(upper_variable_bounds(m._current_node) -
                              lower_variable_bounds(m._current_node))
 
-    if params.fbbt_lp_depth >= m._iteration_count
+    if m.fbbt_lp_depth >= m._iteration_count
         load_fbbt_buffer!(m)
         for i = 1:m.fbbt_lp_repetitions
             if feasible_flag
@@ -658,7 +692,7 @@ function preprocess!(t::ExtensionType, m::Optimizer)
 
     cp_walk_count = 0
     perform_cp_walk_flag = feasible_flag
-    perform_cp_walk_flag &= (params.cp_depth >= m._iteration_count)
+    perform_cp_walk_flag &= (m.cp_depth >= m._iteration_count)
     perform_cp_walk_flag &= (cp_walk_count < m.cp_repetitions)
     while perform_cp_walk_flag
         feasible_flag &= set_constraint_propagation_fbbt!(m)
@@ -669,7 +703,7 @@ function preprocess!(t::ExtensionType, m::Optimizer)
 
     obbt_count = 0
     perform_obbt_flag = feasible_flag
-    perform_obbt_flag &= (params.obbt_depth >= m._iteration_count)
+    perform_obbt_flag &= (m.obbt_depth >= m._iteration_count)
     perform_obbt_flag &= (obbt_count < m.obbt_repetitions)
 
     while perform_obbt_flag
@@ -788,7 +822,7 @@ function fallback_interval_lower_bound!(m::Optimizer, n::NodeBB)
     return nothing
 end
 
-function intrepret_relaxed_solution!(m::Optimizer, d::T) where T
+function intrepret_relaxed_solution(m::Optimizer, d::T) where T
     valid_flag, feasible_flag = is_globally_optimal(m._lower_termination_status,
                                                     m._lower_result_status)
     if valid_flag && feasible_flag

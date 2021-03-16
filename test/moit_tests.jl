@@ -46,14 +46,14 @@ const contconic_excludes = String[
     "relentr",
     "rsoc",
     "pow",
-    #"geomean"
+    "geomean"
 ]
 
 const contquadratic_excludes = String[
-    "ncqcp",
-    "qp",
-    "socp",
-    "qcp",
+    #"ncqcp",
+    #"qp",
+    #"socp",
+    #"qcp",
 ]
 
 const nlp_excludes = String[

@@ -16,24 +16,28 @@ include("optimize_nonconvex.jl")
 
 throw_optimize_hook!(m::Optimizer) = optimize_hook!(m.ext_type, m)
 
+function _setup_timers!(m::Optimizer)
+    m._start_time = time()
+    m._time_left = m.time_limit
+    return
+end
+function _set_parse_time!(m::Optimizer)
+    new_time = time() - m._start_time
+    m._parse_time = new_time
+    m._run_time = new_time
+    return
+end
+
+
 function MOI.optimize!(m::Optimizer)
 
-    m._start_time = time()
+    _setup_timers!(m)
 
-    # Runs the branch and bound routine
     if !m.enable_optimize_hook
-        #initial_parse!(m)
-
-        # Determines if the problem is an LP, MILP, SOCP, MISCOP,
-        # CONVEX, OF MINCVX PROBLEM TYPE as entered
         _parse_classify_problem!(m)
-        m._parse_time = m._start_time - time()
-
-        # Throws the problem to the appropriate solution routine
+        _set_parse_time!(m)
         optimize!(Val{m._working_problem._problem_type}(), m)
     else
-
-        # throws to user-defined optimization hook
         throw_optimize_hook!(m)
     end
 
