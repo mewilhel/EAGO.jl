@@ -92,6 +92,15 @@ function _add_constraint!(wp::ParsedProblem, fs::Tuple{VECOFVAR,SOCP})
     return
 end
 
+
+function _mod_decision_variables!(wp::ParsedProblem, d::Dict{S,T}) where {S,T}
+    for (k,v) in d
+        i = v[1].variable.value
+        wp._variable_info[i] = VariableInfo(wp._variable_info[i], v[2])
+    end
+    return
+end
+
 function Base.isempty(x::ParsedProblem)
 
     is_empty_flag = true

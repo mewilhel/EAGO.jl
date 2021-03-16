@@ -76,13 +76,6 @@ function add_variables(m::Optimizer, optimizer::T, variable_number::Int) where T
     return variable_index
 end
 
-function _add_linear_constraints!(ip::InputProblem, opt::T) where T
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_leq(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_geq(ip))
-    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_eq(ip))
-    return nothing
-end
-
 
 function set_evaluator_flags!(d, is_post, is_intersect, is_first_eval, interval_intersect)
 
@@ -216,27 +209,45 @@ function load_relaxed_problem!(m::Optimizer)
     return nothing
 end
 
+function _add_decision_variables!(wp, ip)
+    wp._variable_num = ip._variable_num
+    wp._variable_info = fill(VariableInfo(),ip._variable_num)
+    _mod_decision_variables!(wp, ip._variable_leq)
+    _mod_decision_variables!(wp, ip._variable_geq)
+    _mod_decision_variables!(wp, ip._variable_eq)
+    _mod_decision_variables!(wp, ip._variable_zo)
+    # TODO CHECK FOR MALFORMED VARIABLES THROW -> INFEASIBLE.
+    return nothing
+end
+
+function _add_linear_constraints!(opt::T, ip::InputProblem) where T
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_leq(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_geq(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _linear_eq(ip))
+    return nothing
+end
+
+function _add_quadratic_constraints!(opt::T, ip::InputProblem) where T
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_leq(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_geq(ip))
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _quadratic_eq(ip))
+    return nothing
+end
+
+function _add_conic_constraints!(opt::T, ip::InputProblem) where T
+    foreach(fs -> MOI.add_constraint!(opt, fs[1], fs[2]), _conic_socp(ip))
+    return nothing
+end
+
 function presolve_global!(t::ExtensionType, m::Optimizer)
 
     ip = _input_problem(m)
     wp = _working_problem(m)
 
-    # add variables to working model
-    _initialize_variables!(wp, ip)
-    wp._variable_num = ip._variable_num
-
-    # add linear constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x[2]), _linear_leq(ip))
-    foreach(x -> _add_constraint!(wp, x[2]), _linear_geq(ip))
-    foreach(x -> _add_constraint!(wp, x[2]), _linear_eq(ip))
-
-    # add quadratic constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_leq(ip))
-    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_geq(ip))
-    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_eq(ip))
-
-    # add conic constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x[2]), _conic_socp(ip))
+    _add_decision_variables!(wp, ip)
+    _add_linear_constraints!(wp, ip)
+    _add_quadratic_constraints!(wp, ip)
+    _add_conic_constraints!(wp, ip)
 
     # set objective function
     m._working_problem._objective_type = ip._objective_type

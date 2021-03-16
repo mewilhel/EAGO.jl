@@ -334,55 +334,6 @@ Translates input problem to working problem. Routines and checks and optional ma
 """
 function initial_parse!(m::Optimizer)
 
-    # reset initial time and solution statistics
-    m._time_left = m.time_limit
-
-    ip = _input_problem(m)
-    wp = _working_problem(m)
-
-    # add variables to working model
-    wp._variable_info = copy(ip._variable_info)
-    wp._variable_num = ip._variable_num
-
-    # add linear constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x[2]), _linear_leq(ip))
-    foreach(x -> _add_constraint!(wp, x[2]), _linear_geq(ip))
-    foreach(x -> _add_constraint!(wp, x[2]), _linear_eq(ip))
-
-    # add quadratic constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_leq(ip))
-    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_geq(ip))
-    foreach(x -> _add_constraint!(wp, x[2]), _quadratic_eq(ip))
-
-    # add conic constraints to the working problem
-    foreach(x -> _add_constraint!(wp, x[2]), _conic_socp(ip))
-
-    # set objective function
-    m._working_problem._objective_type = ip._objective_type
-    m._working_problem._objective_sv = ip._objective_sv
-    m._working_problem._objective_saf = ip._objective_saf
-    m._working_problem._objective_saf_parsed = AffineFunctionIneq(ip._objective_saf, LT_ZERO)
-    m._working_problem._objective_sqf = BufferedQuadraticIneq(ip._objective_sqf, LT_ZERO)
-
-    # add nonlinear constraints
-    # the nonlinear evaluator loads with populated subexpressions which are then used
-    # to asssess the linearity of subexpressions
-    add_nonlinear_evaluator!(m)
-    add_nonlinear_functions!(m)
-    add_subexpression_buffers!(m)
-
-    # converts a maximum problem to a minimum problem (internally) if necessary
-    # this is placed after adding nonlinear functions as this prior routine
-    # copies the nlp_block from the input_problem to the working problem
-    _max_to_min!(m)
-    reform_epigraph!(m)
-
-    # labels the variable info and the _fixed_variable vector for each fixed variable
-    label_fixed_variables!(m)
-
-    # labels variables to branch on
-    label_branch_variables!(m)
-
     # updates run and parse times
     new_time = time() - m._start_time
     m._parse_time = new_time
