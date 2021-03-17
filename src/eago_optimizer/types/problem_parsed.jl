@@ -107,25 +107,29 @@ function Base.isempty(x::ParsedProblem)
     is_empty_flag &= isempty(x._nlp_data.constraint_bounds)
 
     is_empty_flag &= isempty(x._objective_saf.terms)
-    is_empty_flag &= x._objective_saf.constant === 0.0
+    is_empty_flag &= x._objective_saf.constant == 0.0
 
     is_empty_flag &= isempty(x._objective_saf.terms)
-    is_empty_flag &= x._objective_saf.constant === 0.0
-    is_empty_flag &= isempty(x._objective_saf_parsed.terms)
-    is_empty_flag &= x._objective_saf_parsed.constant === 0.0
-    is_empty_flag &= x._objective_saf_parsed.len === 0
+    is_empty_flag &= x._objective_saf.constant == 0.0
+    is_empty_flag &= isempty(x._objective_saf_parsed.func.terms)
+    is_empty_flag &= x._objective_saf_parsed.func.constant == 0.0
+    is_empty_flag &= x._objective_saf_parsed.len == 0
 
     is_empty_flag &= isempty(x._objective_sqf.func.quadratic_terms)
     is_empty_flag &= isempty(x._objective_sqf.func.affine_terms)
-    is_empty_flag &= x._objective_sqf.func.constant === 0.0
+    is_empty_flag &= x._objective_sqf.func.constant == 0.0
 
     is_empty_flag &= isempty(x._objective_sqf.buffer)
     is_empty_flag &= isempty(x._objective_sqf.saf.terms)
-    is_empty_flag &= x._objective_sqf.saf.constant === 0.0
-    is_empty_flag &= x._objective_sqf.len === 0
+    is_empty_flag &= x._objective_sqf.saf.constant == 0.0
+    is_empty_flag &= x._objective_sqf.len == 0
 
     return is_empty_flag
 end
 
-# Important bridges to EAGO
-# 
+# Important MOIU AND MOIB features to EAGO
+# StructOfConstraints
+# VectorOfConstraints
+# DoubleDict
+# CleverDict
+# eval_variables(varval::Function, f::AbstractFunction)

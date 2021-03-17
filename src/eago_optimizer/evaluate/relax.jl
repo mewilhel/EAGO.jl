@@ -309,10 +309,10 @@ function bound_objective(t::ExtensionType, m::Optimizer)
         objective_lo = @inbounds n.lower_variable_bounds[obj_indx]
 
     elseif obj_type === SCALAR_AFFINE
-        objective_lo = lower_interval_bound(wp._objective_saf_parsed, n)
+        objective_lo = lower_interval_bound(m, wp._objective_saf_parsed, n)
 
     elseif obj_type === SCALAR_QUADRATIC
-        objective_lo = lower_interval_bound(wp._objective_sqf, n)
+        objective_lo = lower_interval_bound(m, wp._objective_sqf, n)
 
     end
 

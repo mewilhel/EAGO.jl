@@ -58,7 +58,7 @@ function solve_local_nlp!(m::Optimizer)
 
     nlp_optimizer = m.nlp_optimizer
     MOI.empty!(nlp_optimizer)
-    set_default_config!(nlp_optimizer)
+    #set_default_config!(nlp_optimizer)
 
     upper_variables = m._upper_variables
     for i = 1:m._working_problem._variable_num
@@ -69,7 +69,7 @@ function solve_local_nlp!(m::Optimizer)
     sol_to_branch_map = m._sol_to_branch_map
     lower_variable_bounds = n.lower_variable_bounds
     upper_variable_bounds = n.upper_variable_bounds
-    variable_info = m._input_problem._variable_info
+    variable_info = m._working_problem._variable_info
 
     lvb = 0.0
     uvb = 0.0
@@ -79,7 +79,7 @@ function solve_local_nlp!(m::Optimizer)
         vinfo = @inbounds variable_info[i]
         single_variable = MOI.SingleVariable(@inbounds upper_variables[i])
 
-        if vinfo.branch_on === BRANCH
+        if m._branch_variables[i]
             if vinfo.is_integer
             else
                 indx = @inbounds sol_to_branch_map[i]
