@@ -115,7 +115,7 @@ function create_initial_node!(m::Optimizer)
 
     for i = 1:m._working_problem._variable_num
         vi = m._working_problem._variable_info[i]
-        if vi.branch_on === BRANCH
+        if m._branch_variables[i]
             lower_bound[branch_count] = vi.lower_bound
             upper_bound[branch_count] = vi.upper_bound
             branch_count += 1
@@ -153,8 +153,7 @@ function load_relaxed_problem!(m::Optimizer)
 
         vinfo =  wp._variable_info[i]
 
-        is_branch_variable =  m._branch_variables[i]
-        vinfo.branch_on = is_branch_variable ? BRANCH : NO_BRANCH
+        is_branch_variable = m._branch_variables[i]
         is_branch_variable && (branch_variable_num += 1)
 
         if vinfo.is_integer
@@ -221,21 +220,21 @@ function _add_decision_variables!(wp, ip)
 end
 
 function _add_linear_constraints!(opt::T, ip::InputProblem) where T
-    foreach(fs -> _add_constraint!(opt, fs[2]), _linear_leq(ip))
-    foreach(fs -> _add_constraint!(opt, fs[2]), _linear_geq(ip))
-    foreach(fs -> _add_constraint!(opt, fs[2]), _linear_eq(ip))
+    foreach(fs -> _add_constraint!(opt, fs), values(_linear_leq(ip)))
+    foreach(fs -> _add_constraint!(opt, fs), values(_linear_geq(ip)))
+    foreach(fs -> _add_constraint!(opt, fs), values(_linear_eq(ip)))
     return nothing
 end
 
 function _add_quadratic_constraints!(opt::T, ip::InputProblem) where T
-    foreach(fs -> _add_constraint(opt, fs[2]), _quadratic_leq(ip))
-    foreach(fs -> _add_constraint(opt, fs[2]), _quadratic_geq(ip))
-    foreach(fs -> _add_constraint(opt, fs[2]), _quadratic_eq(ip))
+    foreach(fs -> _add_constraint(opt, fs), values(_quadratic_leq(ip)))
+    foreach(fs -> _add_constraint(opt, fs), values(_quadratic_geq(ip)))
+    foreach(fs -> _add_constraint(opt, fs), values(_quadratic_eq(ip)))
     return nothing
 end
 
 function _add_conic_constraints!(opt::T, ip::InputProblem) where T
-    foreach(fs -> MOI.add_constraint(opt, fs[1][1], fs[1][2]), _conic_socp(ip))
+    foreach(fs -> MOI.add_constraint(opt, fs), values(_conic_socp(ip)))
     return nothing
 end
 
@@ -367,7 +366,7 @@ function branch_node!(t::ExtensionType, m::Optimizer)
     for i = 1:m._branch_variable_num
         si = m._branch_to_sol_map[i]
         vi = m._working_problem._variable_info[si]
-        if vi.branch_on === BRANCH
+        if m._branch_variables[i]
             temp_max =  uvbs[i] - lvbs[i]
             temp_max /= vi.upper_bound - vi.lower_bound
             if temp_max > max_val

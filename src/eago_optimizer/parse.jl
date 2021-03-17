@@ -139,6 +139,21 @@ function label_fixed_variables!(m::Optimizer)
     map!(x -> _check_set_is_fixed(x), m._fixed_variable, m._working_problem._variable_info)
 end
 
+function _label_branch_quad!(d, sqf)
+    for term in sqf.func.quadratic_terms
+        d[term.variable_index_1.value] = true
+        d[term.variable_index_2.value] = true
+    end
+    return
+end
+
+function _label_branch_nl!(d, f)
+    for i in f.expr.grad_sparsity
+        m._branch_variables[i] = true
+    end
+    return
+end
+
 """
 $(TYPEDSIGNATURES)
 
@@ -147,67 +162,34 @@ Detects any variables participating in nonconvex terms and populates the
 """
 function label_branch_variables!(m::Optimizer)
 
+    wp = _working_problem(m)
     m._user_branch_variables = !isempty(m.branch_variable)
+
     if m._user_branch_variables
         append!(m._branch_variables, m.branch_variable)
     else
-
-        append!(m._branch_variables, fill(false, m._working_problem._variable_num))
+        append!(m._branch_variables, fill(false, wp._variable_num))
 
         # adds nonlinear terms in quadratic constraints
-        sqf_leq = m._working_problem._sqf_leq
-        for i = 1:m._working_problem._sqf_leq_count
-            quad_ineq = @inbounds sqf_leq[i]
-            for term in quad_ineq.func.quadratic_terms
-                variable_index_1 = term.variable_index_1.value
-                variable_index_2 = term.variable_index_2.value
-                @inbounds m._branch_variables[variable_index_1] = true
-                @inbounds m._branch_variables[variable_index_2] = true
-            end
+        foreach(x -> _label_branch_quad!(m._branch_variables, x), wp._sqf_leq)
+        foreach(x -> _label_branch_quad!(m._branch_variables, x), wp._sqf_eq)
+        if wp._objective_type == SCALAR_QUADRATIC
+            _label_branch_quad!(m._branch_variables, wp._objective_sqf)
         end
 
-        sqf_eq = m._working_problem._sqf_eq
-        for i = 1:m._working_problem._sqf_eq_count
-            quad_eq = @inbounds sqf_eq[i]
-            for term in quad_eq.func.quadratic_terms
-                variable_index_1 = term.variable_index_1.value
-                variable_index_2 = term.variable_index_2.value
-                @inbounds m._branch_variables[variable_index_1] = true
-                @inbounds m._branch_variables[variable_index_2] = true
-            end
-        end
-
-        obj_type = m._working_problem._objective_type
-        if obj_type === SCALAR_QUADRATIC
-            for term in m._working_problem._objective_sqf.func.quadratic_terms
-                variable_index_1 = term.variable_index_1.value
-                variable_index_2 = term.variable_index_2.value
-                @inbounds m._branch_variables[variable_index_1] = true
-                @inbounds m._branch_variables[variable_index_2] = true
-            end
-        end
+        # TODO: label branch variable in conic forms
 
         # label nonlinear branch variables (assumes affine terms have been extracted)
-        nl_constr = m._working_problem._nonlinear_constr
-        for i = 1:m._working_problem._nonlinear_count
-            nl_constr_eq = @inbounds nl_constr[i]
-            grad_sparsity = nl_constr_eq.expr.grad_sparsity
-            for indx in grad_sparsity
-                @inbounds m._branch_variables[indx] = true
-            end
-        end
-
-        if obj_type === NONLINEAR
-            grad_sparsity = m._working_problem._objective_nl.expr.grad_sparsity
-            for indx in grad_sparsity
-                @inbounds m._branch_variables[indx] = true
-            end
+        foreach(x -> _label_branch_quad!(m._branch_variables, x), wp._sqf_leq)
+        foreach(x -> _label_branch_nl!(m._branch_variables, x), wp._nonlinear_constr)
+        if wp._objective_type === NONLINEAR
+            _label_branch_nl!(m._branch_variables, wp._objective_nl)
         end
     end
 
     # add a map of branch/node index to variables in the continuous solution
-    for i = 1:m._working_problem._variable_num
-        if m._working_problem._variable_info[i].is_fixed
+    for i = 1:wp._variable_num
+        if wp._variable_info[i].is_fixed
             m._branch_variables[i] = false
             continue
         end
@@ -217,16 +199,16 @@ function label_branch_variables!(m::Optimizer)
     end
 
     # creates reverse map
-    m._sol_to_branch_map = zeros(m._working_problem._variable_num)
+    m._sol_to_branch_map = zeros(wp._variable_num)
     for i = 1:length(m._branch_to_sol_map)
         j = m._branch_to_sol_map[i]
         m._sol_to_branch_map[j] = i
     end
 
     # adds branch solution to branch map to evaluator
-    m._working_problem._relaxed_evaluator.node_to_variable_map = m._branch_to_sol_map
-    m._working_problem._relaxed_evaluator.variable_to_node_map = m._sol_to_branch_map
-    m._working_problem._relaxed_evaluator.node_count = length(m._branch_to_sol_map)
+    wp._relaxed_evaluator.node_to_variable_map = m._branch_to_sol_map
+    wp._relaxed_evaluator.variable_to_node_map = m._sol_to_branch_map
+    wp._relaxed_evaluator.node_count = length(m._branch_to_sol_map)
 
     return nothing
 end

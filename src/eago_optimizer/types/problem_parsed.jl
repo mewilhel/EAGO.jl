@@ -43,21 +43,28 @@ Base.@kwdef mutable struct ParsedProblem <: MOI.ModelLike
     _variable_num::Int = 0
 end
 
-function MOI.add_constraint(wp::ParsedProblem, f::SAF, s::Type{<:Union{LT,GT}})
-    push!(wp._saf_leq, AffineFunctionIneq(f, s)); return
+function _add_constraint(wp::ParsedProblem, fs::Tuple{SAF,LT})
+    push!(wp._saf_leq, AffineFunctionIneq(fs[1], fs[2])); return
 end
-function MOI.add_constraint(wp::ParsedProblem, f::SAF, s::ET)
-    push!(wp._saf_eq, AffineFunctionEq(f, s)); return
+function _add_constraint(wp::ParsedProblem, fs::Tuple{SAF,GT})
+    push!(wp._saf_leq, AffineFunctionIneq(fs[1], fs[2])); return
 end
-
-function MOI.add_constraint(wp::ParsedProblem, f::SQF, s::Type{<:Union{LT,GT}})
-    push!(wp._sqf_leq, BufferedQuadraticIneq(f, s)); return
-end
-function MOI.add_constraint(wp::ParsedProblem, f::SQF, s::ET)
-    push!(wp._sqf_eq, BufferedQuadraticEq(f,s)); return
+function _add_constraint(wp::ParsedProblem, fs::Tuple{SAF,ET})
+    push!(wp._saf_eq, AffineFunctionEq(fs[1], fs[2])); return
 end
 
-function MOI.add_constraint(wp::ParsedProblem, f::VECOFVAR, s::SECOND_ORDER_CONE)
+function _add_constraint(wp::ParsedProblem, fs::Tuple{SQF,LT})
+    push!(wp._sqf_leq, BufferedQuadraticIneq(fs[1], fs[2])); return
+end
+function _add_constraint(wp::ParsedProblem, fs::Tuple{SQF,GT})
+    push!(wp._sqf_leq, BufferedQuadraticIneq(fs[1], fs[2])); return
+end
+function _add_constraint(wp::ParsedProblem, fs::Tuple{SQF,ET})
+    push!(wp._sqf_eq, BufferedQuadraticEq(fs[1], fs[2])); return
+end
+
+function _add_constraint(wp::ParsedProblem, fs::Tuple{VECOFVAR,SECOND_ORDER_CONE})
+    f, s = fs
     first_variable_loc = f.variables[1].value
     prior_lbnd = wp._variable_info[first_variable_loc].lower_bound
     wp._variable_info[first_variable_loc].lower_bound = max(prior_lbnd, 0.0)
