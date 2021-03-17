@@ -226,10 +226,7 @@ function affine_relax_nonlinear!(f::BufferedNonlinearFunction{MC{N,T}}, evaluato
     grad_sparsity = expr.grad_sparsity
     if expr.isnumber[1]
         f.saf.constant = expr.numberstorage[1]
-        for i = 1:N
-            vval = @inbounds grad_sparsity[i]
-            f.saf.terms[i] = SAT(0.0, VI(vval))
-        end
+        map!(x -> SAT(0.0, VI(x)), f.saf.terms, grad_sparsity)
 
     else
         setvalue = expr.setstorage[1]

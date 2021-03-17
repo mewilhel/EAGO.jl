@@ -138,54 +138,43 @@ quadratic cut.
 """
 function load_relaxed_problem!(m::Optimizer)
 
-    relaxed_optimizer = m.relaxed_optimizer
+    opt = m.relaxed_optimizer
 
     # add variables and indices and constraints
     wp = m._working_problem
-    branch_variable_num = 0
+    branch_num = 0
 
     variable_count = wp._variable_num
     for i = 1:variable_count
 
-        relaxed_variable_indx = MOI.add_variable(relaxed_optimizer)
-        relaxed_variable = SV(relaxed_variable_indx)
-        push!(m._relaxed_variable_index, relaxed_variable_indx)
+        vinfo = wp._variable_info[i]
+        is_branch = m._branch_variables[i]
+        is_branch && (branch_num += 1)
 
-        vinfo =  wp._variable_info[i]
-        is_branch_variable = m._branch_variables[i]
-        is_branch_variable && (branch_variable_num += 1)
+        var_indx = MOI.add_variable(opt)
+        var = SV(var_indx)
+        push!(m._relaxed_variable_index, var_indx)
 
         if vinfo.is_integer
         elseif vinfo.is_fixed
-            ci_sv_et = MOI.add_constraint(relaxed_optimizer, relaxed_variable, ET(vinfo.lower_bound))
-            if is_branch_variable
-                push!(m._relaxed_variable_eq, (ci_sv_et, branch_variable_num))
-                wp._var_eq_count += 1
-            end
-
+            ci_et = MOI.add_constraint(opt, var, ET(vinfo.lower_bound))
+            is_branch && push!(m._relaxed_variable_eq, (ci_sv_et, branch_num))
         else
             if vinfo.has_lower_bound
-                ci_sv_gt = MOI.add_constraint(relaxed_optimizer, relaxed_variable, GT(vinfo.lower_bound))
-                if is_branch_variable
-                    push!(m._relaxed_variable_gt, (ci_sv_gt, branch_variable_num))
-                    wp._var_geq_count += 1
-                end
+                ci_gt = MOI.add_constraint(opt, var, GT(vinfo.lower_bound))
+                is_branch && push!(m._relaxed_variable_gt, (ci_gt, branch_num))
             end
-
             if vinfo.has_upper_bound
-                ci_sv_lt = MOI.add_constraint(relaxed_optimizer, relaxed_variable, LT(vinfo.upper_bound))
-                if is_branch_variable
-                    push!(m._relaxed_variable_lt, (ci_sv_lt, branch_variable_num))
-                    wp._var_leq_count += 1
-                end
+                ci_lt = MOI.add_constraint(opt, var, LT(vinfo.upper_bound))
+                is_branch && push!(m._relaxed_variable_lt, (ci_lt, branch_num))
             end
         end
     end
 
     # set node index to single variable constraint index maps
-    m._branch_variable_num = branch_variable_num
-    m._node_to_sv_leq_ci = fill(CI{SV,LT}(-1), branch_variable_num)
-    m._node_to_sv_geq_ci = fill(CI{SV,GT}(-1), branch_variable_num)
+    m._branch_variable_num = branch_num
+    m._node_to_sv_leq_ci = fill(CI{SV,LT}(-1), branch_num)
+    m._node_to_sv_geq_ci = fill(CI{SV,GT}(-1), branch_num)
     for v in m._relaxed_variable_lt
         m._node_to_sv_leq_ci[v[2]] = v[1]
     end
@@ -194,8 +183,8 @@ function load_relaxed_problem!(m::Optimizer)
     end
 
     # add linear constraints (ASSUME NOT BRIDGED... TODO: FIX LATER)
-    _add_linear_constraints!(relaxed_optimizer, m._input_problem)
-    MOI.set(relaxed_optimizer, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    _add_linear_constraints!(opt, m._input_problem)
+    MOI.set(opt, MOI.ObjectiveSense(), MOI.MIN_SENSE)
 
     return
 end
@@ -300,7 +289,7 @@ function presolve_global!(t::ExtensionType, m::Optimizer)
     m._new_upp_index            = fill(false, branch_variable_num)
     m._lower_indx_diff          = fill(false, branch_variable_num)
     m._upper_indx_diff          = fill(false, branch_variable_num)
-    m._obbt_variable_num      = branch_variable_num
+    m._obbt_variable_num        = branch_variable_num
 
     # add storage for objective cut if quadratic or nonlinear
     wp = m._working_problem
@@ -754,21 +743,21 @@ function interval_objective_bound(m::Optimizer, n::NodeBB)
     return false
 end
 
-_is_feas(m, x::AffineFunctionIneq, n) = lower_interval_bound(m, x, n) <= 0.0
-_is_feas(m, x::BufferedQuadraticIneq, n) = lower_interval_bound(m, x, n) <= 0.0
-function _is_feas(m, x::AffineFunctionEq, n)
+_is_feas(m::Optimizer, x::AffineFunctionIneq, n) = lower_interval_bound(m, x, n) <= 0.0
+_is_feas(m::Optimizer, x::BufferedQuadraticIneq, n) = lower_interval_bound(m, x, n) <= 0.0
+function _is_feas(m::Optimizer, x::AffineFunctionEq, n)
     lower_value, upper_value = interval_bound(m, x, n)
     return lower_value <= 0.0 <= upper_value
 end
-function _is_feas(m, x::BufferedQuadraticEq, n)
+function _is_feas(m::Optimizer, x::BufferedQuadraticEq, n)
     lower_value, upper_value = interval_bound(m, x, n)
     return lower_value <= 0.0 <= upper_value
 end
-function _is_feas(m, x::NonlinearExpression, n)
+function _is_feas(m::Optimizer, x::NonlinearExpression, n)
     lower_value, upper_value = interval_bound(m, x, n)
-    feasible_flag &= upper_value < nl_constr.lower_bound
-    feasible_flag &= lower_value > nl_constr.upper_bound
-    !feasible_flag && break
+    feasible_flag &= upper_value < x.lower_bound
+    feasible_flag &= lower_value > x.upper_bound
+    return !feasible_flag
 end
 
 """
