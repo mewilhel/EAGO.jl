@@ -45,7 +45,7 @@ module EAGO
     const SV = MOI.SingleVariable
     const SAF = MOI.ScalarAffineFunction{Float64}
     const SQF = MOI.ScalarQuadraticFunction{Float64}
-    const VECOFVAR = MOI.VectorOfVariables
+    const VECVAR = MOI.VectorOfVariables
 
     const SQT = MOI.ScalarQuadraticTerm{Float64}
     const SAT = MOI.ScalarAffineTerm{Float64}
@@ -55,8 +55,8 @@ module EAGO
     const ET = MOI.EqualTo{Float64}
     const IT = MOI.Interval{Float64}
     const ZO = MOI.ZeroOne
-    const SECOND_ORDER_CONE = MOI.SecondOrderCone
-    const POWER_CONE = MOI.PowerCone
+    const SOC_CONE = MOI.SecondOrderCone
+    const POW_CONE = MOI.PowerCone
     const EXP_CONE = MOI.ExponentialCone
     const PSD_CONE = MOI.PositiveSemidefiniteConeTriangle
 

@@ -63,7 +63,7 @@ function _add_constraint(wp::ParsedProblem, fs::Tuple{SQF,ET})
     push!(wp._sqf_eq, BufferedQuadraticEq(fs[1], fs[2])); return
 end
 
-function _add_constraint(wp::ParsedProblem, fs::Tuple{VECOFVAR,SECOND_ORDER_CONE})
+function _add_constraint(wp::ParsedProblem, fs::Tuple{VECVAR,SOC_CONE})
     f, s = fs
     first_variable_loc = f.variables[1].value
     prior_lbnd = wp._variable_info[first_variable_loc].lower_bound

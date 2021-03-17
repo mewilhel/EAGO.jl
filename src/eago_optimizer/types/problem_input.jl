@@ -22,9 +22,8 @@ Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
     _quadratic_eq::Dict{CI{SQF,ET},Tuple{SQF,ET}} = Dict{CI{SQF,ET},Tuple{SQF,ET}}()
 
     # conic constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
-    _conic_socp::Dict{CI{VECOFVAR,SECOND_ORDER_CONE},Tuple{VECOFVAR,SECOND_ORDER_CONE}} = Dict{CI{VECOFVAR, SECOND_ORDER_CONE},
-                                                                                               Tuple{VECOFVAR, SECOND_ORDER_CONE}}()
-    _conic_sdp::Dict{CI{VECOFVAR,PSD_CONE},Tuple{VECOFVAR,PSD_CONE}} = Dict{CI{VECOFVAR, PSD_CONE},Tuple{VECOFVAR, PSD_CONE}}()
+    _conic_socp::Dict{CI{VECVAR,SOC_CONE},Tuple{VECVAR,SOC_CONE}} = Dict{CI{VECVAR, SOC_CONE}, Tuple{VECVAR, SOC_CONE}}()
+    _conic_sdp::Dict{CI{VECVAR,PSD_CONE},Tuple{VECVAR,PSD_CONE}} = Dict{CI{VECVAR, PSD_CONE},Tuple{VECVAR, PSD_CONE}}()
     # nonlinear constraint storage
     _nonlinear_count::Int             = 0
 
@@ -53,8 +52,8 @@ MOI.supports_constraint(::InputProblem,
 MOI.supports_constraint(::InputProblem, ::Type{SV}, ::Type{ZO}) = true
 
 MOI.supports_constraint(::InputProblem,
-                        ::Type{<:Union{VECOFVAR}},
-                        ::Type{<:Union{SECOND_ORDER_CONE, PSD_CONE}},
+                        ::Type{<:Union{VECVAR}},
+                        ::Type{<:Union{SOC_CONE, PSD_CONE}},
                         ) = true
 
 MOI.supports(::InputProblem,
@@ -109,7 +108,7 @@ function _check_inbounds!(d::InputProblem, quad::SQF)
     end
     return nothing
 end
-_check_inbounds!(d::InputProblem, v::VECOFVAR) = foreach(x -> _check_inbounds!(d, x), v.variables)
+_check_inbounds!(d::InputProblem, v::VECVAR) = foreach(x -> _check_inbounds!(d, x), v.variables)
 
 #=
 @inline _has_upper_bound(d::InputProblem, vi::MOI.VariableIndex) = d._variable_info[vi.value].has_upper_bound
@@ -246,8 +245,8 @@ end
 @define_constraint SQF LT _quadratic_leq
 @define_constraint SQF GT _quadratic_geq
 @define_constraint SQF ET _quadratic_eq
-@define_constraint VECOFVAR SECOND_ORDER_CONE _conic_socp
-@define_constraint VECOFVAR PSD_CONE _conic_sdp
+@define_constraint VECVAR SOC_CONE _conic_socp
+@define_constraint VECVAR PSD_CONE _conic_sdp
 
 _moi_to_obj_type(d::SV) = SINGLE_VARIABLE
 _moi_to_obj_type(d::SAF) = SCALAR_AFFINE
@@ -336,7 +335,7 @@ function MOI.get(d::InputProblem, ::MOI.ListOfConstraints)
     !isempty(d._quadratic_geq) && push!(cons_list, (SQF,GT))
     !isempty(d._quadratic_eq)  && push!(cons_list, (SQF,ET))
 
-    !iszero(_second_order_cone_num(d)) && push!(cons_list, (VECOFVAR, SECOND_ORDER_CONE))
+    !iszero(_second_order_cone_num(d)) && push!(cons_list, (VECVAR, SOC_CONE))
 
     return cons_list
 end
