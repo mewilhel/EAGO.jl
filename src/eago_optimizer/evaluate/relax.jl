@@ -165,7 +165,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function relax!(m::Optimizer, f::BufferedQuadraticIneq, indx::Int, check_safe::Bool)
+function relax!(m::Optimizer, f::BufferedQuadraticIneq, check_safe::Bool)
 
     constraint_tol = m.absolute_constraint_feas_tolerance
     finite_cut_generated = affine_relax_quadratic!(f.func, f.buffer, f.saf, m._current_node, m._sol_to_branch_map, m._current_xref)
@@ -177,7 +177,6 @@ function relax!(m::Optimizer, f::BufferedQuadraticIneq, indx::Int, check_safe::B
             push!(m._buffered_quadratic_ineq_ci, ci)
         end
     end
-    #m.relaxed_to_problem_map[ci] = indx
 
     return nothing
 end
@@ -185,7 +184,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function relax!(m::Optimizer, f::BufferedQuadraticEq, indx::Int, check_safe::Bool)
+function relax!(m::Optimizer, f::BufferedQuadraticEq, check_safe::Bool)
 
     constraint_tol = m.absolute_constraint_feas_tolerance
     finite_cut_generated = affine_relax_quadratic!(f.func, f.buffer, f.saf, m._current_node, m._sol_to_branch_map, m._current_xref)
@@ -197,7 +196,6 @@ function relax!(m::Optimizer, f::BufferedQuadraticEq, indx::Int, check_safe::Boo
             push!(m._buffered_quadratic_eq_ci, ci)
         end
     end
-    #m.relaxed_to_problem_map[ci] = indx
 
     finite_cut_generated = affine_relax_quadratic!(f.minus_func, f.buffer, f.saf, m._current_node, m._sol_to_branch_map, m._current_xref)
     if finite_cut_generated
@@ -208,7 +206,6 @@ function relax!(m::Optimizer, f::BufferedQuadraticEq, indx::Int, check_safe::Boo
             push!(m._buffered_quadratic_eq_ci, ci)
         end
     end
-    #m.relaxed_to_problem_map[ci] = indx
 
     return nothing
 end
@@ -283,7 +280,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function relax!(m::Optimizer, f::BufferedNonlinearFunction{MC{N,T}}, indx::Int, check_safe::Bool) where {N,T<:RelaxTag}
+function relax!(m::Optimizer, f::BufferedNonlinearFunction{MC{N,T}}, check_safe::Bool) where {N,T<:RelaxTag}
     evaluator = m._working_problem._relaxed_evaluator
 
     finite_cut_generated = affine_relax_nonlinear!(f, evaluator, true, true, true)
@@ -498,23 +495,13 @@ set to `false` indicating that the objective expression was evaluated.
 """
 function relax_all_constraints!(t::ExtensionType, m::Optimizer, q::Int64)
 
+    wp = _working_problem(m)
     check_safe = (q === 1) ? false : m.cut_safe_on
-    m._working_problem._relaxed_evaluator.is_first_eval = m._new_eval_constraint
+    wp._relaxed_evaluator.is_first_eval = m._new_eval_constraint
 
-    sqf_leq_list = m._working_problem._sqf_leq
-    for i = 1:m._working_problem._sqf_leq_count
-        relax!(m, (@inbounds sqf_leq_list[i]), i, check_safe)
-    end
-
-    sqf_eq_list = m._working_problem._sqf_eq
-    for i = 1:m._working_problem._sqf_eq_count
-        relax!(m, (@inbounds sqf_eq_list[i]), i, check_safe)
-    end
-
-    nl_list = m._working_problem._nonlinear_constr
-    for i = 1:m._working_problem._nonlinear_count
-        relax!(m, (@inbounds nl_list[i]), i, check_safe)
-    end
+    foreach(x -> relax!(m, x, check_safe), wp._sqf_leq)
+    foreach(x -> relax!(m, x, check_safe), wp._sqf_eq)
+    foreach(x -> relax!(m, x, check_safe), wp._nonlinear_constr)
 
     m._new_eval_constraint = false
     objective_cut!(m, check_safe)
@@ -530,17 +517,13 @@ $(FUNCTIONNAME)
 Deletes all nonlinear constraints added to the relaxed optimizer.
 """
 function delete_nl_constraints!(m::Optimizer)
-    # delete affine relaxations added from quadratic inequality
     MOI.delete.(m.relaxed_optimizer, m._buffered_quadratic_ineq_ci)
-    empty!(m._buffered_quadratic_ineq_ci)
-
-    # delete affine relaxations added from quadratic equality
     MOI.delete.(m.relaxed_optimizer, m._buffered_quadratic_eq_ci)
-    empty!(m._buffered_quadratic_eq_ci)
-
-    # delete affine relaxations added from nonlinear inequality
     MOI.delete.(m.relaxed_optimizer, m._buffered_nonlinear_ci)
+    empty!(m._buffered_quadratic_ineq_ci)
+    empty!(m._buffered_quadratic_eq_ci)
     empty!(m._buffered_nonlinear_ci)
+    return
 end
 
 """
@@ -551,6 +534,7 @@ Deletes all scalar-affine objective cuts added to the relaxed optimizer.
 function delete_objective_cuts!(m::Optimizer)
     MOI.delete.(m.relaxed_optimizer, m._objective_cut_ci_saf)
     empty!(m._objective_cut_ci_saf)
+    return
 end
 
 """

@@ -17,8 +17,4 @@ include(joinpath(@__DIR__, "moit_tests.jl"))
 #, JuMP, Ipopt, ForwardDiff
 #using IntervalArithmetic, SpecialFunctions
 #using ForwardDiff: Dual, Partials
-
-#include("branch_bound.jl")
-#include("domain_reduction.jl")
-#include("optimizer.jl")
 #include("script_optimizer.jl")

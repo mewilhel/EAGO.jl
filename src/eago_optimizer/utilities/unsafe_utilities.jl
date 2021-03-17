@@ -27,3 +27,19 @@ function unsafe_check_fill!(f, y::Vector{T}, x::T, n::Int) where T
     end
     nothing
 end
+
+
+"""
+Performs foreach and returns false if op returns false
+"""
+function foreach_until(op, x, init)
+    if !init
+        return false
+    end
+    for d in x
+        if !op(d)
+            return false
+        end
+    end
+    return true
+end

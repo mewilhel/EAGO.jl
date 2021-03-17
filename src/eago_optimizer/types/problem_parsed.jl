@@ -126,3 +126,6 @@ function Base.isempty(x::ParsedProblem)
 
     return is_empty_flag
 end
+
+# Important bridges to EAGO
+# 

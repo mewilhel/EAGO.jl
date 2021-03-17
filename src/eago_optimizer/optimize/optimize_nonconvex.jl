@@ -152,12 +152,10 @@ function load_relaxed_problem!(m::Optimizer)
         push!(m._relaxed_variable_index, relaxed_variable_indx)
 
         vinfo =  wp._variable_info[i]
-
         is_branch_variable = m._branch_variables[i]
         is_branch_variable && (branch_variable_num += 1)
 
         if vinfo.is_integer
-
         elseif vinfo.is_fixed
             ci_sv_et = MOI.add_constraint(relaxed_optimizer, relaxed_variable, ET(vinfo.lower_bound))
             if is_branch_variable
@@ -185,27 +183,21 @@ function load_relaxed_problem!(m::Optimizer)
     end
 
     # set node index to single variable constraint index maps
+    m._branch_variable_num = branch_variable_num
     m._node_to_sv_leq_ci = fill(CI{SV,LT}(-1), branch_variable_num)
     m._node_to_sv_geq_ci = fill(CI{SV,GT}(-1), branch_variable_num)
-    for i = 1:wp._var_leq_count
-        ci_sv_lt, branch_index = m._relaxed_variable_lt[i]
-        m._node_to_sv_leq_ci[branch_index] = ci_sv_lt
+    for v in m._relaxed_variable_lt
+        m._node_to_sv_leq_ci[v[2]] = v[1]
     end
-    for i = 1:wp._var_geq_count
-        ci_sv_gt, branch_index = m._relaxed_variable_gt[i]
-        m._node_to_sv_geq_ci[branch_index] = ci_sv_gt
+    for v in m._relaxed_variable_gt
+        m._node_to_sv_geq_ci[v[2]] = v[1]
     end
 
-    # set number of variables to branch on
-    m._branch_variable_num = branch_variable_num
-
-    # add linear constraints
-    _add_linear_constraints!(m._input_problem, relaxed_optimizer)
-
-    # sets relaxed problem objective sense to Min as all problems
-    # are internally converted in Min problems in EAGO
+    # add linear constraints (ASSUME NOT BRIDGED... TODO: FIX LATER)
+    _add_linear_constraints!(relaxed_optimizer, m._input_problem)
     MOI.set(relaxed_optimizer, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-    return nothing
+
+    return
 end
 
 function _add_decision_variables!(wp, ip)
@@ -220,9 +212,9 @@ function _add_decision_variables!(wp, ip)
 end
 
 function _add_linear_constraints!(opt::T, ip::InputProblem) where T
-    foreach(fs -> _add_constraint!(opt, fs), values(_linear_leq(ip)))
-    foreach(fs -> _add_constraint!(opt, fs), values(_linear_geq(ip)))
-    foreach(fs -> _add_constraint!(opt, fs), values(_linear_eq(ip)))
+    foreach(fs -> _add_constraint(opt, fs), values(_linear_leq(ip)))
+    foreach(fs -> _add_constraint(opt, fs), values(_linear_geq(ip)))
+    foreach(fs -> _add_constraint(opt, fs), values(_linear_eq(ip)))
     return nothing
 end
 
@@ -679,16 +671,14 @@ function preprocess!(t::ExtensionType, m::Optimizer)
         load_fbbt_buffer!(m)
         for i = 1:m.fbbt_lp_repetitions
             if feasible_flag
-                for j = 1:wp._saf_leq_count
+                for saf_leq in wp._saf_leq
                     !feasible_flag && break
-                    saf_leq =  wp._saf_leq[j]
                     feasible_flag &= fbbt!(m, saf_leq)
                 end
                 !feasible_flag && break
 
-                for j = 1:wp._saf_eq_count
+                for saf_eq in  wp._saf_eq
                     !feasible_flag && break
-                    saf_eq = wp._saf_eq[j]
                     feasible_flag &= fbbt!(m, saf_eq)
                 end
                 !feasible_flag && break
@@ -764,6 +754,23 @@ function interval_objective_bound(m::Optimizer, n::NodeBB)
     return false
 end
 
+_is_feas(m, x::AffineFunctionIneq, n) = lower_interval_bound(m, x, n) <= 0.0
+_is_feas(m, x::BufferedQuadraticIneq, n) = lower_interval_bound(m, x, n) <= 0.0
+function _is_feas(m, x::AffineFunctionEq, n)
+    lower_value, upper_value = interval_bound(m, x, n)
+    return lower_value <= 0.0 <= upper_value
+end
+function _is_feas(m, x::BufferedQuadraticEq, n)
+    lower_value, upper_value = interval_bound(m, x, n)
+    return lower_value <= 0.0 <= upper_value
+end
+function _is_feas(m, x::NonlinearExpression, n)
+    lower_value, upper_value = interval_bound(m, x, n)
+    feasible_flag &= upper_value < nl_constr.lower_bound
+    feasible_flag &= lower_value > nl_constr.upper_bound
+    !feasible_flag && break
+end
+
 """
 $(SIGNATURES)
 
@@ -774,62 +781,26 @@ successfully solved the relaxation to a globally optimal point.
 """
 function fallback_interval_lower_bound!(m::Optimizer, n::NodeBB)
 
-    feasible_flag = true
-
+    feas = true
+    wp = _working_problem(m)
     if !cp_condition(m)
-        for i = 1:m._working_problem._saf_leq_count
-            saf_leq =  m._working_problem._saf_leq[i]
-            feasible_flag &= (lower_interval_bound(m, saf_leq, n) <= 0.0)
-            !feasible_flag && break
-        end
-
-        if feasible_flag
-            for i = 1:m._working_problem._saf_eq_count
-                saf_eq =  m._working_problem._saf_eq[i]
-                lower_value, upper_value = interval_bound(m, saf_eq, n)
-                feasible_flag &= (lower_value <= 0.0 <= upper_value)
-                !feasible_flag && break
-            end
-        end
-
-        if feasible_flag
-            for i = 1:m._working_problem._sqf_leq_count
-                sqf_leq =  m._working_problem._sqf_leq[i]
-                feasible_flag &= (lower_interval_bound(m, sqf_leq, n) <= 0.0)
-                !feasible_flag && break
-            end
-        end
-
-        if feasible_flag
-            for i = 1:m._working_problem._sqf_eq_count
-                sqf_eq =  m._working_problem._sqf_eq[i]
-                lower_value, upper_value = interval_bound(m, sqf_eq, n)
-                feasible_flag &= (lower_value <= 0.0 <= upper_value)
-                !feasible_flag && break
-            end
-        end
-
-        if feasible_flag
-            for i = 1:m._working_problem._nonlinear_count
-                nl_constr =  m._working_problem._nonlinear_constr[i]
-                lower_value, upper_value = interval_bound(m, nl_constr, n)
-                feasible_flag &= upper_value < nl_constr.lower_bound
-                feasible_flag &= lower_value > nl_constr.upper_bound
-                !feasible_flag && break
-            end
-        end
+        feas = foreach_until(x -> _is_feas(m, x, n), wp._saf_leq, feas)
+        feas = foreach_until(x -> _is_feas(m, x, n), wp._saf_eq,  feas)
+        feas = foreach_until(x -> _is_feas(m, x, n), wp._sqf_leq, feas)
+        feas = foreach_until(x -> _is_feas(m, x, n), wp._sqf_eq,  feas)
+        feas = foreach_until(x -> _is_feas(m, x, n), wp._nonlinear_constr, feas)
     end
 
-    if feasible_flag
+    if feas
         interval_objective_used = interval_objective_bound(m, n)
         @__dot__ m._current_xref = 0.5*(n.upper_variable_bounds + n.lower_variable_bounds)
         unsafe_check_fill!(isnan, m._current_xref, 0.0, length(m._current_xref))
     else
         m._lower_objective_value = -Inf
     end
-    m._lower_feasibility = feasible_flag
+    m._lower_feasibility = feas
 
-    return nothing
+    return
 end
 
 function intrepret_relaxed_solution(m::Optimizer, d::T) where T
