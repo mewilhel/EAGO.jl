@@ -240,6 +240,9 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     # set by MOI manipulations
     _input_problem::MOIU.Model{Float64} = MOIU.Model{Float64}()
     _nlp_data::Union{MOI.NLPBlockData, Nothing} = nothing
+    _constraint_offset::Vector{Int}      = Int[]
+    _constraint_index_num::Int = 0
+    _constraint_row_num::Int = 0
 
     _termination_status_code::MOI.TerminationStatusCode = MOI.OPTIMIZE_NOT_CALLED
     _result_status_code::MOI.ResultStatusCode = MOI.OTHER_RESULT_STATUS
@@ -413,7 +416,7 @@ _working_problem(m::Optimizer) = m._working_problem
 function _set_cons_primal!(m::Optimizer, ci::CI{F,S}, v::Float64) where{F <: MOI.AbstractFunction,
                                                                         S <: MOI.AbstractScalarSet}
     i = ci.value
-    os = m._input_problem._constraint_offset
+    os = m._constraint_offset
     m._primal_constraint_value[os[i]] = v
     return
 end
@@ -421,7 +424,7 @@ end
 function _set_cons_primal!(m::Optimizer, ci::CI{F,S}, v::Vector{Float64}) where{F <: MOI.AbstractFunction,
                                                                                 S <: MOI.AbstractVectorSet}
     i = ci.value
-    os = m._input_problem._constraint_offset
+    os = m._constraint_offset
     m._primal_constraint_value[(os[i] + 1):os[i + 1]] .= v
     return
 end

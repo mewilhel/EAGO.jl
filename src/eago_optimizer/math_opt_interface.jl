@@ -107,13 +107,13 @@ end
 function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{SAF, SQF}, S <: Union{ET, GT, LT}}
     MOI.check_result_index_bounds(m, v)
     i = ci.value
-    os = m._input_problem._constraint_offset
+    os = m._constraint_offset
     return m._primal_constraint_value[os[i]]
 end
 function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
     MOI.check_result_index_bounds(m, v)
     i = ci.value
-    os = m._input_problem._constraint_offset
+    os = m._constraint_offset
     return m._primal_constraint_value[(os[i] + 1):os[i + 1]]
 end
 MOI.get(opt::Optimizer, a::MOI.ConstraintPrimal, ci::Vector{MOI.ConstraintIndex}) = MOI.get.(opt, a, ci)
