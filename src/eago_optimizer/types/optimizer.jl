@@ -237,9 +237,9 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     "Amount about a domain violation to ignore when propagating bounds."
     domain_violation_ϵ::Float64 = 1E-9
 
-    # set by MOI manipulations (see Input problem structure)
-    _input_problem::InputProblem = InputProblem()
-
+    # set by MOI manipulations
+    _input_problem::MOIU.Model{Float64} = MOIU.Model{Float64}()
+    _nlp_data::Union{MOI.NLPBlockData, Nothing} = nothing
 
     _termination_status_code::MOI.TerminationStatusCode = MOI.OPTIMIZE_NOT_CALLED
     _result_status_code::MOI.ResultStatusCode = MOI.OTHER_RESULT_STATUS

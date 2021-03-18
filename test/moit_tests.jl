@@ -25,7 +25,6 @@ const intlinear_excludes = String[
     "indicator3",
     "indicator4",
 
-    "int1",          # doesn't currently support SV in Integer
     "int2",
     "int3",
 
@@ -38,7 +37,6 @@ const contconic_excludes = String[
     "dualexp",
     "dualpow",
     "exp",
-    "lin",
     "logdet",
     "soc",
     "normspec",
@@ -46,7 +44,7 @@ const contconic_excludes = String[
     "relentr",
     "rsoc",
     "pow",
-    "geomean"
+    #"geomean"
 ]
 
 const contquadratic_excludes = String[

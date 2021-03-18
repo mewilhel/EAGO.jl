@@ -72,7 +72,7 @@ for (T, optimizer_field) in ((LP, :lp_optimizer),
         opt = m.$optimizer_field
         #set_config!(m, opt)
         bridged_opt = _bridge_optimizer(Val{$T}(), opt)
-        idx_map = MOIU.default_copy_to(bridged_opt, m._input_problem, false)
+        idx_map = MOI.copy_to(bridged_opt, m._input_problem, false)
 
         if m.verbosity < 5
             MOI.set(bridged_opt, MOI.Silent(), true)

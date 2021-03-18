@@ -200,21 +200,21 @@ function _add_decision_variables!(wp, ip)
     return nothing
 end
 
-function _add_linear_constraints!(opt::T, ip::InputProblem) where T
+function _add_linear_constraints!(opt::T, ip) where T
     foreach(fs -> _add_constraint(opt, fs), values(_linear_leq(ip)))
     foreach(fs -> _add_constraint(opt, fs), values(_linear_geq(ip)))
     foreach(fs -> _add_constraint(opt, fs), values(_linear_eq(ip)))
     return nothing
 end
 
-function _add_quadratic_constraints!(opt::T, ip::InputProblem) where T
+function _add_quadratic_constraints!(opt::T, ip) where T
     foreach(fs -> _add_constraint(opt, fs), values(_quadratic_leq(ip)))
     foreach(fs -> _add_constraint(opt, fs), values(_quadratic_geq(ip)))
     foreach(fs -> _add_constraint(opt, fs), values(_quadratic_eq(ip)))
     return nothing
 end
 
-function _add_conic_constraints!(opt::T, ip::InputProblem) where T
+function _add_conic_constraints!(opt::T, ip) where T
     foreach(fs -> MOI.add_constraint(opt, fs), values(_conic_socp(ip)))
     return nothing
 end

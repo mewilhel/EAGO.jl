@@ -324,56 +324,112 @@ function initial_parse!(m::Optimizer)
     return nothing
 end
 
-function _parse_classify_problem(::Val{LP}, ip::InputProblem, wp::ParsedProblem)
-    is_lp =  _objective_type(ip) == SINGLE_VARIABLE
-    is_lp |= _objective_type(ip) == SCALAR_AFFINE
-    is_lp |= _objective_type(ip) == UNSET
-    is_lp &= _second_order_cone_num(ip)       == 0
-    is_lp &= _quadratic_num(ip)               == 0
-    is_lp &= _nl_expr_num(ip)                 == 0
-    is_lp &= _integer_variable_num(ip)        == 0
+const INTEGER_FUNC_SET{T <: Real} = Union{Tuple{MOI.SingleVariable, MOI.ZeroOne},
+                                          Tuple{MOI.SingleVariable, MOI.Integer},
+                                          Tuple{MOI.SingleVariable, MOI.Semicontinuous},
+                                          Tuple{MOI.SingleVariable, MOI.Semiinteger},
+                                          Tuple{MOI.VectorOfVariables, MOI.SOS1{T}},
+                                          Tuple{MOI.VectorOfVariables, MOI.SOS2{T}}}
+
+const LINEAR_FUNC_SET{T <: Real} = Union{Tuple{MOI.SingleVariable, MOI.LessThan{T}},
+                                         Tuple{MOI.SingleVariable, MOI.GreaterThan{T}},
+                                         Tuple{MOI.SingleVariable, MOI.EqualTo{T}},
+                                         Tuple{MOI.SingleVariable, MOI.Interval{T}},
+                                         Tuple{MOI.ScalarAffineFunction, MOI.LessThan{T}},
+                                         Tuple{MOI.ScalarAffineFunction, MOI.GreaterThan{T}},
+                                         Tuple{MOI.ScalarAffineFunction, MOI.EqualTo{T}},
+                                         Tuple{MOI.ScalarAffineFunction, MOI.Interval{T}},
+                                         Tuple{MOI.VectorOfVariables,    MOI.Nonnegatives},
+                                         Tuple{MOI.VectorOfVariables,    MOI.Nonpositives},
+                                         Tuple{MOI.VectorOfVariables,    MOI.Zeros},
+                                         Tuple{MOI.VectorAffineFunction, MOI.Nonnegatives},
+                                         Tuple{MOI.VectorAffineFunction, MOI.Nonpositives},
+                                         Tuple{MOI.VectorAffineFunction, MOI.Zeros}}
+
+const CONE_FUNC_SET =  Union{Tuple{MOI.VectorOfVariables, MOI.NormInfinityCone},
+                             Tuple{MOI.VectorOfVariables, MOI.NormOneCone},
+                             Tuple{MOI.VectorOfVariables, MOI.SecondOrderCone},
+                             Tuple{MOI.VectorOfVariables, MOI.RotatedSecondOrderCone},
+                             Tuple{MOI.VectorOfVariables, MOI.GeometricMeanCone},
+                             Tuple{MOI.VectorOfVariables, MOI.ExponentialCone},
+                             Tuple{MOI.VectorOfVariables, MOI.DualExponentialCone},
+                             Tuple{MOI.VectorOfVariables, MOI.RelativeEntropyCone},
+                             Tuple{MOI.VectorOfVariables, MOI.NormSpectralCone},
+                             Tuple{MOI.VectorOfVariables, MOI.NormNuclearCone}}
+
+const SDP_FUNC_SET = Union{Tuple{MOI.VectorOfVariables, MOI.PositiveSemidefiniteConeTriangle},
+                           Tuple{MOI.VectorOfVariables, MOI.PositiveSemidefiniteConeSquare},
+                           Tuple{MOI.VectorOfVariables, MOI.RootDetConeTriangle},
+                           Tuple{MOI.VectorOfVariables, MOI.RootDetConeSquare},
+                           Tuple{MOI.VectorOfVariables, MOI.LogDetConeTriangle},
+                           Tuple{MOI.VectorOfVariables, MOI.LogDetConeSquare}}
+
+function _parse_classify_problem(::Val{LP}, m::Optimizer, ::Type{T}) where T
+    ip = m._input_problem
+    wp = m._working_problem
+    if MOI.get(ip, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
+        is_lp = true
+    else
+        is_lp = MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.SingleVariable
+        is_lp |= MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.ScalarAffineFunction{T}
+    end
+    is_lp &= isempty(filter(x -> x isa LINEAR_FUNC_SET{T}, MOI.get(ip, MOI.ListOfConstraints())))
+    is_lp &= m._nlp_data === nothing
     if is_lp
         wp._problem_type = LP
     end
     return is_lp
 end
 
-function _parse_classify_problem(::Val{MILP}, ip::InputProblem, wp::ParsedProblem)
-    is_milp =  _objective_type(ip) == SINGLE_VARIABLE
-    is_milp |= _objective_type(ip) == SCALAR_AFFINE
-    is_milp |= _objective_type(ip) == UNSET
-    is_milp &= _second_order_cone_num(ip)       == 0
-    is_milp &= _quadratic_num(ip)               == 0
-    is_milp &= _nl_expr_num(ip)                 == 0
-    is_milp &= _integer_variable_num(ip)        > 0
+function _parse_classify_problem(::Val{MILP}, m::Optimizer, ::T) where T
+    ip = m._input_problem
+    wp = m._working_problem
+    if MOI.get(ip, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
+        is_milp = true
+    else
+        is_milp = MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.SingleVariable
+        is_milp |= MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.ScalarAffineFunction{T}
+    end
+    is_milp &= isempty(filter(x -> x isa union(LINEAR_FUNC_SET{T}, INTEGER_FUNC_SET{T}),
+                              MOI.get(ip, MOI.ListOfConstraints())))
+    is_milp &= m._nlp_data === nothing
     if is_milp
         wp._problem_type = MILP
     end
     return is_milp
 end
 
-function _parse_classify_problem(::Val{SOCP}, ip::InputProblem, wp::ParsedProblem)
-    is_socp =  _objective_type(ip) == SINGLE_VARIABLE
-    is_socp |= _objective_type(ip) == SCALAR_AFFINE
-    is_socp |= _objective_type(ip) == UNSET
-    is_socp &= _second_order_cone_num(ip)       > 0
-    is_socp &= _quadratic_num(ip)               == 0
-    is_socp &= _nl_expr_num(ip)                 == 0
-    is_socp &= _integer_variable_num(ip)        == 0
+function _parse_classify_problem(::Val{SOCP}, m::Optimizer, ::T) where T
+    ip = m._input_problem
+    wp = m._working_problem
+    if MOI.get(ip, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
+        is_socp = true
+    else
+        is_socp = MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.SingleVariable
+        is_socp |= MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.ScalarAffineFunction{T}
+    end
+    is_socp &= isempty(filter(x -> x isa union(LINEAR_FUNC_SET{T}, INTEGER_FUNC_SET{T}, CONE_FUNC_SET),
+                              MOI.get(ip, MOI.ListOfConstraints())))
+    is_socp &= m._nlp_data === nothing
     if is_socp
         wp._problem_type = SOCP
     end
     return is_socp
 end
 
-function _parse_classify_problem(::Val{SDP}, ip::InputProblem, wp::ParsedProblem)
-    is_sdp =  _objective_type(ip) == SINGLE_VARIABLE
-    is_sdp |= _objective_type(ip) == SCALAR_AFFINE
-    is_sdp |= _objective_type(ip) == UNSET
-    is_sdp &= _psd_cone_num(ip)           > 0
-    is_sdp &= _quadratic_num(ip)          == 0
-    is_sdp &= _nl_expr_num(ip)            == 0
-    is_sdp &= _integer_variable_num(ip)   == 0
+function _parse_classify_problem(::Val{SDP}, m::Optimizer, ::T) where T
+    ip = m._input_problem
+    wp = m._working_problem
+    if MOI.get(ip, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
+        is_sdp = true
+    else
+        is_sdp = MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.SingleVariable
+        is_sdp |= MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.ScalarAffineFunction{T}
+    end
+    is_sdp &= isempty(filter(x -> x isa union(LINEAR_FUNC_SET{T}, INTEGER_FUNC_SET{T},
+                                              CONE_FUNC_SET, SDP_FUNC_SET),
+                              MOI.get(ip, MOI.ListOfConstraints())))
+    is_sdp &= m._nlp_data === nothing
     if is_sdp
         wp._problem_type = SDP
     end
@@ -395,7 +451,7 @@ function _parse_classify_problem(::Val{MISOCP}, ip::InputProblem, wp::ParsedProb
 end
 =#
 
-function _parse_classify_problem(::Val{MINCVX}, ip::InputProblem, wp::ParsedProblem)
+function _parse_classify_problem(::Val{MINCVX}, ip::MOIU.Model, wp::ParsedProblem)
     wp._problem_type = MINCVX
     return true
 end
@@ -405,14 +461,12 @@ end
 Classifies the problem type
 """
 function _parse_classify_problem!(m::Optimizer)
-    ip = m._input_problem
-    wp = m._working_problem
-    _parse_classify_problem(Val{LP}(), ip, wp)       && return
-    _parse_classify_problem(Val{MILP}(), ip, wp)     && return
-    _parse_classify_problem(Val{SOCP}(), ip, wp)     && return
-    _parse_classify_problem(Val{SDP}(), ip, wp)      && return
+    _parse_classify_problem(Val{LP}(), m, Float64)       && return
+    _parse_classify_problem(Val{MILP}(), m, Float64)     && return
+    _parse_classify_problem(Val{SOCP}(), m, Float64)     && return
+    _parse_classify_problem(Val{SDP}(), m, Float64)      && return
     #_parse_classify_problem(Val{MISOCP}(), ip, wp)   && return
-    _parse_classify_problem(Val{MINCVX}(), ip, wp)   && return
+    _parse_classify_problem(Val{MINCVX}(), m, Float64)   && return
     return
 end
 

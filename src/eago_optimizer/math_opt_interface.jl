@@ -141,7 +141,7 @@ function MOI.is_empty(m::Optimizer)
     is_empty_flag = uninitialized(m._current_node)
     is_empty_flag &= isempty(m._stack)
     is_empty_flag &= isempty(m._log)
-    is_empty_flag &= isempty(m._input_problem)
+    is_empty_flag &= MOI.is_empty(m._input_problem)
     is_empty_flag &= isempty(m._working_problem)
 
     return is_empty_flag
@@ -152,7 +152,7 @@ function MOI.get(m::Optimizer, v::MOI.ObjectiveValue)
     m._objective_value
 end
 MOI.get(m::Optimizer, ::MOI.ObjectiveBound) = m._objective_bound
-MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = m._input_problem._variable_num
+MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = MOI.get(m.input_problem, MOI.NumberOfVariables())
 
 function MOI.get(m::Optimizer, ::MOI.RelativeGap)
     LBD = m._objective_value
@@ -205,10 +205,12 @@ end
 MOI.supports(d::Optimizer, ::MOI.NLPBlock) = true
 function MOI.set(d::Optimizer, ::MOI.NLPBlock, nlp_data)
     # TODO: Update d._primal_constraint_value
-    MOI.set(d._input_problem, MOI.NLPBlock(), nlp_data)
+    d._nlp_data = nlp_data
+    return
 end
 function MOI.set(d::Optimizer, ::MOI.NLPBlock, ::Nothing)
-    MOI.set(d._input_problem, MOI.NLPBlock(), nothing)
+    d._nlp_data = nothing
+    return
 end
 
 function MOI.set(d::Optimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
