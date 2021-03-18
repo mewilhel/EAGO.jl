@@ -49,6 +49,71 @@ function revert_adjusted_upper_bound!(t::DefaultExt, d::Optimizer)
     return nothing
 end
 
+function _update_branch_variables!(nlp_opt, m)
+    n = m._current_node
+    for i = 1:m._working_problem._variable_num
+        vinfo = @inbounds m._working_problem._variable_info[i]
+        if m._branch_variables[i]
+            if vinfo.is_integer
+            else
+                indx = @inbounds m._sol_to_branch_map[i]
+                lvb  = @inbounds n.lower_variable_bounds[indx]
+                uvb  = @inbounds n.upper_variable_bounds[indx]
+                if vinfo.is_fixed
+                    MOI.add_constraint(nlp_opt, SV(m.upper_variables[i]), ET(lvb))
+                elseif vinfo.has_lower_bound
+                    if vinfo.has_upper_bound
+                        MOI.add_constraint(nlp_opt, SV(m.upper_variables[i]), LT(uvb))
+                        MOI.add_constraint(nlp_opt, SV(m.upper_variables[i]), GT(lvb))
+                    else
+                        MOI.add_constraint(nlp_opt, SV(m.upper_variables[i]), GT(lvb))
+                    end
+                elseif vinfo.has_upper_bound
+                    MOI.add_constraint(nlp_opt, SV(m.upper_variables[i]), LT(uvb))
+                end
+            end
+        end
+    end
+    return nothing
+end
+
+# TODO: Select between infeasible starting point reduction strategies
+function _set_starting_point!(opt, m)
+    for i = 1:m._working_problem._variable_num
+        if m._branch_variables[i]
+            vp = mid(m, m._sol_to_branch_map[i])
+        else
+            vp = mid(m._working_problem.variable_info[i])
+            if isinf(vp)
+                if isinf(_lower_bound(m._working_problem.variable_info[i]))
+                    vp = _lower_bound(m._working_problem.variable_info[i])
+                else
+                    vp = _upper_bound(m._working_problem.variable_info[i])
+                end
+            end
+        end
+        MOI.set(opt, MOI.VariablePrimalStart(m._upper_variables[i]), vp)
+    end
+    return nothing
+end
+
+function _unpack_local_nlp_solve!(m::Optimizer, opt::T, idx_map; adjust_bnd::Bool = true) where T
+    # Process output info and save to CurrentUpperInfo object
+    m._upper_termination_status = MOI.get(nlp_optimizer, MOI.TerminationStatus())
+    m._upper_result_status = MOI.get(nlp_optimizer, MOI.PrimalStatus())
+    if is_feasible_solution(m._upper_termination_status, m._upper_result_status)
+        m._upper_feasibility = true
+        value = MOI.get(nlp_optimizer, MOI.ObjectiveValue())
+        stored_adjusted_upper_bound!(m, value)
+        m._best_upper_value = min(value, m._best_upper_value)
+        m._upper_solution .= MOI.get(nlp_optimizer, MOI.VariablePrimal(), upper_variables)
+    else
+        m._upper_feasibility = false
+        m._upper_objective_value = Inf
+    end
+    return nothing
+end
+
 """
 
 Constructs and solves the problem locally on on node `y` updated the upper
@@ -56,118 +121,16 @@ solution informaton in the optimizer.
 """
 function solve_local_nlp!(m::Optimizer)
 
-    nlp_optimizer = m.nlp_optimizer
-    MOI.empty!(nlp_optimizer)
-    #set_default_config!(nlp_optimizer)
+    opt = m.nlp_optimizer
+    #set_config!(m, opt)
+    bridged_opt = _bridge_optimizer(Val{DIFF_CVX}(), opt)
+    idx_map = MOIU.default_copy_to(bridged_opt, m._input_problem, false)
+    (m.verbosity < 5) && MOI.set(bridged_opt, MOI.Silent(), true)
 
-    upper_variables = m._upper_variables
-    for i = 1:m._working_problem._variable_num
-        @inbounds upper_variables[i] = MOI.add_variable(nlp_optimizer)
-    end
-
-    n = m._current_node
-    sol_to_branch_map = m._sol_to_branch_map
-    lower_variable_bounds = n.lower_variable_bounds
-    upper_variable_bounds = n.upper_variable_bounds
-    variable_info = m._working_problem._variable_info
-
-    lvb = 0.0
-    uvb = 0.0
-    x0 = 0.0
-
-    for i = 1:m._input_problem._variable_num
-        vinfo = @inbounds variable_info[i]
-        single_variable = MOI.SingleVariable(@inbounds upper_variables[i])
-
-        if m._branch_variables[i]
-            if vinfo.is_integer
-            else
-                indx = @inbounds sol_to_branch_map[i]
-                lvb  = @inbounds lower_variable_bounds[indx]
-                uvb  = @inbounds upper_variable_bounds[indx]
-                if vinfo.is_fixed
-                    MOI.add_constraint(nlp_optimizer, single_variable, ET(lvb))
-
-                elseif vinfo.has_lower_bound
-                    if vinfo.has_upper_bound
-                        MOI.add_constraint(nlp_optimizer, single_variable, LT(uvb))
-                        MOI.add_constraint(nlp_optimizer, single_variable, GT(lvb))
-
-                    else
-                        MOI.add_constraint(upper_optimizer, single_variable, GT(lvb))
-
-                    end
-                elseif vinfo.has_upper_bound
-                    MOI.add_constraint(nlp_optimizer, single_variable, LT(uvb))
-
-                end
-            end
-            x0 = 0.5*(lvb + uvb)
-            upper_variable_index = @inbounds upper_variables[i]
-            MOI.set(nlp_optimizer, MOI.VariablePrimalStart(), upper_variable_index, x0)
-
-        else
-            # not branch variable
-            if vinfo.is_integer
-            else
-                lvb  = vinfo.lower_bound
-                uvb  = vinfo.upper_bound
-                if vinfo.is_fixed
-                    MOI.add_constraint(nlp_optimizer, single_variable, ET(lvb))
-
-                elseif vinfo.has_lower_bound
-                    if vinfo.has_upper_bound
-                        MOI.add_constraint(nlp_optimizer, single_variable, LT(uvb))
-                        MOI.add_constraint(nlp_optimizer, single_variable, GT(lvb))
-
-                    else
-                        MOI.add_constraint(nlp_optimizer, single_variable, GT(lvb))
-
-                    end
-                elseif vinfo.has_upper_bound
-                    MOI.add_constraint(nlp_optimizer, single_variable, LT(uvb))
-                end
-                x0 = 0.5*(lvb + uvb)
-                upper_variable_index = @inbounds upper_variables[i]
-                MOI.set(nlp_optimizer, MOI.VariablePrimalStart(), upper_variable_index, x0)
-            end
-        end
-    end
-
-    # Add linear, quadratic, and conic constraints constraints to model
-    _add_linear_constraints!(m, nlp_optimizer)
-    _add_quadratic_constraints!(m, nlp_optimizer)
-    _add_soc_constraints!(m, nlp_optimizer)
-
-    # Add nonlinear evaluation block
-    MOI.set(nlp_optimizer, MOI.NLPBlock(), m._working_problem._nlp_data)
-    MOI.set(nlp_optimizer, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-
-    # set objective as NECESSARY
-    _add_sv_or_aff_obj!(m, nlp_optimizer)
-    if m._input_problem._objective_type === SCALAR_QUADRATIC
-        MOI.set(nlp_optimizer, MOI.ObjectiveFunction{SQF}(), m._input_problem._objective_sqf)
-    end
-
-    # Optimizes the object
-    MOI.optimize!(nlp_optimizer)
-
-    # Process output info and save to CurrentUpperInfo object
-    m._upper_termination_status = MOI.get(nlp_optimizer, MOI.TerminationStatus())
-    m._upper_result_status = MOI.get(nlp_optimizer, MOI.PrimalStatus())
-
-    if is_feasible_solution(m._upper_termination_status, m._upper_result_status)
-        m._upper_feasibility = true
-        value = MOI.get(nlp_optimizer, MOI.ObjectiveValue())
-        stored_adjusted_upper_bound!(m, value)
-        m._best_upper_value = min(value, m._best_upper_value)
-        m._upper_solution .= MOI.get(nlp_optimizer, MOI.VariablePrimal(), upper_variables)
-
-    else
-        m._upper_feasibility = false
-        m._upper_objective_value = Inf
-
-    end
+    _update_branch_variables!(bridged_opt, m)
+    _set_starting_point!(bridged_opt, m)
+    MOI.optimize!(bridged_opt)
+    _unpack_local_nlp_solve!(m, bridged_opt, idx_map)
 
     return nothing
 end

@@ -6,6 +6,7 @@ The constraints generally aren't used for relaxations.
 """
 Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
 
+    # TODO: Replace Dict with MOIU.VectorOfConstraint when version 0.9.21 of MOI is tagged
     _variable_leq::Dict{CI{SV,LT},Tuple{SV,LT}} = Dict{CI{SV,LT},Tuple{SV,LT}}()
     _variable_geq::Dict{CI{SV,GT},Tuple{SV,GT}} = Dict{CI{SV,GT},Tuple{SV,GT}}()
     _variable_eq::Dict{CI{SV,ET},Tuple{SV,ET}} = Dict{CI{SV,ET},Tuple{SV,ET}}()
@@ -109,13 +110,6 @@ function _check_inbounds!(d::InputProblem, quad::SQF)
     return nothing
 end
 _check_inbounds!(d::InputProblem, v::VECVAR) = foreach(x -> _check_inbounds!(d, x), v.variables)
-
-#=
-@inline _has_upper_bound(d::InputProblem, vi::MOI.VariableIndex) = d._variable_info[vi.value].has_upper_bound
-@inline _has_lower_bound(d::InputProblem, vi::MOI.VariableIndex) = d._variable_info[vi.value].has_lower_bound
-@inline _is_fixed(d::InputProblem, vi::MOI.VariableIndex) = d._variable_info[vi.value].is_fixed
-@inline _is_integer(d::InputProblem, i::Int) = is_integer(d._variable_info[i])
-=#
 
 function MOI.add_variable(d::InputProblem)
     d._variable_num += 1

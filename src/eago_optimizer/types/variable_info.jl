@@ -29,6 +29,7 @@ _has_upper_bound(x::VariableInfo) = x.has_upper_bound
 _is_fixed(x::VariableInfo) = x.is_fixed
 _lower_bound(x::VariableInfo) = x.lower_bound
 _upper_bound(x::VariableInfo) = x.upper_bound
+mid(x::VariableInfo) = 0.5*(_upper_bound(x) - _lower_bound(x))
 
 empty_variable_info() = VariableInfo(lower_bound = Inf,
                                      upper_bound = -Inf)

@@ -91,3 +91,4 @@ end
 # Compute middle & diameter
 diam(x::NodeBB) = x.upper_variable_bounds - x.lower_variable_bounds
 mid(x::NodeBB) = 0.5*(x.upper_variable_bounds + x.lower_variable_bounds)
+mid(x::NodeBB, i) = 0.5*(x.upper_variable_bounds[i] + x.lower_variable_bounds[i])

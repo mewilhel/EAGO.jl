@@ -21,7 +21,7 @@ DIFF_NCVX   -> APPLY GLOBAL SOLVER (UNLESS USER REQUEST LOCAL SOLVE THEN NLP)
 MINCVX      -> APPLY GLOBAL SOLVER (LOCAL SOLVE OPTION FUTURE FEATURE)
 =#
 
-function _unpack_final_solve!(m::Optimizer, opt::T, idx_map; adjust_bnd::Bool = true) where T
+function _unpack_final_subsolve!(m::Optimizer, opt::T, idx_map; adjust_bnd::Bool = true) where T
 
     # TODO: ASSUMES NO BRIDGING NECESSARY, MAY NEED TO ADD SUPPORT LATER FOR BRIDGES
     m._termination_status_code = MOI.get(opt, MOI.TerminationStatus())
@@ -46,6 +46,20 @@ function _unpack_final_solve!(m::Optimizer, opt::T, idx_map; adjust_bnd::Bool = 
     return nothing
 end
 
+_bridge_optimizer(::Val{LP}, m) = MOIB.full_bridge_optimizer(m, Float64)
+_bridge_optimizer(::Val{MILP}, m) = MOIB.full_bridge_optimizer(m, Float64)
+_bridge_optimizer(::Val{SOCP}, m) = MOIB.full_bridge_optimizer(m, Float64)
+_bridge_optimizer(::Val{SDP}, m) = MOIB.full_bridge_optimizer(m, Float64)
+
+for S in (DIFF_CVX, MICVX)
+    @eval function _bridge_optimizer(::Val{$S}, m)
+        opt = MOIB.full_bridge_optimizer(m, Float64)
+        MOIB.add_bridge(opt, MOIB.Constraint.SOCtoNonConvexQuadBridge{Float64})
+        MOIB.add_bridge(opt, MOIB.Constraint.RSOCtoNonConvexQuadBridge{Float64})
+        return opt
+    end
+end
+
 for (T, optimizer_field) in ((LP, :lp_optimizer),
                              (MILP, :mip_optimizer),
                              (SOCP, :socp_optimizer),
@@ -57,7 +71,7 @@ for (T, optimizer_field) in ((LP, :lp_optimizer),
 
         opt = m.$optimizer_field
         #set_config!(m, opt)
-        bridged_opt = MOIB.full_bridge_optimizer(opt, Float64)
+        bridged_opt = _bridge_optimizer(Val{$T}(), opt)
         idx_map = MOIU.default_copy_to(bridged_opt, m._input_problem, false)
 
         if m.verbosity < 5
@@ -66,6 +80,6 @@ for (T, optimizer_field) in ((LP, :lp_optimizer),
         m._parse_time = time() - m._start_time
 
         MOI.optimize!(bridged_opt)
-        _unpack_final_solve!(m, bridged_opt, idx_map)
+        _unpack_final_subsolve!(m, bridged_opt, idx_map)
     end
 end
