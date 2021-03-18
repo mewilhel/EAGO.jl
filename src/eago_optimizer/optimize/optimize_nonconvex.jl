@@ -45,7 +45,7 @@ function add_sv_or_aff_obj!(m::Optimizer, opt::T) where T
     if _objective_type(_input_problem(m)) == SINGLE_VARIABLE
         MOI.set(opt, MOI.ObjectiveFunction{SV}(), m._input_problem._objective_sv)
     elseif _objective_type(_input_problem(m)) == SCALAR_AFFINE
-        MOI.set(opt, MOI.ObjectiveFunction{SAF}(), m._input_problem._objective_saf)
+        MOI.set(opt, MOI.ObjectiveFunction{SAF}(), m._input_problem._objective)
     end
     return nothing
 end
@@ -322,8 +322,8 @@ function branch_node!(t::ExtensionType, m::Optimizer)
 
     n = m._current_node
 
-    lvbs = n.lower_variable_bounds
-    uvbs = n.upper_variable_bounds
+    lvbs = n.lower_variable_bound
+    uvbs = n.upper_variable_bound
 
     max_pos = 0
     max_val = -Inf
@@ -400,7 +400,7 @@ function single_storage!(t::ExtensionType, m::Optimizer)
     m._node_count += 1
     lower_bound = max(y.lower_bound, m._lower_objective_value)
     upper_bound = min(y.upper_bound, m._upper_objective_value)
-    push!(m._stack, NodeBB(y.lower_variable_bounds, y.upper_variable_bounds,
+    push!(m._stack, NodeBB(y.lower_variable_bound, y.upper_variable_bound,
                            lower_bound, upper_bound, y.depth, y.id))
 
     return nothing
@@ -639,8 +639,8 @@ function preprocess!(t::ExtensionType, m::Optimizer)
     m._obbt_performed_flag = false
 
     # compute initial volume
-    m._initial_volume = prod(upper_variable_bounds(m._current_node) -
-                             lower_variable_bounds(m._current_node))
+    m._initial_volume = prod(upper_variable_bound(m._current_node) -
+                             lower_variable_bound(m._current_node))
 
     if m.fbbt_lp_depth >= m._iteration_count
         load_fbbt_buffer!(m)
@@ -689,8 +689,8 @@ function preprocess!(t::ExtensionType, m::Optimizer)
         perform_obbt_flag     = (obbt_count < m.obbt_repetitions)
     end
 
-    m._final_volume = prod(upper_variable_bounds(m._current_node) -
-                           lower_variable_bounds(m._current_node))
+    m._final_volume = prod(upper_variable_bound(m._current_node) -
+                           lower_variable_bound(m._current_node))
 
     m._preprocess_feasibility = feasible_flag
 
@@ -706,8 +706,8 @@ optimizer.
 """
 function update_relaxed_problem_box!(m::Optimizer)
     opt = m.relaxed_optimizer
-    lb = m._current_node.lower_variable_bounds
-    ub = m._current_node.upper_variable_bounds
+    lb = m._current_node.lower_variable_bound
+    ub = m._current_node.upper_variable_bound
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], ET(lb[x[2]])), m._relaxed_variable_eq)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], LT(ub[x[2]])), m._relaxed_variable_lt)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], GT(ub[x[2]])), m._relaxed_variable_gt)
@@ -768,7 +768,7 @@ function fallback_interval_lower_bound!(m::Optimizer, n::NodeBB)
 
     if feas
         interval_objective_used = interval_objective_bound(m, n)
-        @__dot__ m._current_xref = 0.5*(n.upper_variable_bounds + n.lower_variable_bounds)
+        @__dot__ m._current_xref = 0.5*(n.upper_variable_bound + n.lower_variable_bound)
         unsafe_check_fill!(isnan, m._current_xref, 0.0, length(m._current_xref))
     else
         m._lower_objective_value = -Inf
@@ -908,7 +908,7 @@ function cut_condition(t::ExtensionType, m::Optimizer)
     # value with the interval value if so. Any available dual values are then
     # set to zero since the interval bounds are by definition constant
     if m._lower_feasibility && !continue_cut_flag
-        objective_lo = lower_interval_bound(m, m._working_problem._objective_saf_parsed, n)
+        objective_lo = lower_interval_bound(m, m._working_problem._objective_parsed, n)
         if objective_lo > m._lower_objective_value
             m._lower_objective_value = objective_lo
             fill!(m._lower_lvd, 0.0)

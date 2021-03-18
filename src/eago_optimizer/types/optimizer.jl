@@ -424,3 +424,11 @@ function _set_cons_primal!(m::Optimizer, ci::CI{F,S}, v::Vector{Float64}) where{
     m._primal_constraint_value[(os[i] + 1):os[i + 1]] .= v
     return
 end
+
+@inline function _get_variable_lo(::typeof(:branch), m::Optimizer, i)
+    return _lower_variable_bound(m._current_node, m._sol_to_branch_map[i])
+end
+
+@inline function _get_variable_hi(::typeof(:branch), m::Optimizer, i)
+    return _upper_variable_bound(m._current_node, m._sol_to_branch_map[i])
+end

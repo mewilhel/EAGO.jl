@@ -14,8 +14,8 @@
     i = t.variable_index.value
     if m._branch_variables[i]
         mapped_vi = m._sol_to_branch_map[i]
-        xL = n.lower_variable_bounds[mapped_vi]
-        xU = n.upper_variable_bounds[mapped_vi]
+        xL = n.lower_variable_bound[mapped_vi]
+        xU = n.upper_variable_bound[mapped_vi]
     else
         xL = m._working_problem._variable_info[i].lower_bound
         xU = m._working_problem._variable_info[i].upper_bound
@@ -28,8 +28,8 @@ end
     i = t.variable_index.value
     if m._branch_variables[i]
         mapped_vi = m._sol_to_branch_map[i]
-        xL = n.lower_variable_bounds[mapped_vi]
-        xU = n.upper_variable_bounds[mapped_vi]
+        xL = n.lower_variable_bound[mapped_vi]
+        xU = n.upper_variable_bound[mapped_vi]
     else
         xL = m._working_problem._variable_info[i].lower_bound
         xU = m._working_problem._variable_info[i].upper_bound
@@ -45,8 +45,8 @@ end
     vi2 = t.variable_index_2.value
 
     mapped_vi1 = m._sol_to_branch_map[vi1]
-    xL = n.lower_variable_bounds[mapped_vi1]
-    xU = n.upper_variable_bounds[mapped_vi1]
+    xL = n.lower_variable_bound[mapped_vi1]
+    xU = n.upper_variable_bound[mapped_vi1]
 
     if vi1 == vi2
         if coeff > 0.0
@@ -56,8 +56,8 @@ end
         end
     else
         mapped_vi2 = m._sol_to_branch_map[vi2]
-        il2b = n.lower_variable_bounds[mapped_vi2]
-        iu2b = n.upper_variable_bounds[mapped_vi2]
+        il2b = n.lower_variable_bound[mapped_vi2]
+        iu2b = n.upper_variable_bound[mapped_vi2]
         bnds = coeff*Interval{Float64}(xL, xU)*Interval{Float64}(il2b, iu2b)
     end
     return bnds
@@ -94,8 +94,8 @@ end
 function lower_interval_bound(m::Optimizer, d::BufferedSOC, n::NodeBB)
 
     sol_branch_map = m._sol_to_branch_map
-    lo_bnds = n.lower_variable_bounds
-    up_bnds = n.upper_variable_bounds
+    lo_bnds = n.lower_variable_bound
+    up_bnds = n.upper_variable_bound
     vec_of_vi = d.variables.variables
 
     norm_bound = Interval(0.0)

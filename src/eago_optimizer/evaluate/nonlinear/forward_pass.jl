@@ -18,8 +18,8 @@ const FORWARD_DEBUG = false
 Post process set_value operator. By default, performs the affine interval cut on
 a MC structure.
 """
-function set_value_post(x_values::Vector{Float64}, val::MC{N,T}, lower_variable_bounds::Vector{Float64},
-                        upper_variable_bounds::Vector{Float64}, sparsity::Vector{Int},
+function set_value_post(x_values::Vector{Float64}, val::MC{N,T}, lower_variable_bound::Vector{Float64},
+                        upper_variable_bound::Vector{Float64}, sparsity::Vector{Int},
                         subgrad_tol::Float64) where {N, T<:RelaxTag}
 
     lower = val.cv
@@ -34,8 +34,8 @@ function set_value_post(x_values::Vector{Float64}, val::MC{N,T}, lower_variable_
 
         i_sol = @inbounds sparsity[i]
         x_val = @inbounds x_values[i_sol]
-        lower_bound = @inbounds lower_variable_bounds[i_sol]
-        upper_bound = @inbounds upper_variable_bounds[i_sol]
+        lower_bound = @inbounds lower_variable_bound[i_sol]
+        upper_bound = @inbounds upper_variable_bound[i_sol]
 
         if lower_refinement
             if cv_val > 0.0
@@ -1028,8 +1028,8 @@ function forward_pass!(evaluator::Evaluator, d::NonlinearExpression{V}) where V
         end
     end
 
-    forward_pass_kernel!(d.nd, d.adj, evaluator.x, evaluator.lower_variable_bounds,
-                         evaluator.upper_variable_bounds, d.grad_sparsity,
+    forward_pass_kernel!(d.nd, d.adj, evaluator.x, evaluator.lower_variable_bound,
+                         evaluator.upper_variable_bound, d.grad_sparsity,
                          d.setstorage,
                          d.numberstorage, d.isnumber, d.tpdict,
                          d.tp1storage, d.tp2storage, d.tp3storage, d.tp4storage,

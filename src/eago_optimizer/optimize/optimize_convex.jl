@@ -57,8 +57,8 @@ function _update_branch_variables!(nlp_opt, m)
             if vinfo.is_integer
             else
                 indx = @inbounds m._sol_to_branch_map[i]
-                lvb  = @inbounds n.lower_variable_bounds[indx]
-                uvb  = @inbounds n.upper_variable_bounds[indx]
+                lvb  = @inbounds n.lower_variable_bound[indx]
+                uvb  = @inbounds n.upper_variable_bound[indx]
                 if vinfo.is_fixed
                     MOI.add_constraint(nlp_opt, SV(m.upper_variables[i]), ET(lvb))
                 elseif vinfo.has_lower_bound

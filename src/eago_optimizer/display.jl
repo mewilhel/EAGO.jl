@@ -51,7 +51,7 @@ function print_node!(m::Optimizer)
     bound = (m._input_problem._optimization_sense === MOI.MIN_SENSE) ? n.lower_bound : -n.lower_bound
     println(" ")
     println("Node ID: $(n.id), Lower Bound: $(bound), Lower Variable Bounds:
-             $(n.lower_variable_bounds), Upper Variable Bounds: $(n.upper_variable_bounds)")
+             $(n.lower_variable_bound), Upper Variable Bounds: $(n.upper_variable_bound)")
     println(" ")
     return
 end

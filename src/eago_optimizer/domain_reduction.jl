@@ -19,8 +19,8 @@ function variable_dbbt!(n::NodeBB, mult_lo::Vector{Float64}, mult_hi::Vector{Flo
                         LBD::Float64, UBD::Float64, nx::Int64)
 
     delta = UBD - LBD
-    lvbs = n.lower_variable_bounds
-    uvbs = n.upper_variable_bounds
+    lvbs = n.lower_variable_bound
+    uvbs = n.upper_variable_bound
     if LBD <= UBD
         for i = 1:nx
             ml = @inbounds mult_lo[i]
@@ -62,7 +62,7 @@ function trivial_filtering!(m::Optimizer, n::NodeBB)
             if @inbounds m._obbt_working_lower_index[j]
                 vi = @inbounds m._relaxed_variable_index[j]
                 diff = MOI.get(m.relaxed_optimizer, MOI.VariablePrimal(), vi)
-                diff -= @inbounds n.lower_variable_bounds[j]
+                diff -= @inbounds n.lower_variable_bound[j]
                 if abs(diff) <= obbt_tolerance
                     @inbounds m._obbt_working_lower_index[j] = false
                 end
@@ -72,7 +72,7 @@ function trivial_filtering!(m::Optimizer, n::NodeBB)
             if @inbounds m._obbt_working_upper_index[j]
                 vi = @inbounds m._relaxed_variable_index[j]
                 diff = -MOI.get(m.relaxed_optimizer, MOI.VariablePrimal(), vi)
-                diff += @inbounds n.upper_variable_bounds[j]
+                diff += @inbounds n.upper_variable_bound[j]
                 if abs(diff) <= obbt_tolerance
                     @inbounds m._obbt_working_upper_index[j] = false
                 end
@@ -116,10 +116,10 @@ function aggressive_filtering!(m::Optimizer, n::NodeBB)
 
     # Exclude unbounded directions
     for i = 1:obbt_variable_num
-        if @inbounds m._new_low_index[i] && @inbounds n.lower_variable_bounds[i] === -Inf
+        if @inbounds m._new_low_index[i] && @inbounds n.lower_variable_bound[i] === -Inf
             @inbounds m._new_low_index[i] = false
         end
-        if @inbounds m._new_low_index[i] && @inbounds n.upper_variable_bounds[i] === Inf
+        if @inbounds m._new_low_index[i] && @inbounds n.upper_variable_bound[i] === Inf
             @inbounds m._new_low_index[i] = false
         end
     end
@@ -168,10 +168,10 @@ function aggressive_filtering!(m::Optimizer, n::NodeBB)
             copyto!(m._new_upp_index, m._old_upp_index)
             for i = 1:obbt_variable_num
                 vp_value =  @inbounds variable_primal[i]
-                if @inbounds m._old_low_index[i] && vp_value == @inbounds n.lower_variable_bounds[i]
+                if @inbounds m._old_low_index[i] && vp_value == @inbounds n.lower_variable_bound[i]
                     @inbounds m._new_low_index[i] = false
                 end
-                if @inbounds m._old_upp_index[i] && vp_value == @inbounds n.upper_variable_bounds[i]
+                if @inbounds m._old_upp_index[i] && vp_value == @inbounds n.upper_variable_bound[i]
                     @inbounds m._new_upp_index[i] = false
                 end
             end
@@ -303,7 +303,7 @@ function obbt!(m::Optimizer)
             for i = 1:obbt_variable_num
                 if @inbounds m._obbt_working_lower_index[i]
                     sol_indx = branch_to_sol_map[i]
-                    temp_value = @inbounds xLP[sol_indx] - n.lower_variable_bounds[i]
+                    temp_value = @inbounds xLP[sol_indx] - n.lower_variable_bound[i]
                     # Need less than or equal to handle unbounded cases
                     if temp_value <= lower_value
                         lower_value = temp_value
@@ -318,7 +318,7 @@ function obbt!(m::Optimizer)
             for i = 1:obbt_variable_num
                 if @inbounds m._obbt_working_upper_index[i]
                     sol_indx = branch_to_sol_map[i]
-                    temp_value = @inbounds n.upper_variable_bounds[i] - xLP[sol_indx]
+                    temp_value = @inbounds n.upper_variable_bound[i] - xLP[sol_indx]
                     if temp_value <= upper_value
                         upper_value = temp_value
                         upper_indx = i
@@ -347,7 +347,7 @@ function obbt!(m::Optimizer)
 
                 node_index = branch_to_sol_map[lower_indx]
                 updated_value = xLP[node_index]
-                previous_value = n.lower_variable_bounds[lower_indx]
+                previous_value = n.lower_variable_bound[lower_indx]
 
                 # if bound is improved update node and corresponding constraint update
                 # the node bounds and the single variable bound in the relaxation
@@ -358,7 +358,7 @@ function obbt!(m::Optimizer)
                     ci_list = MOI.get(relaxed_optimizer, MOI.ListOfConstraintIndices{SAF,LT}())
                     sv_geq_ci = m._node_to_sv_geq_ci[lower_indx]
                     MOI.set(relaxed_optimizer, MOI.ConstraintSet(), sv_geq_ci, GT(updated_value))
-                    @inbounds n.lower_variable_bounds[lower_indx] = updated_value
+                    @inbounds n.lower_variable_bound[lower_indx] = updated_value
                 end
 
                 if isempty(n)
@@ -390,7 +390,7 @@ function obbt!(m::Optimizer)
                 xLP .= MOI.get(relaxed_optimizer, MOI.VariablePrimal(), m._relaxed_variable_index)
                 node_index = branch_to_sol_map[upper_indx]
                 updated_value = xLP[node_index]
-                previous_value = n.upper_variable_bounds[upper_indx]
+                previous_value = n.upper_variable_bound[upper_indx]
 
                 # if bound is improved update node and corresponding constraint update
                 # the node bounds and the single variable bound in the relaxation
@@ -400,7 +400,7 @@ function obbt!(m::Optimizer)
                 if updated_value < previous_value && (previous_value - updated_value) > 1E-6
                     sv_leq_ci = m._node_to_sv_leq_ci[upper_indx]
                     MOI.set(relaxed_optimizer, MOI.ConstraintSet(), sv_leq_ci, LT(updated_value))
-                    @inbounds n.upper_variable_bounds[upper_indx] = updated_value
+                    @inbounds n.upper_variable_bound[upper_indx] = updated_value
                 end
 
                 if isempty(n)
@@ -432,14 +432,14 @@ function load_fbbt_buffer!(m::Optimizer)
 
     n = m._current_node
     sol_to_branch = m._sol_to_branch_map
-    lower_variable_bounds = n.lower_variable_bounds
-    upper_variable_bounds = n.upper_variable_bounds
+    lower_variable_bound = n.lower_variable_bound
+    upper_variable_bound = n.upper_variable_bound
 
     for i = 1:m._working_problem._variable_num
         if @inbounds m._branch_variables[i]
             indx = @inbounds sol_to_branch[i]
-            @inbounds m._lower_fbbt_buffer[i] = lower_variable_bounds[indx]
-            @inbounds m._upper_fbbt_buffer[i] = upper_variable_bounds[indx]
+            @inbounds m._lower_fbbt_buffer[i] = lower_variable_bound[indx]
+            @inbounds m._upper_fbbt_buffer[i] = upper_variable_bound[indx]
 
         else
             @inbounds m._lower_fbbt_buffer[i] = m._working_problem._variable_info[i].lower_bound
@@ -458,17 +458,17 @@ function unpack_fbbt_buffer!(m::Optimizer)
 
     n = m._current_node
     sol_to_branch = m._sol_to_branch_map
-    lower_variable_bounds = n.lower_variable_bounds
-    upper_variable_bounds = n.upper_variable_bounds
+    lower_variable_bound = n.lower_variable_bound
+    upper_variable_bound = n.upper_variable_bound
 
     for i = 1:m._working_problem._variable_num
         if m._branch_variables[i]
             indx = sol_to_branch[i]
-            if m._lower_fbbt_buffer[i] > lower_variable_bounds[indx]
-                lower_variable_bounds[indx] = m._lower_fbbt_buffer[i]
+            if m._lower_fbbt_buffer[i] > lower_variable_bound[indx]
+                lower_variable_bound[indx] = m._lower_fbbt_buffer[i]
             end
-            if upper_variable_bounds[indx] > m._upper_fbbt_buffer[i]
-                upper_variable_bounds[indx] = m._upper_fbbt_buffer[i]
+            if upper_variable_bound[indx] > m._upper_fbbt_buffer[i]
+                upper_variable_bound[indx] = m._upper_fbbt_buffer[i]
             end
         end
     end
@@ -660,6 +660,7 @@ function set_constraint_propagation_fbbt!(m::Optimizer)
         end
 
         evaluator.is_post = m.subgrad_tighten
+
         m._new_eval_constraint = false
         m._new_eval_objective = false
 

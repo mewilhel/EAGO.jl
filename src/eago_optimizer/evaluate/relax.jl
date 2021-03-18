@@ -300,13 +300,13 @@ function objective_cut!(m::Optimizer, check_safe::Bool)
     constraint_tol = m.absolute_constraint_feas_tolerance
     if m.objective_cut_on && m._global_upper_bound < Inf
         wp = m._working_problem
-        formulated_constant = wp._objective_saf.constant
-        wp._objective_saf.constant = 0.0
-        if check_safe && is_safe_cut!(m, wp._objective_saf)
-            ci_saf = MOI.add_constraint(m.relaxed_optimizer, wp._objective_saf, LT(UBD - wp._objective_saf.constant + constraint_tol))
+        formulated_constant = wp._objective.constant
+        wp._objective.constant = 0.0
+        if check_safe && is_safe_cut!(m, wp._objective)
+            ci_saf = MOI.add_constraint(m.relaxed_optimizer, wp._objective, LT(UBD - wp._objective.constant + constraint_tol))
             push!(m._objective_cut_ci_saf, ci_saf)
         end
-        wp._objective_saf.constant = formulated_constant
+        wp._objective.constant = formulated_constant
     end
 
     return nothing

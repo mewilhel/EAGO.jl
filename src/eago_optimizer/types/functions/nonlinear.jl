@@ -332,8 +332,8 @@ Base.@kwdef mutable struct Evaluator <: MOI.AbstractNLPEvaluator
 
     current_node::NodeBB = NodeBB()
     treat_x_as_number = Bool[]
-    lower_variable_bounds::Vector{Float64} = Float64[]
-    upper_variable_bounds::Vector{Float64} = Float64[]
+    lower_variable_bound::Vector{Float64} = Float64[]
+    upper_variable_bound::Vector{Float64} = Float64[]
     x::Vector{Float64} = Float64[]
     node_to_variable_map::Vector{Int64} = Int64[]
     variable_to_node_map::Vector{Int64} = Int64[]
@@ -365,10 +365,10 @@ function set_node!(evaluator::Evaluator, n::NodeBB)
 
     evaluator.current_node = NodeBB(n)
     node_to_variable_map = evaluator.node_to_variable_map
-    node_lower_bounds = n.lower_variable_bounds
-    node_upper_bounds = n.upper_variable_bounds
-    eval_lower_bounds = evaluator.lower_variable_bounds
-    eval_upper_bounds = evaluator.upper_variable_bounds
+    node_lower_bounds = n.lower_variable_bound
+    node_upper_bounds = n.upper_variable_bound
+    eval_lower_bounds = evaluator.lower_variable_bound
+    eval_upper_bounds = evaluator.upper_variable_bound
 
     for i = 1:length(evaluator.current_node)
         full_variable_index = node_to_variable_map[i]
@@ -385,8 +385,8 @@ function retrieve_node(d::Evaluator)
     cn = d.current_node
     node_to_variable_map = d.node_to_variable_map
 
-    return NodeBB(copy(d.lower_variable_bounds[node_to_variable_map]),
-                  copy(d.upper_variable_bounds[node_to_variable_map]),
+    return NodeBB(copy(d.lower_variable_bound[node_to_variable_map]),
+                  copy(d.upper_variable_bound[node_to_variable_map]),
                   cn.lower_bound, cn.upper_bound, cn.depth, cn.id)
 end
 

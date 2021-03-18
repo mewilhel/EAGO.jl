@@ -803,8 +803,8 @@ reverse propagation yeilded a infeasible point (true = still feasible, false is 
 """
 function reverse_pass!(evaluator::Evaluator, d::NonlinearExpression{V}) where V
 
-    return reverse_pass_kernel!(d.nd, d.adj, evaluator.x, evaluator.lower_variable_bounds,
-                                evaluator.upper_variable_bounds, d.grad_sparsity,
+    return reverse_pass_kernel!(d.nd, d.adj, evaluator.x, evaluator.lower_variable_bound,
+                                evaluator.upper_variable_bound, d.grad_sparsity,
                                 d.setstorage, evaluator.subgrad_tol, d.numberstorage,
                                 d.isnumber, evaluator.reverse_subgrad_tighten)
 end
