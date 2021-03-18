@@ -10,22 +10,6 @@
 # LP, SOCP, MILP, MISOCP, and convex problem types.
 #############################################################################
 
-
-function _max_to_min!(wp::ParsedProblem, obj::SV)
-    wp._objective_type = SCALAR_AFFINE
-    wp._objective_saf = MOIU.operate(-, Float64, obj)
-    wp._objective_saf_parsed = AffineFunctionIneq(wp._objective_saf, LT_ZERO)
-    return
-end
-function _max_to_min!(wp::ParsedProblem, obj::SAF)
-    wp._objective_saf = MOIU.operate(-, Float64, wp._objective_saf)
-    wp._objective_saf_parsed = AffineFunctionIneq(wp._objective_saf, LT_ZERO)
-    return
-end
-function _max_to_min!(wp::ParsedProblem, obj::SQF)
-    obj.sqf = MOIU.operate(-, Float64, obj.sqf)
-    return
-end
 function _max_to_min!(wp::ParsedProblem)
     # updates tape for nlp_data block (used by local optimizer)
     nd_nlp = wp._nlp_data.evaluator.m.nlp_data.nlobj.nd
@@ -55,72 +39,6 @@ function _max_to_min!(wp::ParsedProblem)
     pushfirst!(wp._objective_nl.expr.numberstorage, 0.0)
     pushfirst!(wp._objective_nl.expr.isnumber, false)
     return
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Converts `MOI.MAX_SENSE` objective to equivalent `MOI.MIN_SENSE` objective
-`max(f) = -min(-f)`.
-"""
-function _max_to_min!(m::Optimizer)
-    wp = m._working_problem
-    wp._optimization_sense = MOI.MIN_SENSE
-    if _optimization_sense(m._input_problem) == MOI.MAX_SENSE
-        obj_type = _objective_type(m._input_problem)
-        (obj_type == SINGLE_VARIABLE)   && _max_to_min!(wp, wp._objective_sv)
-        (obj_type == SCALAR_AFFINE)     && _max_to_min!(wp, wp._objective_saf)
-        (obj_type == SCALAR_QUADRATIC)  && _max_to_min!(wp, wp._objective_sqf)
-        (obj_type == NONLINEAR)         && _max_to_min!(wp)
-    end
-    return nothing
-end
-
-#=
-epigraph:  x |-> SlackBridge |-> FunctionizeBridge
-=#
-
-"""
-
-Performs an epigraph reformulation assuming the working_problem is a minimization problem.
-"""
-function reform_epigraph!(m::Optimizer)
-
-    if m.presolve_epigraph_flag
-        #=
-        # add epigraph variable
-        obj_variable_index = MOI.add_variable(m)
-
-        # converts ax + b objective to ax - y <= -b constraint with y objective
-        obj_type = m._working_problem._objective_type
-        if obj_type === SCALAR_AFFINE
-
-            # update unparsed expression
-            objective_saf = m._working_problem._objective_saf
-            push!(objective_saf, SAT(-1.0, obj_variable_index))
-            obj_ci = MOI.add_constraint(m, saf, LT(-objective_saf.constant))
-
-            # update parsed expression (needed for interval bounds)
-
-        # converts ax + b objective to ax - y <= -b constraint with y objective
-        elseif obj_type === SCALAR_QUADRATIC
-
-            # update parsed expression
-            objective_sqf = m._working_problem._objective_sqf
-            obj_ci = MOI.add_constraint(m, saf, LT())
-
-        elseif obj_type === NONLINEAR
-
-            # updated parsed expressions
-            objective_nl = m._working_problem._objective_nl
-
-        end
-
-        MOI.set(m, MOI.ObjectiveFunction{SV}(), SV(obj_variable_index))
-        =#
-    end
-
-    return nothing
 end
 
 function _check_set_is_fixed(v::VariableInfo)
@@ -173,18 +91,12 @@ function label_branch_variables!(m::Optimizer)
         # adds nonlinear terms in quadratic constraints
         foreach(x -> _label_branch_quad!(m._branch_variables, x), wp._sqf_leq)
         foreach(x -> _label_branch_quad!(m._branch_variables, x), wp._sqf_eq)
-        if wp._objective_type == SCALAR_QUADRATIC
-            _label_branch_quad!(m._branch_variables, wp._objective_sqf)
-        end
 
         # TODO: label branch variable in conic forms
 
         # label nonlinear branch variables (assumes affine terms have been extracted)
         foreach(x -> _label_branch_quad!(m._branch_variables, x), wp._sqf_leq)
         foreach(x -> _label_branch_nl!(m._branch_variables, x), wp._nonlinear_constr)
-        if wp._objective_type === NONLINEAR
-            _label_branch_nl!(m._branch_variables, wp._objective_nl)
-        end
     end
 
     # add a map of branch/node index to variables in the continuous solution
@@ -259,6 +171,7 @@ function add_nonlinear_functions!(m::Optimizer, evaluator::JuMP.NLPEvaluator)
 
     # add nonlinear objective
     if evaluator.has_nlobj
+        # TODO: Should add a constraint to nlp_data... or evaluator not objective
         m._working_problem._objective_nl = BufferedNonlinearFunction(evaluator.objective, MOI.NLPBoundsPair(-Inf, Inf),
                                                                      dict_sparsity, evaluator.subexpression_linearity,
                                                                      m.relax_tag)

@@ -92,7 +92,6 @@ function reset_relaxation!(m::Optimizer)
     m._working_problem._relaxed_evaluator.is_first_eval = true
     fill!(m._working_problem._relaxed_evaluator.subexpressions_eval, false)
 
-    m._new_eval_objective = true
     m._new_eval_constraint = true
 
     delete_nl_constraints!(m)
@@ -230,11 +229,7 @@ function presolve_global!(t::ExtensionType, m::Optimizer)
     _add_conic_constraints!(wp, ip)
 
     # set objective function
-    m._working_problem._objective_type = ip._objective_type
     m._working_problem._objective_sv = ip._objective_sv
-    m._working_problem._objective_saf = ip._objective_saf
-    m._working_problem._objective_saf_parsed = AffineFunctionIneq(ip._objective_saf, LT_ZERO)
-    m._working_problem._objective_sqf = BufferedQuadraticIneq(ip._objective_sqf, LT_ZERO)
 
     # add nonlinear constraints
     # the nonlinear evaluator loads with populated subexpressions which are then used
@@ -290,15 +285,6 @@ function presolve_global!(t::ExtensionType, m::Optimizer)
     m._lower_indx_diff          = fill(false, branch_variable_num)
     m._upper_indx_diff          = fill(false, branch_variable_num)
     m._obbt_variable_num        = branch_variable_num
-
-    # add storage for objective cut if quadratic or nonlinear
-    wp = m._working_problem
-    obj_type = wp._objective_type
-    if obj_type == SCALAR_QUADRATIC
-        wp._objective_saf.terms = copy(wp._objective_sqf.saf.terms)
-    elseif obj_type == NONLINEAR
-        wp._objective_saf.terms = copy(wp._objective_nl.saf.terms)
-    end
 
     # set subgradient refinement flag
     wp._relaxed_evaluator.is_post = m.subgrad_tighten
@@ -832,13 +818,11 @@ function lower_problem!(t::ExtensionType, m::Optimizer)
         end
         update_relaxed_problem_box!(m)
     end
-    m._working_problem._objective_nl.has_value = false
     m._working_problem._relaxed_evaluator.interval_intersect = false
 
     if !m._obbt_performed_flag
         relax_constraints!(m, 1)
     end
-    relax_objective!(m, 1)
 
     # Optimizes the object
     MOI.set(m.relaxed_optimizer, MOI.ObjectiveSense(), MOI.MIN_SENSE)
@@ -924,29 +908,7 @@ function cut_condition(t::ExtensionType, m::Optimizer)
     # value with the interval value if so. Any available dual values are then
     # set to zero since the interval bounds are by definition constant
     if m._lower_feasibility && !continue_cut_flag
-        objective_lo = -Inf
-        obj_type = m._working_problem._objective_type
-        if obj_type === SINGLE_VARIABLE
-            var_index = m._working_problem._objective_sv.variable.value
-            if m._branch_variables[var_index]
-                obj_indx = m._sol_to_branch_map[var_index]
-                lower_variable_bnd = n.lower_variable_bounds[obj_indx]
-                if !isinf(lower_variable_bnd)
-                    objective_lo = lower_variable_bnd
-                end
-            end
-
-        elseif obj_type === SCALAR_AFFINE
-            objective_lo = lower_interval_bound(m, m._working_problem._objective_saf_parsed, n)
-
-        elseif obj_type === SCALAR_QUADRATIC
-            objective_lo = lower_interval_bound(m, m._working_problem._objective_sqf, n)
-
-        elseif obj_type === NONLINEAR
-            objective_lo = lower_interval_bound(m, m._working_problem._objective_nl, n)
-
-        end
-
+        objective_lo = lower_interval_bound(m, m._working_problem._objective_saf_parsed, n)
         if objective_lo > m._lower_objective_value
             m._lower_objective_value = objective_lo
             fill!(m._lower_lvd, 0.0)
@@ -969,11 +931,9 @@ function add_cut!(t::ExtensionType, m::Optimizer)
     fill!(m._working_problem._relaxed_evaluator.subexpressions_eval, false)
     m._working_problem._relaxed_evaluator.is_first_eval = true
     m._working_problem._relaxed_evaluator.is_intersect = false
-    m._new_eval_objective = true
     m._new_eval_constraint = true
 
     relax_constraints!(m, m._cut_iterations)
-    relax_objective!(m, m._cut_iterations)
 
     # Optimizes the object
     relaxed_optimizer = m.relaxed_optimizer

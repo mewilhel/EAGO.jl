@@ -191,11 +191,6 @@ function set_node_flag!(m::Optimizer)
     for constr in m._working_problem._nonlinear_constr
         set_node_flag!(constr)
     end
-
-    if m._working_problem._objective_type === NONLINEAR
-        set_node_flag!(m._working_problem._objective_nl)
-    end
-
     return nothing
 end
 
@@ -222,13 +217,8 @@ function set_reference_point!(m::Optimizer)
     end
 
     if new_reference_point
-
         for constr in m._working_problem._nonlinear_constr
             constr.has_value = false
-        end
-
-        if m._working_problem._objective_type === NONLINEAR
-            m._working_problem._objective_nl.has_value = false
         end
     end
     fill!(evaluator.subexpressions_eval, false)
@@ -270,7 +260,6 @@ function obbt!(m::Optimizer)
         set_reference_point!(m)
     end
     relax_constraints!(m, 1)
-    relax_objective!(m, 1)
     MOI.set(relaxed_optimizer, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.optimize!(relaxed_optimizer)
 
@@ -671,20 +660,6 @@ function set_constraint_propagation_fbbt!(m::Optimizer)
         end
 
         evaluator.is_post = m.subgrad_tighten
-
-        m._working_problem._relaxed_evaluator.is_first_eval = m._new_eval_objective
-        if feasible_flag && (m._working_problem._objective_type === NONLINEAR)
-            obj_nonlinear = m._working_problem._objective_nl
-            set_node_flag!(obj_nonlinear)
-            forward_pass!(evaluator, obj_nonlinear)
-            feasible_flag &= reverse_pass!(evaluator, obj_nonlinear)
-            evaluator.interval_intersect = true
-            if feasible_flag
-                set_node_flag!(obj_nonlinear)
-                forward_pass!(evaluator, obj_nonlinear)
-            end
-        end
-
         m._new_eval_constraint = false
         m._new_eval_objective = false
 

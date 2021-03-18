@@ -1,3 +1,5 @@
+@enum(ObjectiveType, UNSET, SCALAR_AFFINE, NONLINEAR)
+
 """
 $(TYPEDEF)
 
@@ -10,16 +12,7 @@ Base.@kwdef mutable struct ParsedProblem <: MOI.ModelLike
     _problem_type::ProblemType = UNCLASSIFIED
 
     # objectives (set in initial_parse)
-    _objective_sv::SV = SV(VI(-1))
-    "_objective_saf stores the objective and is used for constructing linear affine cuts
-     of any ObjectiveType"
-    _objective_saf::SAF = SAF(SAT[], 0.0)
-    _objective_saf_parsed::AffineFunctionIneq = AffineFunctionIneq()
-    _objective_sqf::BufferedQuadraticIneq = BufferedQuadraticIneq()
-    _objective_nl::BufferedNonlinearFunction = BufferedNonlinearFunction()
-    _objective_type::ObjectiveType = UNSET
-
-    # objective sense information (set by convert_to_min in parse.jl)
+    _objective_saf::SAF = SAF(0.0, SAT(0.0, VI(-1), 0.0)
     _optimization_sense::MOI.OptimizationSense = MOI.MIN_SENSE
 
     # non-single variable constraints (set in initial_parse)
@@ -115,21 +108,48 @@ function Base.isempty(x::ParsedProblem)
     is_empty_flag &= x._objective_saf_parsed.func.constant == 0.0
     is_empty_flag &= x._objective_saf_parsed.len == 0
 
-    is_empty_flag &= isempty(x._objective_sqf.func.quadratic_terms)
-    is_empty_flag &= isempty(x._objective_sqf.func.affine_terms)
-    is_empty_flag &= x._objective_sqf.func.constant == 0.0
-
-    is_empty_flag &= isempty(x._objective_sqf.buffer)
-    is_empty_flag &= isempty(x._objective_sqf.saf.terms)
-    is_empty_flag &= x._objective_sqf.saf.constant == 0.0
-    is_empty_flag &= x._objective_sqf.len == 0
-
     return is_empty_flag
 end
 
-# Important MOIU AND MOIB features to EAGO
-# StructOfConstraints
-# VectorOfConstraints
-# DoubleDict
-# CleverDict
-# eval_variables(varval::Function, f::AbstractFunction)
+#
+# `GeometricMeanCone` is `SecondOrderCone` representable
+# `RootDetConeTriangle` is representable by a `PositiveSemidefiniteConeTriangle` and an `GeometricMeanCone`
+# `LogDetConeTriangle` is representable by a `PositiveSemidefiniteConeTriangle` and `ExponentialCone`
+# Transforms a `G`-in-`GreaterThan{T}` constraint into an `F`-in-`LessThan{T}` drop support for GT
+# IndicatorSOS1Bridge not need for
+# The `NormSpectralCone` is representable with a PSD constraint, since
+# ``t \\ge \\sigma_1(X)`` if and only if ``[tI X^\\top; X tI] \\succ 0``.
+# The `RelativeEntropyCone` is representable with exponential cone and LP constraints
+# The `RotatedSecondOrderCone` is `SecondOrderCone` representable
+#=
+The `geometric mean cone` is representable with a relative entropy constraint and a
+nonnegative auxiliary variable
+=#
+
+#=
+The `SemiToBinaryBridge` replaces an Semicontinuous constraint:
+``x \\in \\mathsf{Semicontinuous}(l, u)``
+is replaced by:
+``z \\in \\{0, 1\\}``,
+``x \\leq z \\cdot u ``,
+``x \\geq z \\cdot l ``.
+The `SemiToBinaryBridge` replaces an Semiinteger constraint:
+``x \\in Semiinteger(l, u)``
+is replaced by:
+``z \\in \\{0, 1\\}``,
+``x \\in \\mathbb{Z}``,
+``x \\leq z \\cdot u ``,
+``x \\geq z \\cdot l ``.
+=#
+
+#=
+No need for Semicontinuous or Semiinteger wp representation... but may speed
+up mixed integer solves.
+=#
+
+# LP relax bridges ->
+# The `NormInfinityCone` is representable with LP constraints
+# The `NormOneCone` is representable with LP constraint
+
+# SlackBridge{T, F, G} to perform epigraph rearrangement -> FunctionizeBridge{T}
+# only support scalar_affine_objectives

@@ -10,6 +10,5 @@ struct DefaultExt <: ExtensionType end
 MOIU.map_indices(::Function, x::ExtensionType) = x
 MOIU.map_indices(::Function, x::DefaultExt) = x
 
-@enum(ObjectiveType, UNSET, SINGLE_VARIABLE, SCALAR_AFFINE, SCALAR_QUADRATIC, NONLINEAR)
 @enum(ProblemType, UNCLASSIFIED, LP, MILP, SOCP, MISOCP, SDP, DIFF_CVX, MICVX, MINCVX)
 @enum(BRANCH_VARIABLE, UNSPEC_BRANCH, NO_BRANCH, BRANCH)

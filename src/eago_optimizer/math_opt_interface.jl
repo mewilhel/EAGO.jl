@@ -1,7 +1,7 @@
 
 MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{SV, SAF, SQF}},
-                        ::Type{<:Union{ET, GT, LT}},
+                        ::Type{<:Union{LT, ET, IT}},
                         ) = true
 
 MOI.supports_constraint(::Optimizer,
@@ -15,9 +15,7 @@ MOI.supports_constraint(::Optimizer,
 
 MOI.supports(::Optimizer,
              ::Union{MOI.ObjectiveSense,
-                     MOI.ObjectiveFunction{SV},
-                     MOI.ObjectiveFunction{SAF},
-                     MOI.ObjectiveFunction{SQF}},
+                     MOI.ObjectiveFunction{SV}},
                      ) = true
 
 function MOI.copy_to(model::Optimizer, src::MOI.ModelLike; copy_names = false)
@@ -184,7 +182,7 @@ end
 MOI.add_variable(d::Optimizer) = MOI.add_variable(d._input_problem)
 
 function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{SV, SAF, SQF},
-                                                             S<:Union{ET, GT, LT}}
+                                                             S<:Union{ET, LT, IT}}
     push!(d._primal_constraint_value, 0.0)
     MOI.add_constraint(d._input_problem, f, s)
 end
@@ -198,8 +196,8 @@ function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECVAR},
     MOI.add_constraint(d._input_problem, f, s)
 end
 
-function MOI.set(d::Optimizer, ::MOI.ObjectiveFunction{F}, func::F) where F<:Union{SV, SAF, SQF}
-    MOI.set(d._input_problem, MOI.ObjectiveFunction{F}(), func)
+function MOI.set(d::Optimizer, ::MOI.ObjectiveFunction{SV}, func::SV)
+    MOI.set(d._input_problem, MOI.ObjectiveFunction{SV}(), func)
 end
 
 MOI.supports(d::Optimizer, ::MOI.NLPBlock) = true
