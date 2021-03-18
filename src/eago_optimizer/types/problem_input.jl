@@ -11,6 +11,7 @@ Base.@kwdef mutable struct InputProblem <: MOI.ModelLike
     _variable_geq::Dict{CI{SV,GT},Tuple{SV,GT}} = Dict{CI{SV,GT},Tuple{SV,GT}}()
     _variable_eq::Dict{CI{SV,ET},Tuple{SV,ET}} = Dict{CI{SV,ET},Tuple{SV,ET}}()
     _variable_zo::Dict{CI{SV,ZO},Tuple{SV,ZO}} = Dict{CI{SV,ZO},Tuple{SV,ZO}}()
+    _variable_int::Dict{CI{SV,MOI.Integer},Tuple{SV,MOI.Integer}} = Dict{CI{SV,MOI.Integer},Tuple{SV,MOI.Integer}}()
 
     # linear constraint storage and count (set by MOI.add_constraint in moi_constraints.jl)
     _linear_leq::Dict{CI{SAF,LT},Tuple{SAF,LT}} = Dict{CI{SAF,LT}, Tuple{SAF,LT}}()
@@ -50,7 +51,10 @@ MOI.supports_constraint(::InputProblem,
                         ::Type{<:Union{SV, SAF, SQF}},
                         ::Type{<:Union{ET, GT, LT}},
                         ) = true
-MOI.supports_constraint(::InputProblem, ::Type{SV}, ::Type{ZO}) = true
+
+MOI.supports_constraint(::InputProblem,
+                        ::Type{SV},
+                        ::Type{<:Union{ZO, MOI.Integer}}) = true
 
 MOI.supports_constraint(::InputProblem,
                         ::Type{<:Union{VECVAR}},
@@ -69,8 +73,10 @@ MOI.supports(::InputProblem,
 
 @inline _variable_num(d::InputProblem) = d._variable_num
 @inline function _integer_variable_num(d::InputProblem)
-    single_variable_zo = first.(values(d._variable_zo))
-    return length(unique(single_variable_zo))
+    intvars = first.(values(d._variable_zo))
+    append!(intvars, first.(values(d._variable_int)))
+    unique!(intvars)
+    return length(intvars)
 end
 @inline function _second_order_cone_num(d::InputProblem)
     return length(d._conic_socp)
@@ -116,76 +122,54 @@ function MOI.add_variable(d::InputProblem)
     return VI(d._variable_num)
 end
 
-function _add_variable_constraint(d::InputProblem, v::SV, s::S) where S <: Union{ZO, LT, GT, ET}
-    vi = v.variable
-    _check_inbounds!(d, vi)
-    return CI{SV, S}(vi.value)
-end
+const VARIABLE_TO_DICT = ((ET, :_variable_eq),  (LT, :_variable_leq),
+                          (GT, :_variable_geq), (ZO, :_variable_zo),
+                          (MOI.Integer, :_variable_int))
 
-function MOI.add_constraint(d::InputProblem, v::SV, s::ZO)
-    ci = _add_variable_constraint(d, v, s)
-    d._variable_zo[ci] = (v, s)
-    return ci
-end
-
-function MOI.add_constraint(d::InputProblem, v::SV, s::LT)
-    ci = _add_variable_constraint(d, v, s)
-    d._variable_leq[ci] = (v, s)
-    return ci
-end
-
-function MOI.add_constraint(d::InputProblem, v::SV, s::GT)
-    ci = _add_variable_constraint(d, v, s)
-    d._variable_geq[ci] = (v, s)
-    return ci
-end
-
-function MOI.add_constraint(d::InputProblem, v::SV, s::ET)
-    ci = _add_variable_constraint(d, v, s)
-    d._variable_eq[ci] = (v, s)
-    return ci
-end
-
-const VARIABLE_TO_DICT = ((ET, :_variable_eq), (LT, :_variable_leq),
-                         (GT, :_variable_geq), (ZO, :_variable_zo))
-
-for (S, Sdict) in VARIABLE_TO_DICT
+for (S, storage) in VARIABLE_TO_DICT
     for (T, Tdict) in VARIABLE_TO_DICT
-        if S == T
+        if storage == T
             @eval function MOI.set(d::InputProblem, ::MOI.ConstraintFunction, ci::CI{SV,$S}, f::$S)
-                d.$(Sdict)[ci] = (f, d.$(Sdict)[ci][2])
+                d.$(storage)[ci] = (f, d.$(storage)[ci][2])
                 return
             end
             @eval function MOI.set(d::InputProblem, ::MOI.ConstraintSet, ci::CI{SV,$S}, s::$S)
-                d.$(Sdict)[ci] = (d.$(Sdict)[ci][1], s)
+                d.$(storage)[ci] = (d.$(storage)[ci][1], s)
                 return
             end
         else
             @eval function MOI.set(d::InputProblem, ::MOI.ConstraintFunction, ci::CI{SV,$S}, f::$T)
-                s = d.$(Sdict)[ci][2]
-                delete!(d.$(Sdict), ci)
+                s = d.$(storage)[ci][2]
+                delete!(d.$(storage), ci)
                 d.$(Tdict)[ci] = (f, s)
                 return
             end
             @eval function MOI.set(d::InputProblem, ::MOI.ConstraintSet, ci::CI{SV,$S}, s::$T)
-                f = d.$(Sdict)[ci][1]
-                delete!(d.$(Sdict), ci)
+                f = d.$(storage)[ci][1]
+                delete!(d.$(storage), ci)
                 d.$(Tdict)[ci] = (f, s)
                 return
             end
         end
     end
     @eval function MOI.get(d::InputProblem, ::MOI.ListOfConstraintIndices{SV,$S})
-        return collect(keys(d.$Sdict))
+        return collect(keys(d.$storage))
     end
     @eval function MOI.get(d::InputProblem, ::MOI.ConstraintFunction, ci::CI{SV,$S})
-        return d.$Sdict[ci][1]
+        return d.$storage[ci][1]
     end
     @eval function MOI.get(d::InputProblem, ::MOI.ConstraintSet, ci::CI{SV,$S})
-        return d.$Sdict[ci][2]
+        return d.$storage[ci][2]
     end
     @eval function MOI.get(d::InputProblem, ::MOI.ListOfConstraintAttributesSet{SV,$S})
         return MOI.AbstractConstraintAttribute[]
+    end
+    @eval function MOI.add_constraint(d::InputProblem, v::SV, s::$S)
+        vi = v.variable
+        _check_inbounds!(d, vi)
+        ci = CI{SV, $S}(vi.value)
+        d.$storage[ci] = (v, s)
+        return ci
     end
 end
 

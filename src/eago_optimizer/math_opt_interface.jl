@@ -3,7 +3,10 @@ MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{SV, SAF, SQF}},
                         ::Type{<:Union{ET, GT, LT}},
                         ) = true
-MOI.supports_constraint(::Optimizer, ::Type{SV}, ::Type{ZO}) = true
+
+MOI.supports_constraint(::Optimizer,
+                        ::Type{SV},
+                        ::Type{<:Union{ZO, MOI.Integer}}) = true
 
 MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{VECVAR}},
@@ -80,7 +83,7 @@ for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
         return MOI.get(d._input_problem, $attr(), ci)
     end
-    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,ZO}, v)
+    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,S}, v) where  S <: Union{ZO, MOI.Integer}
         return MOI.get(d._input_problem, $attr(), ci, v)
     end
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{ET, GT, LT}}
@@ -96,7 +99,7 @@ function MOI.get(m::Optimizer, v::MOI.VariablePrimal, vi::MOI.VariableIndex)
     m._solution[vi.value]
 end
 MOI.get(m::Optimizer, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) = MOI.get.(m, p, vi)
-function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{ET, GT, LT}}
+function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{ET, GT, LT, ZO, MOI.Integer}}
     MOI.check_result_index_bounds(m, v)
     return m._solution[ci.value]
 end
@@ -185,7 +188,7 @@ function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{SV, SAF, S
     push!(d._primal_constraint_value, 0.0)
     MOI.add_constraint(d._input_problem, f, s)
 end
-function MOI.add_constraint(d::Optimizer, f::SV, s::ZO)
+function MOI.add_constraint(d::Optimizer, f::SV, s::S) where {S<:Union{ZO,MOI.Integer}}
     push!(d._primal_constraint_value, 0.0)
     MOI.add_constraint(d._input_problem, f, s)
 end
