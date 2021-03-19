@@ -25,7 +25,7 @@ module EAGO
     using JuMP._Derivatives: univariate_operators,
                              univariate_operator_to_id
 
-    import Ipopt, COSMO, GLPK, Pavito
+    import Ipopt, Hypatia, GLPK, Pavito
 
     using DataStructures: OrderedDict, BinaryMinMaxHeap, popmin!, popmax!, top
     using SparseArrays: SparseMatrixCSC, spzeros, rowvals, nzrange, nonzeros, sparse, findnz

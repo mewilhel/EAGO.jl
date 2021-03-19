@@ -13,10 +13,21 @@ const unit_excludes = String[
 
     "solve_zero_one_with_bounds_3",   # GLPK has a non-standard return code
     "solve_result_index",             # TODO: Should throw error when querying for multiple results... (expected behavior?)
+
+    #"getvariable",
+    #"solve_zero_one_with_bounds_2",
+    #"getconstraint",
+    #"solve_with_upperbound",
+    #"solve_single_variable_dual_min",
+    #"solve_single_variable_dual_max",
+    #"solve_with_lowerbound",
+    #"solve_zero_one_with_bounds_1"
 ]
 
 const contlinear_excludes = String[
     "partial_start",                 # EAGO doesn't support VariablePrimalStart
+    #"linear14",
+    #"linear1"
 ]
 
 const intlinear_excludes = String[
@@ -29,6 +40,7 @@ const intlinear_excludes = String[
     "int3",
 
     "semiinttest",   # doesn't currently support SV in SemiInteger
+    #"semiconttest"
 ]
 
 const contconic_excludes = String[
@@ -38,20 +50,21 @@ const contconic_excludes = String[
     "dualpow",
     "exp",
     "logdet",
-    "soc",
+    #"soc",
     "normspec",
     "rootdet",
     "relentr",
     "rsoc",
     "pow",
-    #"geomean"
+    "lin",
+    "geomean"
 ]
 
 const contquadratic_excludes = String[
-    #"ncqcp",
-    #"qp",
-    #"socp",
-    #"qcp",
+    "ncqcp",
+    "qp",
+    "socp",
+    "qcp",
 ]
 
 const nlp_excludes = String[
@@ -61,7 +74,8 @@ const nlp_excludes = String[
     "hs071_no_hessian",
     "feasibility_sense_with_no_objective_and_with_hessian",
     "nlp_objective_and_moi_objective",
-    "hs071"
+    "hs071",
+    "hs071_hessian_vector_product_test"
 ]
 
 function test_moi(T::Type{<:Real}; solver_options...)

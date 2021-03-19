@@ -51,9 +51,9 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     "Subsolver used to solve mixed-integer linear programs"
     mip_optimizer::MOI.AbstractOptimizer                = GLPK.Optimizer()
     "Subsolver used to solve second-order conic programs"
-    socp_optimizer::MOI.AbstractOptimizer               = COSMO.Optimizer()
+    socp_optimizer::MOI.AbstractOptimizer               = Hypatia.Optimizer()
     "Semidefinite Programming Optimizer"
-    semidefinite_optimizer::MOI.AbstractOptimizer       = COSMO.Optimizer()
+    semidefinite_optimizer::MOI.AbstractOptimizer       = Hypatia.Optimizer()
     "Subsolver used to locally solve nonlinear programs"
     nlp_optimizer::MOI.AbstractOptimizer                = Ipopt.Optimizer()
     "Subsolver used to locally solve mixed-integer nonlinear programs "
@@ -238,9 +238,11 @@ Base.@kwdef mutable struct Optimizer <: MOI.AbstractOptimizer
     domain_violation_ϵ::Float64 = 1E-9
 
     # set by MOI manipulations
-    _input_problem::MOIU.Model{Float64} = MOIU.Model{Float64}()
+    _input_problem::MOIU.Model{Float64}                           = MOIU.Model{Float64}()
+    _input_to_local_map::MOIU.IndexMap                            = MOIU.IndexMap()
+    _constraint_primal::Dict{CI,Union{Float64,Vector{Float64}}}   = Dict{CI,Float64}()
     _nlp_data::Union{MOI.NLPBlockData, Nothing} = nothing
-    _constraint_offset::Vector{Int}      = Int[]
+    _constraint_offset::Vector{Int}             = Int[]
     _constraint_index_num::Int = 0
     _constraint_row_num::Int = 0
 
@@ -411,17 +413,13 @@ _working_problem(m::Optimizer) = m._working_problem
 
 function _set_cons_primal!(m::Optimizer, ci::CI{F,S}, v::Float64) where{F <: MOI.AbstractFunction,
                                                                         S <: MOI.AbstractScalarSet}
-    i = ci.value
-    os = m._constraint_offset
-    m._primal_constraint_value[os[i]] = v
+    m._constraint_primal[ci] = v
     return
 end
 
 function _set_cons_primal!(m::Optimizer, ci::CI{F,S}, v::Vector{Float64}) where{F <: MOI.AbstractFunction,
                                                                                 S <: MOI.AbstractVectorSet}
-    i = ci.value
-    os = m._constraint_offset
-    m._primal_constraint_value[(os[i] + 1):os[i + 1]] .= v
+    m._constraint_primal[ci] = v
     return
 end
 

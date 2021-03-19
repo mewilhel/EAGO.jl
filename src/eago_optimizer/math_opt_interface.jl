@@ -1,9 +1,14 @@
 
+#=
+Directly bridging SV in GT -> LT triggers
+=#
 MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{SV, SAF, SQF}},
-                        ::Type{<:Union{LT, ET, IT}},
+                        ::Type{<:Union{ET, IT, LT, GT}},
                         ) = true
 
+# No automatic bridge from ZO to Integers exist. Closest is semi-integer to
+# ZO + 2x SAF.
 MOI.supports_constraint(::Optimizer,
                         ::Type{SV},
                         ::Type{<:Union{ZO, MOI.Integer}}) = true
@@ -13,9 +18,13 @@ MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{SOC_CONE, PSD_CONE}},
                         ) = true
 
+# Using SingleVariable or ScalarAffineFunction as the objective greatly
+# simplifies objective bound cuts and access to objective values. Using
+# SAF prevents the introduce of a new auxilliary variable if the user
+# defines a SAF objective type.
 MOI.supports(::Optimizer,
              ::Union{MOI.ObjectiveSense,
-                     MOI.ObjectiveFunction{SV}},
+                     MOI.ObjectiveFunction{SAF}}
                      ) = true
 
 function MOI.copy_to(model::Optimizer, src::MOI.ModelLike; copy_names = false)
@@ -75,7 +84,7 @@ for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{SV,ZO})
         return MOI.get(d._input_problem, $attr(), ci)
     end
-    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{ET, GT, LT}}
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT, ET, GT, IT}}
         return MOI.get(d._input_problem, $attr(), ci)
     end
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
@@ -84,7 +93,7 @@ for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,S}, v) where  S <: Union{ZO, MOI.Integer}
         return MOI.get(d._input_problem, $attr(), ci, v)
     end
-    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{ET, GT, LT}}
+    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT, ET, GT, IT}}
         return MOI.get(d._input_problem, $attr(), ci, v)
     end
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
@@ -97,22 +106,18 @@ function MOI.get(m::Optimizer, v::MOI.VariablePrimal, vi::MOI.VariableIndex)
     m._solution[vi.value]
 end
 MOI.get(m::Optimizer, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) = MOI.get.(m, p, vi)
-function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{ET, GT, LT, ZO, MOI.Integer}}
+function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{LT, ET, GT, IT, ZO, MOI.Integer}}
     MOI.check_result_index_bounds(m, v)
     return m._solution[ci.value]
 end
 
-function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{SAF, SQF}, S <: Union{ET, GT, LT}}
+function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{SAF, SQF}, S <: Union{LT, ET, GT, IT}}
     MOI.check_result_index_bounds(m, v)
-    i = ci.value
-    os = m._constraint_offset
-    return m._primal_constraint_value[os[i]]
+    return m._constraint_primal[ci]
 end
 function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
     MOI.check_result_index_bounds(m, v)
-    i = ci.value
-    os = m._constraint_offset
-    return m._primal_constraint_value[(os[i] + 1):os[i + 1]]
+    return m._constraint_primal[ci]
 end
 MOI.get(opt::Optimizer, a::MOI.ConstraintPrimal, ci::Vector{MOI.ConstraintIndex}) = MOI.get.(opt, a, ci)
 
@@ -181,12 +186,13 @@ end
 
 MOI.add_variable(d::Optimizer) = MOI.add_variable(d._input_problem)
 
+# TODO: Modify inputs is bounds are set for single variables.
 function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{SV, SAF, SQF},
-                                                             S<:Union{ET, LT, IT}}
+                                                             S<:Union{LT, ET, GT, IT}}
     push!(d._primal_constraint_value, 0.0)
     MOI.add_constraint(d._input_problem, f, s)
 end
-function MOI.add_constraint(d::Optimizer, f::SV, s::S) where {S<:Union{ZO,MOI.Integer}}
+function MOI.add_constraint(d::Optimizer, f::SV, s::S) where {S<:Union{ZO, MOI.Integer}}
     push!(d._primal_constraint_value, 0.0)
     MOI.add_constraint(d._input_problem, f, s)
 end
@@ -196,8 +202,8 @@ function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECVAR},
     MOI.add_constraint(d._input_problem, f, s)
 end
 
-function MOI.set(d::Optimizer, ::MOI.ObjectiveFunction{SV}, func::SV)
-    MOI.set(d._input_problem, MOI.ObjectiveFunction{SV}(), func)
+function MOI.set(d::Optimizer, ::MOI.ObjectiveFunction{SAF}, func::SAF)
+    MOI.set(d._input_problem, MOI.ObjectiveFunction{SAF}(), func)
 end
 
 MOI.supports(d::Optimizer, ::MOI.NLPBlock) = true
