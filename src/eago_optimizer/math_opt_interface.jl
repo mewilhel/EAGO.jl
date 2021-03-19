@@ -4,7 +4,7 @@ Directly bridging SV in GT -> LT triggers
 =#
 MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{SV, SAF, SQF}},
-                        ::Type{<:Union{ET, IT, LT, GT}},
+                        ::Type{<:Union{IT}},
                         ) = true
 
 # No automatic bridge from ZO to Integers exist. Closest is semi-integer to
@@ -37,27 +37,23 @@ function MOI.get(m::Optimizer, v::MOI.PrimalStatus)
     if v.N > 1
         MOI.check_result_index_bounds(m, v)
     end
-    m._result_status_code
+    m._primal_status_code
 end
 MOI.get(m::Optimizer, ::MOI.SolveTime) = m._run_time
-MOI.get(m::Optimizer, ::MOI.NodeCount) = m._maximum_node_id
+MOI.get(m::Optimizer, ::MOI.NodeCount) = m._node_count
 MOI.get(m::Optimizer, ::MOI.ResultCount) = (m._result_status_code === MOI.FEASIBLE_POINT) ? 1 : 0
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 function MOI.set(m::Optimizer, ::MOI.Silent, b::Bool)
-    if !b && iszero(m.verbosity)
-        m.verbosity = 1
-    elseif b
-        m.verbosity = 0
-    end
+    m._is_silent = b
     return
 end
-MOI.get(m::Optimizer, ::MOI.Silent) = iszero(m.verbosity)
+MOI.get(m::Optimizer, ::MOI.Silent) = m._is_silent
 
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
-MOI.get(m::Optimizer, ::MOI.TimeLimitSec) = isfinite(m.time_limit) ? m.time_limit : nothing
-MOI.set(m::Optimizer, ::MOI.TimeLimitSec, ::Nothing)      = (m.time_limit = Inf;   return)
-MOI.set(m::Optimizer, ::MOI.TimeLimitSec, value::Float64) = (m.time_limit = value; return)
+MOI.get(m::Optimizer, ::MOI.TimeLimitSec) = isfinite(m._time_limit) ? m._time_limit : nothing
+MOI.set(m::Optimizer, ::MOI.TimeLimitSec, ::Nothing)  = (m._time_limit = Inf;   return)
+MOI.set(m::Optimizer, ::MOI.TimeLimitSec, v::Float64) = (m._time_limit = v; return)
 
 function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
     if !(p.name isa String) && !(p.name isa Symbol)
@@ -70,34 +66,34 @@ end
 
 for attr in (MOI.ListOfVariableIndices, MOI.ListOfConstraints)
     @eval function MOI.get(m::Optimizer, ::$attr)
-        MOI.get(m._input_problem, $attr())
+        MOI.get(m._model, $attr())
     end
 end
 
 for attr in (MOI.ListOfConstraintAttributesSet, MOI.ListOfConstraintIndices)
     @eval function MOI.get(d::Optimizer, ::$attr{F,S}) where {F,S}
-        return MOI.get(d._input_problem, $attr{F,S}())
+        return MOI.get(d._model, $attr{F,S}())
     end
 end
 
 for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{SV,ZO})
-        return MOI.get(d._input_problem, $attr(), ci)
+        return MOI.get(d._model, $attr(), ci)
     end
-    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT, ET, GT, IT}}
-        return MOI.get(d._input_problem, $attr(), ci)
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{IT}}
+        return MOI.get(d._model, $attr(), ci)
     end
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
-        return MOI.get(d._input_problem, $attr(), ci)
+        return MOI.get(d._model, $attr(), ci)
     end
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,S}, v) where  S <: Union{ZO, MOI.Integer}
-        return MOI.get(d._input_problem, $attr(), ci, v)
+        return MOI.get(d._model, $attr(), ci, v)
     end
-    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT, ET, GT, IT}}
-        return MOI.get(d._input_problem, $attr(), ci, v)
+    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{IT}}
+        return MOI.get(d._model, $attr(), ci, v)
     end
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
-        return MOI.get(d._input_problem, $attr(), ci, v)
+        return MOI.get(d._model, $attr(), ci, v)
     end
 end
 
@@ -106,12 +102,12 @@ function MOI.get(m::Optimizer, v::MOI.VariablePrimal, vi::MOI.VariableIndex)
     m._solution[vi.value]
 end
 MOI.get(m::Optimizer, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) = MOI.get.(m, p, vi)
-function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{LT, ET, GT, IT, ZO, MOI.Integer}}
+function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{IT, ZO, MOI.Integer}}
     MOI.check_result_index_bounds(m, v)
     return m._solution[ci.value]
 end
 
-function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{SAF, SQF}, S <: Union{LT, ET, GT, IT}}
+function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, IT}) where F <: Union{SAF, SQF}
     MOI.check_result_index_bounds(m, v)
     return m._constraint_primal[ci]
 end
@@ -126,7 +122,7 @@ const EAGO_OPTIMIZER_ATTRIBUTES = Symbol[:relaxed_optimizer, :lp_optimizer, :mip
                                          :nlp_optimizer, :minlp_optimizer,
                                          :relaxed_optimizer_kwargs, :upper_optimizer,
                                          :enable_optimize_hook, :ext, :ext_type, :_parameters]
-const EAGO_MODEL_STRUCT_ATTRIBUTES = Symbol[:_stack, :_log, :_current_node, :_working_problem, :_input_problem]
+const EAGO_MODEL_STRUCT_ATTRIBUTES = Symbol[:_stack, :_log, :_current_node, :_working_problem, :_model]
 const EAGO_MODEL_NOT_STRUCT_ATTRIBUTES = setdiff(fieldnames(Optimizer), union(EAGO_OPTIMIZER_ATTRIBUTES,
                                                                               EAGO_MODEL_STRUCT_ATTRIBUTES))
 const EAGO_MODEL_EITHER_ATTRIBUTE = union(EAGO_MODEL_STRUCT_ATTRIBUTES, EAGO_MODEL_NOT_STRUCT_ATTRIBUTES)
@@ -140,13 +136,8 @@ function MOI.empty!(m::Optimizer)
 end
 
 function MOI.is_empty(m::Optimizer)
-
-    is_empty_flag = uninitialized(m._current_node)
-    is_empty_flag &= isempty(m._stack)
-    is_empty_flag &= isempty(m._log)
-    is_empty_flag &= MOI.is_empty(m._input_problem)
-    is_empty_flag &= isempty(m._working_problem)
-
+    is_empty_flag &= isempty(m._model)
+    is_empty_flag &= isempty(m._solver)
     return is_empty_flag
 end
 
@@ -155,12 +146,12 @@ function MOI.get(m::Optimizer, v::MOI.ObjectiveValue)
     m._objective_value
 end
 MOI.get(m::Optimizer, ::MOI.ObjectiveBound) = m._objective_bound
-MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = MOI.get(m.input_problem, MOI.NumberOfVariables())
+MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = MOI.get(m._model._input_model, MOI.NumberOfVariables())
 
 function MOI.get(m::Optimizer, ::MOI.RelativeGap)
     LBD = m._objective_value
     UBD = m._objective_bound
-    if m._input_problem._optimization_sense === MOI.MAX_SENSE
+    if m._model._optimization_sense === MOI.MAX_SENSE
         gap = abs(UBD - LBD)/abs(LBD)
     else
         gap = abs(UBD - LBD)/abs(UBD)
@@ -184,39 +175,38 @@ function MOI.get(m::Optimizer, p::MOI.RawParameter)
     end
 end
 
-MOI.add_variable(d::Optimizer) = MOI.add_variable(d._input_problem)
+MOI.add_variable(d::Optimizer) = MOI.add_variable(d._model._input_model)
 
 # TODO: Modify inputs is bounds are set for single variables.
-function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{SV, SAF, SQF},
-                                                             S<:Union{LT, ET, GT, IT}}
+function MOI.add_constraint(d::Optimizer, f::F, s::IT) where F <: Union{SV, SAF, SQF}
     push!(d._primal_constraint_value, 0.0)
-    MOI.add_constraint(d._input_problem, f, s)
+    MOI.add_constraint(d._model._input_model, f, s)
 end
 function MOI.add_constraint(d::Optimizer, f::SV, s::S) where {S<:Union{ZO, MOI.Integer}}
     push!(d._primal_constraint_value, 0.0)
-    MOI.add_constraint(d._input_problem, f, s)
+    MOI.add_constraint(d._model._input_model, f, s)
 end
 function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECVAR},
                                                              S<:Union{SOC_CONE, PSD_CONE}}
     append!(d._primal_constraint_value, zeros(MOI.dimension(s)))
-    MOI.add_constraint(d._input_problem, f, s)
+    MOI.add_constraint(d._model._input_model, f, s)
 end
 
 function MOI.set(d::Optimizer, ::MOI.ObjectiveFunction{SAF}, func::SAF)
-    MOI.set(d._input_problem, MOI.ObjectiveFunction{SAF}(), func)
+    MOI.set(d._model._input_model, MOI.ObjectiveFunction{SAF}(), func)
 end
 
 MOI.supports(d::Optimizer, ::MOI.NLPBlock) = true
 function MOI.set(d::Optimizer, ::MOI.NLPBlock, nlp_data)
     # TODO: Update d._primal_constraint_value
-    d._nlp_data = nlp_data
+    d._model._nlp_data = nlp_data
     return
 end
 function MOI.set(d::Optimizer, ::MOI.NLPBlock, ::Nothing)
-    d._nlp_data = nothing
+    d._model._nlp_data = nothing
     return
 end
 
 function MOI.set(d::Optimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
-    MOI.set(d._input_problem, MOI.ObjectiveSense(), sense)
+    MOI.set(d._model._input_model, MOI.ObjectiveSense(), sense)
 end

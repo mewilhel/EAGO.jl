@@ -14,7 +14,7 @@ include("optimize_subsolve.jl")
 include("optimize_convex.jl")
 include("optimize_nonconvex.jl")
 
-throw_optimize_hook!(m::Optimizer) = optimize_hook!(m.ext_type, m)
+throw_optimize_hook!(m::Optimizer) = optimize_hook!(_ext_type(m), m)
 
 function _setup_timers!(m::Optimizer)
     m._start_time = time()
@@ -33,10 +33,10 @@ function MOI.optimize!(m::Optimizer)
 
     _setup_timers!(m)
 
-    if !m.enable_optimize_hook
+    if !_enable_optimize_hook(m)
         _parse_classify_problem!(m)
         _set_parse_time!(m)
-        optimize!(Val{m._working_problem._problem_type}(), m)
+        optimize!(Val{m._problem_type}(), m)
     else
         throw_optimize_hook!(m)
     end

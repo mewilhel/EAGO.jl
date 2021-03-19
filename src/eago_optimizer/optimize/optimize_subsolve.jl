@@ -69,9 +69,9 @@ for (T, optimizer_field) in ((LP, :lp_optimizer),
 
     @eval function optimize!(::Val{$T}, m::Optimizer)
 
-        opt = m.$optimizer_field
+        bridged_opt = MOI.instantiate(Hypatia.Optimizer, with_bridge_type = Float64)
         #set_config!(m, opt)
-        bridged_opt = _bridge_optimizer(Val{$T}(), opt)
+        #bridged_opt = _bridge_optimizer(Val{$T}(), opt)
         m._input_to_local_map = MOI.copy_to(bridged_opt,
                                             m._input_problem;
                                             copy_names = false)

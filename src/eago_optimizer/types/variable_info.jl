@@ -52,20 +52,14 @@ function VariableInfo(::ZO)
                         upper_bound = 1.0)
 end
 
-VariableInfo(lt::LT) = VariableInfo(has_upper_bound = true,
-                                    has_constraints = true,
-                                    upper_bound = lt.upper)
-
-VariableInfo(gt::GT) = VariableInfo(has_lower_bound = true,
-                                    has_constraints = true,
-                                    lower_bound = gt.lower)
-
-VariableInfo(et::ET) = VariableInfo(has_lower_bound = true,
-                                    has_upper_bound = true,
-                                    has_constraints = true,
-                                    is_fixed = true,
-                                    lower_bound = et.value,
-                                    upper_bound = et.value)
+function VariableInfo(it::IT)
+    VariableInfo(has_lower_bound = !isinf(it.lower),
+                 has_upper_bound = !isinf(it.upper),
+                 has_constraints = !isinf(it.lower) | !isinf(it.upper),
+                 is_fixed = it.lower == it.upper,
+                 lower_bound = it.lower,
+                 upper_bound = it.upper)
+end
 
 function VariableInfo(v::VariableInfo, ::ZO)
     isempty(v) && (return v)
@@ -83,49 +77,17 @@ function VariableInfo(v::VariableInfo, ::ZO)
                         upper_bound = u)
 end
 
-function VariableInfo(v::VariableInfo, lt::LT)
+function VariableInfo(v::VariableInfo, it::IT)
     isempty(v) && (return v)
-    l = _lower_bound(v)
-    u = min(lt.upper, _upper_bound(v))
+    l = max(it.lower, _lower_bound(v))
+    u = max(it.upper, _upper_bound(v))
     if check_isempty(l, u, _is_integer(v))
         return empty_variable_info()
     end
     return VariableInfo(is_integer = _is_integer(v),
-                        has_lower_bound = _has_lower_bound(v),
-                        has_upper_bound = true,
-                        has_constraints = true,
-                        is_fixed = l == u,
-                        lower_bound = l,
-                        upper_bound = u)
-end
-
-function VariableInfo(v::VariableInfo, gt::GT)
-    isempty(v) && (return v)
-    l = max(gt.lower, _lower_bound(v))
-    u = _upper_bound(v)
-    if check_isempty(l, u, _is_integer(v))
-        return empty_variable_info()
-    end
-    return VariableInfo(is_integer = _is_integer(v),
-                        has_lower_bound = l,
-                        has_upper_bound = _has_lower_bound(v),
-                        has_constraints = true,
-                        is_fixed = l == u,
-                        lower_bound = l,
-                        upper_bound = u)
-end
-
-function VariableInfo(v::VariableInfo, et::ET)
-    isempty(v) && (return v)
-    l = max(et.value, _lower_bound(v))
-    u = max(et.value, _upper_bound(v))
-    if check_isempty(l, u, _is_integer(v))
-        return empty_variable_info()
-    end
-    return VariableInfo(is_integer = _is_integer(v),
-                        has_lower_bound = true,
-                        has_upper_bound = true,
-                        has_constraints = true,
+                        has_lower_bound = !isinf(l),
+                        has_upper_bound = !isinf(u),
+                        has_constraints = !isinf(l) | !isinf(u),
                         is_fixed = l == u,
                         lower_bound = l,
                         upper_bound = u)
