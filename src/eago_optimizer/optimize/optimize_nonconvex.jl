@@ -56,20 +56,20 @@ function add_variables(m::GlobalOptimizer, optimizer::T, variable_number::Int) w
     variable_index = fill(VI(1), variable_number)
     for i = 1:variable_number
         @inbounds variable_index[i] = MOI.add_variable(optimizer)
-        relaxed_variable = SV(@inbounds variable_index[i])
+        single_variable = SV(@inbounds variable_index[i])
         v_info = @inbounds m._working_problem._variable_info[i]
-        if v_info.is_integer && v_info.is_fixed
-            MOI.add_constraint(optimizer, relaxed_variable, ET(v_info.lower_bound))
-        elseif v_info.is_integer
-            MOI.add_constraint(optimizer, relaxed_variable, ZO())
-        elseif v_info.is_fixed
-            MOI.add_constraint(optimizer, relaxed_variable, ET(v_info.lower_bound))
-        elseif v_info.has_lower_bound && v_info.has_upper_bound
-            MOI.add_constraint(optimizer, relaxed_variable, IT(v_info.lower_bound, v_info.upper_bound))
-        elseif v_info.has_lower_bound
-            MOI.add_constraint(optimizer, relaxed_variable, GT(v_info.lower_bound))
-        elseif v_info.has_upper_bound
-            MOI.add_constraint(optimizer, relaxed_variable, LT(v_info.upper_bound))
+        if _is_fixed(v_info)
+            MOI.add_constraint(optimizer, single_variable, _ET(vi))
+        elseif _is_real_interval(vi)
+            MOI.add_constraint(optimizer, single_variable, _IT(vi))
+        elseif _is_greater_than(vi)
+            MOI.add_constraint(optimizer, single_variable, _GT(vi))
+        elseif _is_less_than(vi)
+            MOI.add_constraint(optimizer, single_variable, _LT(vi))
+        elseif _is_zero_one(vi)
+            MOI.add_constraint(optimizer, single_variable, _ZO(vi))
+        elseif _is_int_interval(vi)
+            MOI.add_constraint(optimizer, single_variable, _Int(vi))
         end
     end
 
@@ -706,11 +706,13 @@ optimizer.
 """
 function update_relaxed_problem_box!(m::GlobalOptimizer)
     opt = m.relaxed_optimizer
-    lb = m._current_node.lower_variable_bound
-    ub = m._current_node.upper_variable_bound
+    lb = _lower_variable_bound(m)
+    ub = _upper_variable_bound(m)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], ET(lb[x[2]])), m._relaxed_variable_eq)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], LT(ub[x[2]])), m._relaxed_variable_lt)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], GT(ub[x[2]])), m._relaxed_variable_gt)
+    foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], IT(lb[x[2]], ub[x[2]])), m._relaxed_variable_it)
+    # Interval... & ZO interaction need to fix
     return nothing
 end
 
@@ -1050,22 +1052,22 @@ function set_global_lower_bound!(m::GlobalOptimizer)
 end
 
 # wraps subroutine call to isolate ExtensionType
-parse_global!(m::GlobalOptimizer) = parse_global!(m.ext_type, m)
-presolve_global!(m::GlobalOptimizer) = presolve_global!(m.ext_type, m)
-termination_check(m::GlobalOptimizer) = termination_check(m.ext_type, m)
-cut_condition(m::GlobalOptimizer) = cut_condition(m.ext_type, m)
-convergence_check(m::GlobalOptimizer) = convergence_check(m.ext_type, m)
-repeat_check(m::GlobalOptimizer) = repeat_check(m.ext_type, m)
-node_selection!(m::GlobalOptimizer) = node_selection!(m.ext_type, m)
-preprocess!(m::GlobalOptimizer) = preprocess!(m.ext_type, m)
-lower_problem!(m::GlobalOptimizer) = lower_problem!(m.ext_type, m)
-add_cut!(m::GlobalOptimizer) = add_cut!(m.ext_type, m)
-upper_problem!(m::GlobalOptimizer) = upper_problem!(m.ext_type, m)
-postprocess!(m::GlobalOptimizer) = postprocess!(m.ext_type, m)
-single_storage!(m::GlobalOptimizer) = single_storage!(m.ext_type, m)
-branch_node!(m::GlobalOptimizer) = branch_node!(m.ext_type, m)
-fathom!(m::GlobalOptimizer) = fathom!(m.ext_type, m)
-revert_adjusted_upper_bound!(m::GlobalOptimizer) = revert_adjusted_upper_bound!(m.ext_type, m)
+parse_global!(m::GlobalOptimizer{T}) where T = parse_global!(m.ext_type, m)
+presolve_global!(m::GlobalOptimizer{T}) where T = presolve_global!(m.ext_type, m)
+termination_check(m::GlobalOptimizer{T}) where T = termination_check(m.ext_type, m)
+cut_condition(m::GlobalOptimizer{T}) where T = cut_condition(m.ext_type, m)
+convergence_check(m::GlobalOptimizer{T}) where T = convergence_check(m.ext_type, m)
+repeat_check(m::GlobalOptimizer{T}) where T = repeat_check(m.ext_type, m)
+node_selection!(m::GlobalOptimizer{T}) where T = node_selection!(m.ext_type, m)
+preprocess!(m::GlobalOptimizer{T}) where T = preprocess!(m.ext_type, m)
+lower_problem!(m::GlobalOptimizer{T}) where T = lower_problem!(m.ext_type, m)
+add_cut!(m::GlobalOptimizer{T}) where T = add_cut!(m.ext_type, m)
+upper_problem!(m::GlobalOptimizer{T}) where T = upper_problem!(m.ext_type, m)
+postprocess!(m::GlobalOptimizer{T}) where T = postprocess!(m.ext_type, m)
+single_storage!(m::GlobalOptimizer{T}) where T = single_storage!(m.ext_type, m)
+branch_node!(m::GlobalOptimizer{T}) where T = branch_node!(m.ext_type, m)
+fathom!(m::GlobalOptimizer{T}) where T = fathom!(m.ext_type, m)
+revert_adjusted_upper_bound!(m::GlobalOptimizer{T}) where T = revert_adjusted_upper_bound!(m.ext_type, m)
 
 """
 $(TYPEDSIGNATURES)

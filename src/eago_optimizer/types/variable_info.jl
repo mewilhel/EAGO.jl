@@ -26,9 +26,41 @@ end
 _is_integer(x::VariableInfo) = x.is_integer
 _has_lower_bound(x::VariableInfo) = x.has_lower_bound
 _has_upper_bound(x::VariableInfo) = x.has_upper_bound
-_is_fixed(x::VariableInfo) = x.is_fixed
 _lower_bound(x::VariableInfo) = x.lower_bound
 _upper_bound(x::VariableInfo) = x.upper_bound
+
+_is_fixed(x::VariableInfo) = x.is_fixed
+function _is_less_than(x::VariableInfo)
+    flag = x.has_upper_bound
+    flag &= !x.has_lower_bound
+    flag &= !x.is_integer
+    return flag
+end
+function _is_greater_than(x::VariableInfo)
+    flag = x.has_lower_bound
+    flag &= !x.has_upper_bound
+    flag &= !x.is_integer
+    return flag
+end
+function _is_zero_one(x::VariableInfo)
+    flag = iszero(x.lower_bound)
+    flag &= isone(x.upper_bound)
+    flag &= x.is_integer
+    return flag
+end
+function _is_int_interval(x::VariableInfo)
+    flag = x.has_lower_bound)
+    flag &= x.has_upper_bound
+    flag &= x.is_integer
+    return flag
+end
+function _is_real_interval(x::VariableInfo)
+    flag = x.has_lower_bound)
+    flag &= x.has_upper_bound
+    flag &= !x.is_integer
+    return flag
+end
+
 mid(x::VariableInfo) = 0.5*(_upper_bound(x) - _lower_bound(x))
 
 empty_variable_info() = VariableInfo(lower_bound = Inf,
@@ -92,3 +124,10 @@ function VariableInfo(v::VariableInfo, it::IT)
                         lower_bound = l,
                         upper_bound = u)
 end
+
+_ET(v::VariableInfo)  = ET(v.lower_bound)
+_IT(v::VariableInfo)  = IT(v.lower_bound)
+_GT(v::VariableInfo)  = GT(v.lower_bound)
+_LT(v::VariableInfo)  = LT(v.upper_bound)
+_ZO(v::VariableInfo)  = ZO()
+_INT(v::VariableInfo) = MOI.Semiinteger(v.lower_bound, v.upper_bound)
