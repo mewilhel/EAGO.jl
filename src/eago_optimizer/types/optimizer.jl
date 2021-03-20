@@ -51,7 +51,7 @@ mutable struct Optimizer{T<:Real} <: MOI.AbstractOptimizer
     _parse_time::Float64
 
     _solution::Vector{Float64}
-    _constraint_primal::Dict{CI,Float64}
+    _constraint_primal::Dict{CI,Union{Vector{Float64},Float64}}
     _input_to_solution_map
 end
 function Optimizer{T}(; kwargs...) where T<:Real

@@ -102,7 +102,7 @@ function MOI.get(m::Optimizer, v::MOI.VariablePrimal, vi::MOI.VariableIndex)
     m._solution[vi.value]
 end
 MOI.get(m::Optimizer, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) = MOI.get.(m, p, vi)
-function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{IT, ZO, MOI.Integer}}
+function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{LT,GT,ET,IT,ZO,MOI.Integer}}
     MOI.check_result_index_bounds(m, v)
     return m._solution[ci.value]
 end

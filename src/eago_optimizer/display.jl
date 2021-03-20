@@ -46,7 +46,7 @@ $(FUNCTIONNAME)
 
 Prints node information for the B&B problem. Node id, bound, and interval box.
 """
-function print_node!(m::Optimizer)
+function print_node!(m::GlobalOptimizer)
     n = m._current_node
     bound = (m._input_problem._optimization_sense === MOI.MIN_SENSE) ? n.lower_bound : -n.lower_bound
     println(" ")
@@ -62,7 +62,7 @@ $(FUNCTIONNAME)
 Prints the iteration information based on verbosity. The header is displayed
 every `header_interval`, the iteration info is displayed every `iteration_interval`.
 """
-function print_iteration!(m::Optimizer)
+function print_iteration!(m::GlobalOptimizer)
 
     if m.verbosity > 0
 
@@ -144,7 +144,7 @@ $(FUNCTIONNAME)
 
 Prints the results of a single bounding problem.
 """
-function print_results!(m::Optimizer, flag::Bool)
+function print_results!(m::GlobalOptimizer, flag::Bool)
     if m.verbosity > 1
         println(" ")
         if flag
@@ -178,7 +178,7 @@ $(FUNCTIONNAME)
 
 Prints the results after performing various cuts.
 """
-function print_results_post_cut!(m::Optimizer)
+function print_results_post_cut!(m::GlobalOptimizer)
     if m.verbosity > 1
         println(" ")
         if m._input_problem._optimization_sense === MOI.MIN_SENSE

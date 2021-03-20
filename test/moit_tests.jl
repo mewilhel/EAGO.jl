@@ -8,26 +8,12 @@ const unit_excludes = String[
     "solve_qp_zero_offdiag",
      "solve_qp_edge_cases",
 
-    "solve_integer_edge_cases",       # Integer valued variable not currently supported.
-    "solve_objbound_edge_cases",
-
     "solve_zero_one_with_bounds_3",   # GLPK has a non-standard return code
     "solve_result_index",             # TODO: Should throw error when querying for multiple results... (expected behavior?)
-
-    #"getvariable",
-    #"solve_zero_one_with_bounds_2",
-    #"getconstraint",
-    #"solve_with_upperbound",
-    #"solve_single_variable_dual_min",
-    #"solve_single_variable_dual_max",
-    #"solve_with_lowerbound",
-    #"solve_zero_one_with_bounds_1"
 ]
 
 const contlinear_excludes = String[
     "partial_start",                 # EAGO doesn't support VariablePrimalStart
-    #"linear14",
-    #"linear1"
 ]
 
 const intlinear_excludes = String[
@@ -37,26 +23,16 @@ const intlinear_excludes = String[
     "indicator4",
 
     "int2",
-    "int3",
-
-    "semiinttest",   # doesn't currently support SV in SemiInteger
-    #"semiconttest"
 ]
 
 const contconic_excludes = String[
-    "sdp",
-    "normnuc",
     "dualexp",
     "dualpow",
     "exp",
     "logdet",
-    #"soc",
-    "normspec",
     "rootdet",
     "relentr",
-    "rsoc",
     "pow",
-    "lin",
     "geomean"
 ]
 
