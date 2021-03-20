@@ -15,7 +15,7 @@ MOI.supports_constraint(::Optimizer,
 
 MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{VECVAR}},
-                        ::Type{<:Union{SOC_CONE, PSD_CONE}},
+                        ::Type{<:Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}},
                         ) = true
 
 # Using SingleVariable or ScalarAffineFunction as the objective greatly
@@ -83,7 +83,7 @@ for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT,GT,ET,IT}}
         return MOI.get(d._model._input_model, $attr(), ci)
     end
-    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}}
         return MOI.get(d._mode._input_modell, $attr(), ci)
     end
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,S}, v) where  S <: Union{ZO, MOI.Integer}
@@ -92,7 +92,7 @@ for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT,GT,ET,IT}}
         return MOI.get(d._model._input_model, $attr(), ci, v)
     end
-    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
+    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}}
         return MOI.get(d._model._input_model, $attr(), ci, v)
     end
 end
@@ -111,7 +111,7 @@ function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{
     MOI.check_result_index_bounds(m, v)
     return m._constraint_primal[ci]
 end
-function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
+function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{VECVAR}, S <: Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}}
     MOI.check_result_index_bounds(m, v)
     return m._constraint_primal[ci]
 end
@@ -214,7 +214,7 @@ function MOI.add_constraint(d::Optimizer, f::SV, s::S) where {S<:Union{ZO, MOI.I
     MOI.add_constraint(d._model._input_model, f, s)
 end
 function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECVAR},
-                                                             S<:Union{SOC_CONE, PSD_CONE}}
+                                                             S<:Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}}
     MOI.add_constraint(d._model._input_model, f, s)
 end
 

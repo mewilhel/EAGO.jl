@@ -46,6 +46,150 @@ function _unpack_final_subsolve!(m::Optimizer, opt::T; adjust_bnd::Bool = true) 
     return nothing
 end
 
+#=
+ScalarCoefficientChange:
+- GLPK, CPLEX, Gurobi supports
+- Cbc doesn't
+=#
+#=
+SOS1, SOS2
+- GLPK doesn't support
+- Cbc, CPLEX, Gurobi does
+=#
+#DONE
+struct SOS1toZOBridge{T} <: MOIU.AbstractBridge
+    vecvar::MOI.VectorOfVariables
+    sos1::MOI.SOS1
+    affine_sum_index::MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},MOI.EqualTo{T}}
+    affine_one_index::MOI.ConstraintIndex{MOI.ScalarAffineFunction{T},MOI.EqualTo{T}}
+    cont_index::MOI.ConstraintIndex{MOI.SingleVariable,MOI.Interval{T}}
+    zo_indices::MOI.ConstraintIndex{MOI.SingleVariable,MOI.Integer}
+end
+
+function MOIB.bridge_constraint(::Type{SOS1toZOBridge{T}}, model::MOI.ModelLike,
+                                f::MOI.VectorOfVariables, ::MOI.SOS1{T}) where {T<:Real}
+    return SOS1toZOBridge{T}()
+end
+
+#DONE
+function MOIB.added_constraint_types(::Type{<:SOS1toZOBridge{T}}) where {T}
+    return [
+        (MOI.ScalarAffineFunction{T}, MOI.EqualTo{T}),
+        (MOI.SingleVariable, MOI.Interval{T}),
+        (MOI.SingleVariable, MOI.ZeroOne),
+    ]
+end
+
+function MOIB.added_constrained_variable_types(::Type{<:SOS1toZOBridge})
+    return Tuple{DataType}[]
+end
+
+#DONE
+function concrete_bridge_type(
+    ::Type{<:SOS1toZOBridge{T}},
+    ::Type{MOI.SingleVariable},
+    ::Type{MOI.ZeroOne},
+) where {T}
+    return SOS1toZOBridge{T}
+end
+
+#DONE
+function MOI.supports_constraint(
+    ::Type{<:SOS1toZOBridge},
+    ::Type{MOI.VectorOfVariables},
+    ::Type{MOI.SOS1},
+)
+    return true
+end
+
+# Attributes, Bridge acting as a constraint
+function MOI.get(
+    model::MOI.ModelLike,
+    attr::MOI.ConstraintSet,
+    bridge::SOS1toZOBridge,
+)
+    return bridge.sos1
+end
+
+function MOI.get(
+    model::MOI.ModelLike,
+    attr::MOI.ConstraintFunction,
+    bridge::SOS1toZOBridge,
+)
+    return bridge.vecvar
+end
+
+# DONE
+function MOI.delete(model::MOI.ModelLike, bridge::SOS1toZOBridge)
+    for ci in bridge.bridge.zo_indices
+        MOI.delete(model, ci)
+    end
+    MOI.delete(model, bridge.cont_index)
+    MOI.delete(model, bridge.affine_sum_index)
+    return MOI.delete(model, bridge.affine_one_index)
+end
+
+function MOI.get(
+    model::MOI.ModelLike,
+    attr::Union{MOI.ConstraintPrimal,MOI.ConstraintPrimalStart},
+    bridge::SOS1toZOBridge,
+)
+    return MOI.get(model, attr, bridge.interval_index)
+end
+
+# DONE
+function MOI.supports(
+    ::MOI.ModelLike,
+    ::MOI.ConstraintPrimalStart,
+    ::Type{<:SOS1toZOBridge},
+)
+    return true
+end
+
+function MOI.set(
+    model::MOI.ModelLike,
+    attr::MOI.ConstraintPrimalStart,
+    bridge::SOS1toZOBridge{T},
+    value,
+) where {T}
+    MOI.set(model, attr, bridge.integer_index, value)
+    return MOI.set(model, attr, bridge.interval_index, value)
+end
+
+# Attributes, Bridge acting as a model
+function MOI.get(
+    bridge::SOS1toZOBridge{T},
+    ::MOI.NumberOfConstraints{MOI.SingleVariable,MOI.Interval{T}},
+) where {T}
+    return 1
+end
+
+function MOI.get(
+    bridge::SOS1toZOBridge,
+    ::MOI.NumberOfConstraints{MOI.SingleVariable,MOI.Integer},
+)
+    return 1
+end
+
+function MOI.get(
+    bridge::SOS1toZOBridge,
+    ::MOI.ListOfConstraintIndices{MOI.SingleVariable,MOI.Interval{T}},
+) where {T}
+    return [bridge.interval_index]
+end
+
+function MOI.get(
+    bridge::SOS1toZOBridge,
+    ::MOI.ListOfConstraintIndices{MOI.SingleVariable,MOI.Integer},
+)
+    return [bridge.integer_index]
+end
+
+#=
+struct SOS2toZOBridge{T} <: MOIU.AbstractBridge
+end
+=#
+
 for S in (LP, MILP, SOCP, SDP)
     @eval _bridge_optimizer!(v::Val{$S}, m) = nothing
 end

@@ -17,23 +17,23 @@ const contlinear_excludes = String[
 ]
 
 const intlinear_excludes = String[
-    "indicator1",    # doesn't currently support indicator sets
-    "indicator2",
-    "indicator3",
-    "indicator4",
+    #"indicator1",    # doesn't currently support indicator sets
+    #"indicator2",
+    #"indicator3",
+    #"indicator4",
 
-    "int2",
+    #"int2",
 ]
 
 const contconic_excludes = String[
-    "dualexp",
-    "dualpow",
-    "exp",
-    "logdet",
-    "rootdet",
-    "relentr",
-    "pow",
-    "geomean"
+    #"dualexp",
+    #"dualpow",
+    #"exp",
+    #"logdet",
+    #"rootdet",
+    #"relentr",
+    #"pow",
+    #"geomean"
 ]
 
 const contquadratic_excludes = String[
