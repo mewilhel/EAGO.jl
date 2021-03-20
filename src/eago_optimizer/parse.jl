@@ -278,89 +278,22 @@ const SDP_FUNC_SET = Union{Tuple{MOI.VectorOfVariables, MOI.PositiveSemidefinite
                            Tuple{MOI.VectorOfVariables, MOI.LogDetConeTriangle},
                            Tuple{MOI.VectorOfVariables, MOI.LogDetConeSquare}}
 
-_in_linear(S, T) = Tuple{S, T} <: LINEAR_FUNC_SET{Float64}
-_in_milp(S, T) = _in_linear(S, T) | (Tuple{S, T} <: INTEGER_FUNC_SET{Float64})
-_in_socp(S, T) = _in_linear(S, T) | (Tuple{S, T} <: CONE_FUNC_SET)
-_in_sdp(S, T) = _in_socp(S, T) | (Tuple{S, T} <: SDP_FUNC_SET)
+_in_prob(::Val{LP}, S, T)   = Tuple{S, T} <: LINEAR_FUNC_SET{Float64}
+_in_prob(::Val{MILP}, S, T) = _in_linear(S, T) | (Tuple{S, T} <: INTEGER_FUNC_SET{Float64})
+_in_prob(::Val{SOCP}, S, T) = _in_linear(S, T) | (Tuple{S, T} <: CONE_FUNC_SET)
+_in_prob(::Val{SDP}, S, T)  = _in_socp(S, T) | (Tuple{S, T} <: SDP_FUNC_SET)
 
-function _parse_classify_problem(::Val{LP}, m::Optimizer)
-    ip = _input_model(m)
-    if MOI.get(ip, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
-        is_lp = true
-    else
-        is_lp = MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.SingleVariable
-        is_lp |= MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.ScalarAffineFunction{Float64}
+for F in (LP, MILP, SOCP, SDP)
+    @eval function _parse_classify_problem(::Val{LP}, m::Optimizer)
+        ip = _input_model(m)
+        flag &= isempty(filter(x -> !_in_prob(Val{$F}(), x[1], x[2]), MOI.get(ip, MOI.ListOfConstraints())))
+        flag &= _input_nlp_data(m) === nothing
+        if flag
+            m._problem_type = $F
+        end
+        return flag
     end
-    is_lp &= isempty(filter(x -> !_in_linear(x[1], x[2]), MOI.get(ip, MOI.ListOfConstraints())))
-    is_lp &= _input_nlp_data(m) === nothing
-    if is_lp
-        m._problem_type = LP
-    end
-    return is_lp
 end
-
-function _parse_classify_problem(::Val{MILP}, m::Optimizer)
-    ip = _input_model(m)
-    if MOI.get(ip, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
-        is_milp = true
-    else
-        is_milp = MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.SingleVariable
-        is_milp |= MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.ScalarAffineFunction{Float64}
-    end
-    is_milp &= isempty(filter(x -> !_in_milp(x[1], x[2]), MOI.get(ip, MOI.ListOfConstraints())))
-    is_milp &= _input_nlp_data(m) === nothing
-    if is_milp
-        m._problem_type = MILP
-    end
-    return is_milp
-end
-
-function _parse_classify_problem(::Val{SOCP}, m::Optimizer)
-    ip = _input_model(m)
-    if MOI.get(ip, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
-        is_socp = true
-    else
-        is_socp = MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.SingleVariable
-        is_socp |= MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.ScalarAffineFunction{Float64}
-    end
-    is_socp &= isempty(filter(x -> !_in_socp(x[1], x[2]), MOI.get(ip, MOI.ListOfConstraints())))
-    is_socp &= _input_nlp_data(m) === nothing
-    if is_socp
-        m._problem_type = SOCP
-    end
-    return is_socp
-end
-
-function _parse_classify_problem(::Val{SDP}, m::Optimizer)
-    ip = _input_model(m)
-    if MOI.get(ip, MOI.ObjectiveSense()) == MOI.FEASIBILITY_SENSE
-        is_sdp = true
-    else
-        is_sdp = MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.SingleVariable
-        is_sdp |= MOI.get(ip, MOI.ObjectiveFunctionType()) == MOI.ScalarAffineFunction{Float64}
-    end
-    is_sdp &= isempty(filter(x -> !_in_sdp(x[1], x[2]), MOI.get(ip, MOI.ListOfConstraints())))
-    is_sdp &= _input_nlp_data(m) === nothing
-    if is_sdp
-        m._problem_type = SDP
-    end
-    return is_sdp
-end
-
-#=
-function _parse_classify_problem(::Val{MISOCP}, ip::InputProblem, wp::ParsedProblem)
-    is_misocp =  _objective_type(ip) == SINGLE_VARIABLE
-    is_misocp |= _objective_type(ip) == SCALAR_AFFINE
-    is_misocp &= _second_order_cone_num(ip)       > 0
-    is_misocp &= _quadratic_num(ip)               == 0
-    is_misocp &= _nl_expr_num(ip)                 == 0
-    is_misocp &= _integer_variable_num(ip)        > 0
-    if is_misocp
-        wp._problem_type = MISOCP
-    end
-    return is_misocp
-end
-=#
 
 function _parse_classify_problem(::Val{MINCVX}, m::Optimizer)
     m._problem_type = MINCVX
@@ -376,7 +309,6 @@ function _parse_classify_problem!(m::Optimizer)
     _parse_classify_problem(Val{MILP}(), m)     && return
     _parse_classify_problem(Val{SOCP}(), m)     && return
     _parse_classify_problem(Val{SDP}(), m)      && return
-    #_parse_classify_problem(Val{MISOCP}(), m)   && return
     _parse_classify_problem(Val{MINCVX}(), m)   && return
     return
 end
