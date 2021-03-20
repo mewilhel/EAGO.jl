@@ -6,7 +6,7 @@ Base.@kwdef mutable struct GlobalOptimizer <: MOI.AbstractOptimizer
         _constraint_index_num::Int = 0
         _constraint_row_num::Int = 0
         # loaded from _input_problem by TODO
-        _working_problem::ParsedProblem = ParsedProblem()
+        #_working_problem::ParsedProblem = ParsedProblem()
 
         _stack::BinaryMinMaxHeap{NodeBB} = BinaryMinMaxHeap{NodeBB}()
 
@@ -157,4 +157,23 @@ Base.@kwdef mutable struct GlobalOptimizer <: MOI.AbstractOptimizer
 
         #_relaxed_evaluator::Evaluator = Evaluator{1,NS}()
         #_relaxed_constraint_bounds::Vector{MOI.NLPBoundsPair} = Vector{MOI.NLPBoundsPair}[]
+end
+
+function MOI.is_empty(m::GlobalOptimizer)
+    empty_opt = GlobalOptimizer()
+    is_empty_flag = true
+    for f in fieldnames(GlobalOptimizer)
+        if f == :_stack
+            is_empty_flag &= isempty(getfield(m, f))
+        elseif f == :_current_node
+            is_empty_flag &= getfield(m, f) != NodeBB()
+        elseif f == :_log
+        else
+            if getfield(empty_opt, f) != getfield(m, f)
+                is_empty_flag = false
+                break
+            end
+        end
+    end
+    return is_empty_flag
 end

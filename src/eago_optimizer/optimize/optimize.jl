@@ -16,26 +16,19 @@ include("optimize_nonconvex.jl")
 
 throw_optimize_hook!(m::Optimizer) = optimize_hook!(_ext_type(m), m)
 
-function _setup_timers!(m::Optimizer)
-    m._start_time = time()
-    m._time_left = m.time_limit
-    return
-end
-function _set_parse_time!(m::Optimizer)
-    new_time = time() - m._start_time
-    m._parse_time = new_time
-    m._run_time = new_time
-    return
-end
-
-
 function MOI.optimize!(m::Optimizer)
 
-    _setup_timers!(m)
+    m._start_time = time()
+    m._time_left = m._time_limit
 
     if !_enable_optimize_hook(m)
+
         _parse_classify_problem!(m)
-        _set_parse_time!(m)
+
+        new_time = time() - m._start_time
+        m._parse_time = new_time
+        m._run_time = new_time
+
         optimize!(Val{m._problem_type}(), m)
     else
         throw_optimize_hook!(m)

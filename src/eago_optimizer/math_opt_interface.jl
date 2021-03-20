@@ -4,7 +4,7 @@ Directly bridging SV in GT -> LT triggers
 =#
 MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{SV, SAF, SQF}},
-                        ::Type{<:Union{IT}},
+                        ::Type{<:Union{LT,GT,ET,IT}},
                         ) = true
 
 # No automatic bridge from ZO to Integers exist. Closest is semi-integer to
@@ -80,7 +80,7 @@ for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{SV,ZO})
         return MOI.get(d._model, $attr(), ci)
     end
-    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{IT}}
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT,GT,ET,IT}}
         return MOI.get(d._model, $attr(), ci)
     end
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
@@ -89,7 +89,7 @@ for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,S}, v) where  S <: Union{ZO, MOI.Integer}
         return MOI.get(d._model, $attr(), ci, v)
     end
-    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{IT}}
+    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT,GT,ET,IT}}
         return MOI.get(d._model, $attr(), ci, v)
     end
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
@@ -107,7 +107,7 @@ function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{
     return m._solution[ci.value]
 end
 
-function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, IT}) where F <: Union{SAF, SQF}
+function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{SAF, SQF}, S <: Union{LT,GT,ET,IT}}
     MOI.check_result_index_bounds(m, v)
     return m._constraint_primal[ci]
 end
@@ -127,17 +127,47 @@ const EAGO_MODEL_NOT_STRUCT_ATTRIBUTES = setdiff(fieldnames(Optimizer), union(EA
                                                                               EAGO_MODEL_STRUCT_ATTRIBUTES))
 const EAGO_MODEL_EITHER_ATTRIBUTE = union(EAGO_MODEL_STRUCT_ATTRIBUTES, EAGO_MODEL_NOT_STRUCT_ATTRIBUTES)
 
-function MOI.empty!(m::Optimizer)
-    new_optimizer = Optimizer()
-    for field in EAGO_MODEL_EITHER_ATTRIBUTE
-        setfield!(m, field, getfield(new_optimizer, field))
-    end
+function MOI.empty!(m::Optimizer{T}) where T
+    m._model = InputModel{T}()
+    m._solver = GlobalOptimizer()
+    m._problem_type = UNCLASSIFIED
+
+    m._termination_status_code = MOI.OPTIMIZE_NOT_CALLED
+    m._primal_status_code      = MOI.OTHER_RESULT_STATUS
+
+    m._node_count      = 0
+    m._objective_value = Inf
+    m._objective_bound = -Inf
+    m._relative_gap = Inf
+
+    m._start_time   = 0.0
+    m._time_limit   = Inf
+    m._time_left    = 1000.0
+    m._run_time     = 0.0
+    m._parse_time   = 0.0
     return
 end
 
 function MOI.is_empty(m::Optimizer)
-    is_empty_flag &= isempty(m._model)
-    is_empty_flag &= isempty(m._solver)
+
+    is_empty_flag = MOI.is_empty(m._model)
+    is_empty_flag &= MOI.is_empty(m._solver)
+    is_empty_flag &= (m._problem_type == UNCLASSIFIED)
+
+    is_empty_flag &= (m._termination_status_code == MOI.OPTIMIZE_NOT_CALLED)
+    is_empty_flag &= (m._primal_status_code      == MOI.OTHER_RESULT_STATUS)
+
+    is_empty_flag &= (m._node_count      == 0)
+    is_empty_flag &= (m._objective_value == Inf)
+    is_empty_flag &= (m._objective_bound == -Inf)
+    is_empty_flag &= (m._relative_gap    == Inf)
+
+    is_empty_flag &= (m._start_time == 0.0)
+    is_empty_flag &= (m._time_limit == Inf)
+    is_empty_flag &= (m._time_left  == 1000.0)
+    is_empty_flag &= (m._run_time   == 0.0)
+    is_empty_flag &= (m._parse_time == 0.0)
+
     return is_empty_flag
 end
 
@@ -177,18 +207,15 @@ end
 
 MOI.add_variable(d::Optimizer) = MOI.add_variable(d._model._input_model)
 
-# TODO: Modify inputs is bounds are set for single variables.
-function MOI.add_constraint(d::Optimizer, f::F, s::IT) where F <: Union{SV, SAF, SQF}
-    push!(d._primal_constraint_value, 0.0)
+function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F <: Union{SV, SAF, SQF}, S <: Union{LT,GT,ET,IT}}
     MOI.add_constraint(d._model._input_model, f, s)
 end
 function MOI.add_constraint(d::Optimizer, f::SV, s::S) where {S<:Union{ZO, MOI.Integer}}
-    push!(d._primal_constraint_value, 0.0)
     MOI.add_constraint(d._model._input_model, f, s)
 end
 function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECVAR},
                                                              S<:Union{SOC_CONE, PSD_CONE}}
-    append!(d._primal_constraint_value, zeros(MOI.dimension(s)))
+    append!(d._constraint_primal, zeros(MOI.dimension(s)))
     MOI.add_constraint(d._model._input_model, f, s)
 end
 
@@ -198,7 +225,6 @@ end
 
 MOI.supports(d::Optimizer, ::MOI.NLPBlock) = true
 function MOI.set(d::Optimizer, ::MOI.NLPBlock, nlp_data)
-    # TODO: Update d._primal_constraint_value
     d._model._nlp_data = nlp_data
     return
 end

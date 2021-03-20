@@ -25,15 +25,15 @@ function _unpack_final_subsolve!(m::Optimizer, opt::T; adjust_bnd::Bool = true) 
 
     # TODO: ASSUMES NO BRIDGING NECESSARY, MAY NEED TO ADD SUPPORT LATER FOR BRIDGES
     m._termination_status_code = MOI.get(opt, MOI.TerminationStatus())
-    m._result_status_code = MOI.get(opt, MOI.PrimalStatus())
+    m._primal_status_code = MOI.get(opt, MOI.PrimalStatus())
 
     if MOI.get(opt, MOI.ResultCount()) > 0
-        variable_indices = [m._input_to_local_map[vi] for vi in MOI.get(opt, MOI.ListOfVariableIndices())]
+        variable_indices = [m._input_to_solution_map[vi] for vi in MOI.get(opt, MOI.ListOfVariableIndices())]
         m._solution = MOI.get(opt, MOI.VariablePrimal(), variable_indices)
         for (F, S) in MOI.get(m, MOI.ListOfConstraints())
             if !(F == SV)
                 for ci in MOI.get(m, MOI.ListOfConstraintIndices{F,S}())
-                    subsolver_ci = m._input_to_local_map[ci]
+                    subsolver_ci = m._input_to_solution_map[ci]
                     primal_val = MOI.get(opt, MOI.ConstraintPrimal(), subsolver_ci)
                      _set_cons_primal!(m, ci, primal_val)
                  end
@@ -72,11 +72,11 @@ for (T, optimizer_field) in ((LP, :lp_optimizer),
         bridged_opt = MOI.instantiate(Hypatia.Optimizer, with_bridge_type = Float64)
         #set_config!(m, opt)
         #bridged_opt = _bridge_optimizer(Val{$T}(), opt)
-        m._input_to_local_map = MOI.copy_to(bridged_opt,
-                                            m._input_problem;
-                                            copy_names = false)
+        m._input_to_solution_map = MOI.copy_to(bridged_opt,
+                                               _input_model(m);
+                                               copy_names = false)
 
-        if m.verbosity < 5
+        if _verbosity(m) < 5
             MOI.set(bridged_opt, MOI.Silent(), true)
         end
         m._parse_time = time() - m._start_time
