@@ -41,7 +41,7 @@ function MOI.get(m::Optimizer, v::MOI.PrimalStatus)
 end
 MOI.get(m::Optimizer, ::MOI.SolveTime) = m._run_time
 MOI.get(m::Optimizer, ::MOI.NodeCount) = m._node_count
-MOI.get(m::Optimizer, ::MOI.ResultCount) = (m._result_status_code === MOI.FEASIBLE_POINT) ? 1 : 0
+MOI.get(m::Optimizer, ::MOI.ResultCount) = (m._primal_status_code === MOI.FEASIBLE_POINT) ? 1 : 0
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 function MOI.set(m::Optimizer, ::MOI.Silent, b::Bool)
@@ -66,34 +66,34 @@ end
 
 for attr in (MOI.ListOfVariableIndices, MOI.ListOfConstraints)
     @eval function MOI.get(m::Optimizer, ::$attr)
-        MOI.get(m._model, $attr())
+        MOI.get(m._model._input_model, $attr())
     end
 end
 
 for attr in (MOI.ListOfConstraintAttributesSet, MOI.ListOfConstraintIndices)
     @eval function MOI.get(d::Optimizer, ::$attr{F,S}) where {F,S}
-        return MOI.get(d._model, $attr{F,S}())
+        return MOI.get(d._model._input_model, $attr{F,S}())
     end
 end
 
 for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{SV,ZO})
-        return MOI.get(d._model, $attr(), ci)
+        return MOI.get(d._model._input_model, $attr(), ci)
     end
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT,GT,ET,IT}}
-        return MOI.get(d._model, $attr(), ci)
+        return MOI.get(d._model._input_model, $attr(), ci)
     end
     @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
-        return MOI.get(d._model, $attr(), ci)
+        return MOI.get(d._mode._input_modell, $attr(), ci)
     end
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,S}, v) where  S <: Union{ZO, MOI.Integer}
-        return MOI.get(d._model, $attr(), ci, v)
+        return MOI.get(d._model._input_model, $attr(), ci, v)
     end
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT,GT,ET,IT}}
-        return MOI.get(d._model, $attr(), ci, v)
+        return MOI.get(d._model._input_model, $attr(), ci, v)
     end
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{SOC_CONE, PSD_CONE}}
-        return MOI.get(d._model, $attr(), ci, v)
+        return MOI.get(d._model._input_model, $attr(), ci, v)
     end
 end
 
