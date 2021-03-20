@@ -3,17 +3,17 @@ Base.@kwdef mutable struct GlobalOptimizerOptions
 
     # Subsolver Options
     "Subsolver used to solve linear programs"
-    lp_optimizer::MOI.AbstractOptimizer                 = GLPK.Optimizer()
+    lp_optimizer::MOI.OptimizerWithAttributes = MOI.OptimizerWithAttributes(GLPK.Optimizer)
     "Subsolver used to solve mixed-integer linear programs"
-    mip_optimizer::MOI.AbstractOptimizer                = GLPK.Optimizer()
+    mip_optimizer::MOI.OptimizerWithAttributes = MOI.OptimizerWithAttributes(GLPK.Optimizer)
     "Subsolver used to solve second-order conic programs"
-    socp_optimizer::MOI.AbstractOptimizer               = Hypatia.Optimizer()
+    socp_optimizer::MOI.OptimizerWithAttributes = MOI.OptimizerWithAttributes(Hypatia.Optimizer)
     "Semidefinite Programming Optimizer"
-    semidefinite_optimizer::MOI.AbstractOptimizer       = Hypatia.Optimizer()
+    semidefinite_optimizer::MOI.OptimizerWithAttributes = MOI.OptimizerWithAttributes(Hypatia.Optimizer)
     "Subsolver used to locally solve nonlinear programs"
-    nlp_optimizer::MOI.AbstractOptimizer                = Ipopt.Optimizer()
+    nlp_optimizer::MOI.OptimizerWithAttributes = MOI.OptimizerWithAttributes(Ipopt.Optimizer)
     "Subsolver used to locally solve mixed-integer nonlinear programs "
-    minlp_optimizer::MOI.AbstractOptimizer              = Pavito.Optimizer()
+    minlp_optimizer::MOI.OptimizerWithAttributes = MOI.OptimizerWithAttributes(Pavito.Optimizer)
 
     # set as a user-specified option (if empty set to all nonlinear by TODO in TODO)
     obbt_variable_values::Vector{Bool} = Bool[]

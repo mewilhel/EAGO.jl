@@ -51,14 +51,14 @@ const SDP_FUNC_SET = Union{Tuple{MOI.VectorOfVariables, MOI.PositiveSemidefinite
                            Tuple{MOI.VectorOfVariables, MOI.LogDetConeSquare}}
 
 _in_prob(::Val{LP}, S, T)   = Tuple{S, T} <: LINEAR_FUNC_SET{Float64}
-_in_prob(::Val{MILP}, S, T) = _in_linear(S, T) | (Tuple{S, T} <: INTEGER_FUNC_SET{Float64})
-_in_prob(::Val{SOCP}, S, T) = _in_linear(S, T) | (Tuple{S, T} <: CONE_FUNC_SET)
-_in_prob(::Val{SDP}, S, T)  = _in_socp(S, T) | (Tuple{S, T} <: SDP_FUNC_SET)
+_in_prob(::Val{MILP}, S, T) = _in_prob(Val{LP}(), S, T) | (Tuple{S, T} <: INTEGER_FUNC_SET{Float64})
+_in_prob(::Val{SOCP}, S, T) = _in_prob(Val{LP}(), S, T) | (Tuple{S, T} <: CONE_FUNC_SET)
+_in_prob(::Val{SDP}, S, T)  = _in_prob(Val{SOCP}(), S, T) | (Tuple{S, T} <: SDP_FUNC_SET)
 
 for F in (LP, MILP, SOCP, SDP)
-    @eval function _parse_classify_problem(::Val{LP}, m::Optimizer)
+    @eval function _parse_classify_problem(::Val{$F}, m::Optimizer)
         ip = _input_model(m)
-        flag &= isempty(filter(x -> !_in_prob(Val{$F}(), x[1], x[2]), MOI.get(ip, MOI.ListOfConstraints())))
+        flag = isempty(filter(x -> !_in_prob(Val{$F}(), x[1], x[2]), MOI.get(ip, MOI.ListOfConstraints())))
         flag &= _input_nlp_data(m) === nothing
         if flag
             m._problem_type = $F

@@ -46,42 +46,39 @@ function _unpack_final_subsolve!(m::Optimizer, opt::T; adjust_bnd::Bool = true) 
     return nothing
 end
 
-_bridge_optimizer(::Val{LP}, m) = MOIB.full_bridge_optimizer(m, Float64)
-_bridge_optimizer(::Val{MILP}, m) = MOIB.full_bridge_optimizer(m, Float64)
-_bridge_optimizer(::Val{SOCP}, m) = MOIB.full_bridge_optimizer(m, Float64)
-_bridge_optimizer(::Val{SDP}, m) = MOIB.full_bridge_optimizer(m, Float64)
-
+for S in (LP, MILP, SOCP, SDP)
+    @eval _bridge_optimizer!(v::Val{$S}, m) = nothing
+end
 for S in (DIFF_CVX, MICVX)
-    @eval function _bridge_optimizer(::Val{$S}, m)
-        opt = MOIB.full_bridge_optimizer(m, Float64)
-        MOIB.add_bridge(opt, MOIB.Constraint.SOCtoNonConvexQuadBridge{Float64})
-        MOIB.add_bridge(opt, MOIB.Constraint.RSOCtoNonConvexQuadBridge{Float64})
-        return opt
+    @eval function _bridge_optimizer!(v::Val{$S}, m)
+        MOIB.add_bridge(m, MOIB.Constraint.SOCtoNonConvexQuadBridge{Float64})
+        MOIB.add_bridge(m, MOIB.Constraint.RSOCtoNonConvexQuadBridge{Float64})
+        return
     end
 end
 
-for (T, optimizer_field) in ((LP, :lp_optimizer),
-                             (MILP, :mip_optimizer),
-                             (SOCP, :socp_optimizer),
-                             (SDP, :semidefinite_optimizer),
-                             (DIFF_CVX, :nlp_optimizer),
-                             (MICVX, :minlp_optimizer))
+for (T, sub_optimizer) in ((LP, :_lp_optimizer),
+                            (MILP, :_mip_optimizer),
+                            (SOCP, :_socp_optimizer),
+                            (SDP, :_semidefinite_optimizer),
+                            (DIFF_CVX, :_nlp_optimizer),
+                            (MICVX, :_minlp_optimizer))
 
     @eval function optimize!(::Val{$T}, m::Optimizer)
 
-        bridged_opt = MOI.instantiate(Hypatia.Optimizer, with_bridge_type = Float64)
+        opt = MOI.instantiate(($sub_optimizer)(m), with_bridge_type = Float64)
         #set_config!(m, opt)
-        #bridged_opt = _bridge_optimizer(Val{$T}(), opt)
-        m._input_to_solution_map = MOI.copy_to(bridged_opt,
+        _bridge_optimizer!(Val{$T}(), opt)
+        m._input_to_solution_map = MOI.copy_to(opt,
                                                _input_model(m);
                                                copy_names = false)
 
         if _verbosity(m) < 5
-            MOI.set(bridged_opt, MOI.Silent(), true)
+            MOI.set(opt, MOI.Silent(), true)
         end
         m._parse_time = time() - m._start_time
 
-        MOI.optimize!(bridged_opt)
-        _unpack_final_subsolve!(m, bridged_opt)
+        MOI.optimize!(opt)
+        _unpack_final_subsolve!(m, opt)
     end
 end

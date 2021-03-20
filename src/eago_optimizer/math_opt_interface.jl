@@ -215,7 +215,6 @@ function MOI.add_constraint(d::Optimizer, f::SV, s::S) where {S<:Union{ZO, MOI.I
 end
 function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECVAR},
                                                              S<:Union{SOC_CONE, PSD_CONE}}
-    append!(d._constraint_primal, zeros(MOI.dimension(s)))
     MOI.add_constraint(d._model._input_model, f, s)
 end
 

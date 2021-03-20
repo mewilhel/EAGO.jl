@@ -100,7 +100,7 @@ module EAGO
     include("eago_optimizer/domain_reduction.jl")
 
     #
-    include("eago_optimizer/parse.jl")
+    include("eago_optimizer/parse_classify.jl")
 
     #
     include("eago_optimizer/logging/log_iteration.jl")
