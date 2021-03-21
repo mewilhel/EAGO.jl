@@ -16,41 +16,33 @@ Stores information associated with each node in Branch & Bound tree.
 
 $(TYPEDFIELDS)
 """
-struct NodeBB
+struct NodeBB{N,T<:AbstractFloat}
     "Lower bounds of variable box."
-    lower_variable_bound::Vector{Float64}
+    lower_variable_bound::NTuple{N,T}
     "Upper bounds of variable box."
-    upper_variable_bound::Vector{Float64}
+    upper_variable_bound::NTuple{N,T}
     "Lower bound of problem solution on nodeBB"
-    lower_bound::Float64
+    lower_bound::T
     "Upper bound of problem solution on nodeBB"
-    upper_bound::Float64
+    upper_bound::T
     "Depth of node in B&B tree."
-    depth::Int64
+    depth::Int
     "Unique id for each node."
-    id::Int64
+    id::Int
 end
 
 # Constructors
-NodeBB() = NodeBB(Float64[], Float64[], -Inf, Inf, 0, 1)
-NodeBB(x::NodeBB) = NodeBB(x.lower_variable_bound, x.upper_variable_bound,
-                           x.lower_bound, x.upper_bound, x.depth, x.id)
+NodeBB{N,T}() = NodeBB(ntuple(x->zero(T), N), ntuple(x->zero(T), N), -Inf, Inf, 0, 1)
+NodeBB(x::NodeBB{N,T}) = NodeBB{N,T}(x.lower_variable_bound, x.upper_variable_bound,
+                                     x.lower_bound, x.upper_bound, x.depth, x.id)
 
 # Copy utilities
-Base.copy(x::NodeBB) = NodeBB(copy(x.lower_variable_bound),
-                              copy(x.upper_variable_bound),
-                              x.lower_bound, x.upper_bound, x.depth, x.id)
-
-# using alternative name as to not interfere with ordering...
-function uninitialized(x::NodeBB)
-    flag = isempty(x.lower_variable_bound)
-    flag &= isempty(x.upper_variable_bound)
-    flag &= x.lower_bound === -Inf
-    flag &= x.upper_bound === Inf
-    flag &= x.depth === 0
-    flag &= x.id === 1
-    return flag
-end
+Base.copy(x::NodeBB) = NodeBB(x.lower_variable_bound,
+                              x.upper_variable_bound,
+                              x.lower_bound,
+                              x.upper_bound,
+                              x.depth,
+                              x.id)
 
 # Access functions for broadcasting data easily
 lower_variable_bound(x::NodeBB) = x.lower_variable_bound
@@ -65,11 +57,11 @@ depth(x::NodeBB) = x.depth
 
 # Iterations Functions
 Base.isless(x::NodeBB, y::NodeBB) = x.lower_bound < y.lower_bound
-Base.length(x::NodeBB) = length(x.lower_variable_bound)
-function Base.isempty(x::NodeBB)
-    for i = 1:length(x)
-        @inbounds lower = x.lower_variable_bound[i]
-        @inbounds upper = x.upper_variable_bound[i]
+Base.length(x::NodeBB{N,T}) where {N,T} = N
+function Base.isempty(x::NodeBB{N,T}) where {N,T}
+    for i = 1:N
+        lower = @inbounds x.lower_variable_bound[i]
+        upper = @inbounds x.upper_variable_bound[i]
         (lower > upper) && (return true)
     end
     return false
@@ -80,10 +72,8 @@ $(FUNCTIONNAME)
 
 Checks that node `x` and `y` have equal domains withing a tolerance of `atol`.
 """
-function same_box(x::NodeBB, y::NodeBB, r::Float64)
-    (isempty(x.lower_variable_bound) ⊻ isempty(y.lower_variable_bound)) && (return false)
-    (isempty(x.upper_variable_bound) ⊻ isempty(y.upper_variable_bound)) && (return false)
-    for i = 1:length(x)
+function same_box(x::NodeBB{N,T}, y::NodeBB{N,T}, r::Float64) where {N,T}
+    for i = 1:N
         ~isapprox(x.lower_variable_bound[i], y.lower_variable_bound[i], atol=r) && (return false)
         ~isapprox(x.upper_variable_bound[i], y.upper_variable_bound[i], atol=r) && (return false)
     end

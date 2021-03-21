@@ -1,4 +1,4 @@
-# Copyright (c) 2018: Matthew Wilhelm & Matthew Stuber.
+GlobalOptimizer{N,T}# Copyright (c) 2018: Matthew Wilhelm & Matthew Stuber.
 # This code is licensed under MIT license (see LICENSE.md for full details)
 #############################################################################
 # EAGO
@@ -87,7 +87,7 @@ function set_evaluator_flags!(d, is_post, is_intersect, is_first_eval, interval_
     return nothing
 end
 
-function reset_relaxation!(m::GlobalOptimizer)
+function reset_relaxation!(m::GlobalOptimizer{N,T})
 
     m._working_problem._relaxed_evaluator.is_first_eval = true
     fill!(m._working_problem._relaxed_evaluator.subexpressions_eval, false)
@@ -105,7 +105,7 @@ $(TYPEDSIGNATURES)
 
 Creates an initial node with initial box constraints and adds it to the stack.
 """
-function create_initial_node!(m::GlobalOptimizer)
+function create_initial_node!(m::GlobalOptimizer{N,T})
 
     branch_variable_num = m._branch_variable_num
     lower_bound = zeros(Float64, branch_variable_num)
@@ -135,7 +135,7 @@ $(TYPEDSIGNATURES)
 Loads variables, linear constraints, and empty storage for first nlp and
 quadratic cut.
 """
-function load_relaxed_problem!(m::GlobalOptimizer)
+function load_relaxed_problem!(m::GlobalOptimizer{N,T})
 
     opt = m.relaxed_optimizer
 
@@ -218,7 +218,7 @@ function _add_conic_constraints!(opt::T, ip) where T
     return nothing
 end
 
-function presolve_global!(t::ExtensionType, m::GlobalOptimizer)
+function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T})
 
     ip = _input_problem(m)
     wp = _working_problem(m)
@@ -301,7 +301,7 @@ $(SIGNATURES)
 
 Selects node with the lowest lower bound in stack.
 """
-function node_selection!(t::ExtensionType, m::GlobalOptimizer)
+function node_selection!(t::ExtensionType, m::GlobalOptimizer{N,T})
     m._node_count -= 1
     m._current_node = popmin!(m._stack)
     return nothing
@@ -318,7 +318,7 @@ the midpoint of the node. If this solution lies within `branch_offset/width` of
 a bound then the branch point is moved to a distance of `branch_offset/width`
 from the bound.
 """
-function branch_node!(t::ExtensionType, m::GlobalOptimizer)
+function branch_node!(t::ExtensionType, m::GlobalOptimizer{N,T})
 
     n = m._current_node
 
@@ -394,7 +394,7 @@ $(SIGNATURES)
 
 Stores the current node to the stack after updating lower/upper bounds.
 """
-function single_storage!(t::ExtensionType, m::GlobalOptimizer)
+function single_storage!(t::ExtensionType, m::GlobalOptimizer{N,T})
     y = m._current_node
     m._node_repetitions += 1
     m._node_count += 1
@@ -412,7 +412,7 @@ $(SIGNATURES)
 Selects and deletes nodes from stack with lower bounds greater than global
 upper bound.
 """
-function fathom!(t::ExtensionType, m::GlobalOptimizer)
+function fathom!(t::ExtensionType, m::GlobalOptimizer{N,T})
 
     upper = m._global_upper_bound
     continue_flag = !isempty(m._stack)
@@ -446,7 +446,7 @@ $(SIGNATURES)
 
 Checks to see if current node should be reprocessed.
 """
-repeat_check(t::ExtensionType, m::GlobalOptimizer) = false
+repeat_check(t::ExtensionType, m::GlobalOptimizer{N,T}) = false
 
 relative_gap(L::Float64, U::Float64) = ((L > -Inf) && (U < Inf)) ?  abs(U - L)/(max(abs(L), abs(U))) : Inf
 relative_tolerance(L::Float64, U::Float64, tol::Float64) = relative_gap(L, U)  > tol || ~(L > -Inf)
@@ -458,7 +458,7 @@ Checks for termination of algorithm due to satisfying absolute or relative
 tolerance, infeasibility, or a specified limit, returns a boolean valued true
 if algorithm should continue.
 """
-function termination_check(t::ExtensionType, m::GlobalOptimizer)
+function termination_check(t::ExtensionType, m::GlobalOptimizer{N,T})
 
     node_in_stack = length(m._stack)
     L = m._global_lower_bound
@@ -521,7 +521,7 @@ $(SIGNATURES)
 Checks for convergence of algorithm with respect to absolute and/or relative
 tolerances.
 """
-function convergence_check(t::ExtensionType, m::GlobalOptimizer)
+function convergence_check(t::ExtensionType, m::GlobalOptimizer{N,T})
 
   L = m._lower_objective_value
   U = m._global_upper_bound
@@ -614,7 +614,7 @@ Retrieves the lower and upper duals for variable bounds from the
 `relaxed_optimizer` and sets the appropriate values in the
 `_lower_lvd` and `_lower_uvd` storage fields.
 """
-function set_dual!(m::GlobalOptimizer)
+function set_dual!(m::GlobalOptimizer{N,T})
     opt = m.relaxed_optimizer
     foreach(t -> (m._lower_uvd[t[2]] = MOI.get(opt, MOI.ConstraintDual(), t[1]);), m._relaxed_variable_lt)
     foreach(t -> (m._lower_lvd[t[2]] = MOI.get(opt, MOI.ConstraintDual(), t[1]);), m._relaxed_variable_gt)
@@ -628,7 +628,7 @@ Runs interval, linear, quadratic contractor methods followed by obbt and a
 constraint programming walk up to tolerances specified in
 `EAGO.GlobalOptimizer` object.
 """
-function preprocess!(t::ExtensionType, m::GlobalOptimizer)
+function preprocess!(t::ExtensionType, m::GlobalOptimizer{N,T})
 
     reset_relaxation!(m)
 
@@ -704,7 +704,7 @@ Updates the relaxed constraint by setting the constraint set of `v == x*`` ,
 `xL_i <= x_i`, and `x_i <= xU_i` for each such constraint added to the relaxed
 optimizer.
 """
-function update_relaxed_problem_box!(m::GlobalOptimizer)
+function update_relaxed_problem_box!(m::GlobalOptimizer{N,T})
     opt = m.relaxed_optimizer
     lb = _lower_variable_bound(m)
     ub = _upper_variable_bound(m)
@@ -716,7 +716,7 @@ function update_relaxed_problem_box!(m::GlobalOptimizer)
     return nothing
 end
 
-function interval_objective_bound(m::GlobalOptimizer, n::NodeBB)
+function interval_objective_bound(m::GlobalOptimizer{N,T}, n::NodeBB)
 
     interval_objective_bound = bound_objective(m)
 
@@ -731,17 +731,17 @@ function interval_objective_bound(m::GlobalOptimizer, n::NodeBB)
     return false
 end
 
-_is_feas(m::GlobalOptimizer, x::AffineFunctionIneq, n) = lower_interval_bound(m, x, n) <= 0.0
-_is_feas(m::GlobalOptimizer, x::BufferedQuadraticIneq, n) = lower_interval_bound(m, x, n) <= 0.0
-function _is_feas(m::GlobalOptimizer, x::AffineFunctionEq, n)
+_is_feas(m::GlobalOptimizer{N,T}, x::AffineFunctionIneq, n) = lower_interval_bound(m, x, n) <= 0.0
+_is_feas(m::GlobalOptimizer{N,T}, x::BufferedQuadraticIneq, n) = lower_interval_bound(m, x, n) <= 0.0
+function _is_feas(m::GlobalOptimizer{N,T}, x::AffineFunctionEq, n)
     lower_value, upper_value = interval_bound(m, x, n)
     return lower_value <= 0.0 <= upper_value
 end
-function _is_feas(m::GlobalOptimizer, x::BufferedQuadraticEq, n)
+function _is_feas(m::GlobalOptimizer{N,T}, x::BufferedQuadraticEq, n)
     lower_value, upper_value = interval_bound(m, x, n)
     return lower_value <= 0.0 <= upper_value
 end
-function _is_feas(m::GlobalOptimizer, x::NonlinearExpression, n)
+function _is_feas(m::GlobalOptimizer{N,T}, x::NonlinearExpression, n)
     lower_value, upper_value = interval_bound(m, x, n)
     feasible_flag &= upper_value < x.lower_bound
     feasible_flag &= lower_value > x.upper_bound
@@ -756,7 +756,7 @@ calculation. This is called when the optimizer used to compute the lower bound
 does not return a termination and primal status code indicating that it
 successfully solved the relaxation to a globally optimal point.
 """
-function fallback_interval_lower_bound!(m::GlobalOptimizer, n::NodeBB)
+function fallback_interval_lower_bound!(m::GlobalOptimizer{N,T}, n::NodeBB)
 
     feas = true
     wp = _working_problem(m)
@@ -806,7 +806,7 @@ $(SIGNATURES)
 Constructs and solves the relaxation using the default EAGO relaxation scheme
 and optimizer on node `y`.
 """
-function lower_problem!(t::ExtensionType, m::GlobalOptimizer)
+function lower_problem!(t::ExtensionType, m::GlobalOptimizer{N,T})
 
     n = m._current_node
 
@@ -841,7 +841,7 @@ $(SIGNATURES)
 
 Updates the internal storage in the optimizer after a valid feasible cut is added.
 """
-function cut_update!(m::GlobalOptimizer)
+function cut_update!(m::GlobalOptimizer{N,T})
 
     m._cut_feasibility = true
 
@@ -878,7 +878,7 @@ cut at. If no cut should be added the constraints not modified in place are
 deleted from the relaxed optimizer and the solution is compared with the
 interval lower bound. The best lower bound is then used.
 """
-function cut_condition(t::ExtensionType, m::GlobalOptimizer)
+function cut_condition(t::ExtensionType, m::GlobalOptimizer{N,T})
 
     # always add cut if below the minimum iteration limit, otherwise add cut
     # the number of cuts is less than the maximum and the distance between
@@ -928,7 +928,7 @@ $(SIGNATURES)
 
 Adds a cut for each constraint and the objective function to the subproblem.
 """
-function add_cut!(t::ExtensionType, m::GlobalOptimizer)
+function add_cut!(t::ExtensionType, m::GlobalOptimizer{N,T})
 
     fill!(m._working_problem._relaxed_evaluator.subexpressions_eval, false)
     m._working_problem._relaxed_evaluator.is_first_eval = true
@@ -968,7 +968,7 @@ The upper bounding problem is run on every node up to depth `upper_bounding_dept
 and is triggered with a probability of `0.5^(depth - upper_bounding_depth)`
 afterwards.
 """
-function default_nlp_heurestic(m::GlobalOptimizer)
+function default_nlp_heurestic(m::GlobalOptimizer{N,T})
     bool = false
     ubd_limit = m.upper_bounding_depth
     depth = m._current_node.depth
@@ -983,7 +983,7 @@ $(SIGNATURES)
 Default upper bounding problem which simply calls `solve_local_nlp!` to solve
 the nlp locally.
 """
-function upper_problem!(t::ExtensionType, m::GlobalOptimizer)
+function upper_problem!(t::ExtensionType, m::GlobalOptimizer{N,T})
 
     if !default_nlp_heurestic(m)
         m._upper_feasibility = false
@@ -1003,7 +1003,7 @@ $(SIGNATURES)
 
 Default postprocess perfoms duality-based bound tightening on the `y`.
 """
-function postprocess!(t::ExtensionType, m::GlobalOptimizer)
+function postprocess!(t::ExtensionType, m::GlobalOptimizer{N,T})
 
     if m.dbbt_depth > m._iteration_count
         variable_dbbt!(m._current_node, m._lower_lvd, m._lower_uvd,
@@ -1020,9 +1020,9 @@ $(SIGNATURES)
 Provides a hook for extensions to EAGO as opposed to standard global, local,
 or linear solvers.
 """
-optimize_hook!(t::ExtensionType, m::GlobalOptimizer) = nothing
+optimize_hook!(t::ExtensionType, m::GlobalOptimizer{N,T}) = nothing
 
-function store_candidate_solution!(m::GlobalOptimizer)
+function store_candidate_solution!(m::GlobalOptimizer{N,T})
 
     if m._upper_feasibility && (m._upper_objective_value < m._global_upper_bound)
 
@@ -1036,7 +1036,7 @@ function store_candidate_solution!(m::GlobalOptimizer)
     return nothing
 end
 
-function set_global_lower_bound!(m::GlobalOptimizer)
+function set_global_lower_bound!(m::GlobalOptimizer{N,T})
 
     if !isempty(m._stack)
 
@@ -1052,22 +1052,22 @@ function set_global_lower_bound!(m::GlobalOptimizer)
 end
 
 # wraps subroutine call to isolate ExtensionType
-parse_global!(m::GlobalOptimizer{T}) where T = parse_global!(m.ext_type, m)
-presolve_global!(m::GlobalOptimizer{T}) where T = presolve_global!(m.ext_type, m)
-termination_check(m::GlobalOptimizer{T}) where T = termination_check(m.ext_type, m)
-cut_condition(m::GlobalOptimizer{T}) where T = cut_condition(m.ext_type, m)
-convergence_check(m::GlobalOptimizer{T}) where T = convergence_check(m.ext_type, m)
-repeat_check(m::GlobalOptimizer{T}) where T = repeat_check(m.ext_type, m)
-node_selection!(m::GlobalOptimizer{T}) where T = node_selection!(m.ext_type, m)
-preprocess!(m::GlobalOptimizer{T}) where T = preprocess!(m.ext_type, m)
-lower_problem!(m::GlobalOptimizer{T}) where T = lower_problem!(m.ext_type, m)
-add_cut!(m::GlobalOptimizer{T}) where T = add_cut!(m.ext_type, m)
-upper_problem!(m::GlobalOptimizer{T}) where T = upper_problem!(m.ext_type, m)
-postprocess!(m::GlobalOptimizer{T}) where T = postprocess!(m.ext_type, m)
-single_storage!(m::GlobalOptimizer{T}) where T = single_storage!(m.ext_type, m)
-branch_node!(m::GlobalOptimizer{T}) where T = branch_node!(m.ext_type, m)
-fathom!(m::GlobalOptimizer{T}) where T = fathom!(m.ext_type, m)
-revert_adjusted_upper_bound!(m::GlobalOptimizer{T}) where T = revert_adjusted_upper_bound!(m.ext_type, m)
+parse_global!(m::GlobalOptimizer{N,T}) where T = parse_global!(m.ext_type, m)
+presolve_global!(m::GlobalOptimizer{N,T}) where T = presolve_global!(m.ext_type, m)
+termination_check(m::GlobalOptimizer{N,T}) where T = termination_check(m.ext_type, m)
+cut_condition(m::GlobalOptimizer{N,T}) where T = cut_condition(m.ext_type, m)
+convergence_check(m::GlobalOptimizer{N,T}) where T = convergence_check(m.ext_type, m)
+repeat_check(m::GlobalOptimizer{N,T}) where T = repeat_check(m.ext_type, m)
+node_selection!(m::GlobalOptimizer{N,T}) where T = node_selection!(m.ext_type, m)
+preprocess!(m::GlobalOptimizer{N,T}) where T = preprocess!(m.ext_type, m)
+lower_problem!(m::GlobalOptimizer{N,T}) where T = lower_problem!(m.ext_type, m)
+add_cut!(m::GlobalOptimizer{N,T}) where T = add_cut!(m.ext_type, m)
+upper_problem!(m::GlobalOptimizer{N,T}) where T = upper_problem!(m.ext_type, m)
+postprocess!(m::GlobalOptimizer{N,T}) where T = postprocess!(m.ext_type, m)
+single_storage!(m::GlobalOptimizer{N,T}) where T = single_storage!(m.ext_type, m)
+branch_node!(m::GlobalOptimizer{N,T}) where T = branch_node!(m.ext_type, m)
+fathom!(m::GlobalOptimizer{N,T}) where T = fathom!(m.ext_type, m)
+revert_adjusted_upper_bound!(m::GlobalOptimizer{N,T}) where T = revert_adjusted_upper_bound!(m.ext_type, m)
 
 """
 $(TYPEDSIGNATURES)

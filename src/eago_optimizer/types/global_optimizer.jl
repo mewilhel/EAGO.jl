@@ -1,4 +1,8 @@
-Base.@kwdef mutable struct GlobalOptimizer <: MOI.AbstractOptimizer
+Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.AbstractOptimizer
+
+        _ext_type::S = S()
+        _stack::BinaryMinMaxHeap{NodeBB{N,T}} = BinaryMinMaxHeap{NodeBB{N,T}}()
+        _current_node::NodeBB{N,T} = NodeBB{N,T}()
 
         _input_to_local_map::MOIU.IndexMap                            = MOIU.IndexMap()
         _constraint_primal::Dict{CI,Union{Float64,Vector{Float64}}}   = Dict{CI,Float64}()
@@ -7,11 +11,6 @@ Base.@kwdef mutable struct GlobalOptimizer <: MOI.AbstractOptimizer
         _constraint_row_num::Int = 0
         # loaded from _input_problem by TODO
         #_working_problem::ParsedProblem = ParsedProblem()
-
-        _stack::BinaryMinMaxHeap{NodeBB} = BinaryMinMaxHeap{NodeBB}()
-
-        # set in node_selection!
-        _current_node::NodeBB = NodeBB()
 
         _first_relax_point_set::Bool = false
         _current_xref::Vector{Float64} = Float64[]
@@ -158,15 +157,16 @@ Base.@kwdef mutable struct GlobalOptimizer <: MOI.AbstractOptimizer
         #_relaxed_evaluator::Evaluator = Evaluator{1,NS}()
         #_relaxed_constraint_bounds::Vector{MOI.NLPBoundsPair} = Vector{MOI.NLPBoundsPair}[]
 end
+GlobalOptimizer() = GlobalOptimizer{1,Float64,DefaultExt}()
 
-function MOI.is_empty(m::GlobalOptimizer)
+function MOI.is_empty(m::GlobalOptimizer{N,T}) where {N,T}
     empty_opt = GlobalOptimizer()
     is_empty_flag = true
     for f in fieldnames(GlobalOptimizer)
         if f == :_stack
             is_empty_flag &= isempty(getfield(m, f))
         elseif f == :_current_node
-            is_empty_flag &= getfield(m, f) != NodeBB()
+            is_empty_flag &= getfield(m, f) != NodeBB{N,T}()
         elseif f == :_log
         else
             if getfield(empty_opt, f) != getfield(m, f)

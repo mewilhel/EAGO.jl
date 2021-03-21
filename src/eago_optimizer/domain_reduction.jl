@@ -22,19 +22,19 @@ function variable_dbbt!(n::NodeBB, mult_lo::Vector{Float64}, mult_hi::Vector{Flo
     lvbs = n.lower_variable_bound
     uvbs = n.upper_variable_bound
     if LBD <= UBD
-        for i = 1:nx
-            ml = @inbounds mult_lo[i]
+        @inbounds for i = 1:nx
+            ml = mult_lo[i]
             if ml > 0.0
-                cut = @inbounds lvbs[i] + delta/ml
-                if cut < @inbounds uvbs[i]
-                    @inbounds uvbs[i] = cut
+                cut = lvbs[i] + delta/ml
+                if cut < uvbs[i]
+                    uvbs[i] = cut
                 end
             else
-                mh = @inbounds mult_hi[i]
+                mh = mult_hi[i]
                 if mh > 0.0
-                    cut = @inbounds uvbs[i] - delta/mh
-                    if cut > @inbounds lvbs[i]
-                        @inbounds lvbs[i] = cut
+                    cut = uvbs[i] - delta/mh
+                    if cut > lvbs[i]
+                        lvbs[i] = cut
                     end
                 end
             end
@@ -49,32 +49,31 @@ end
 
 Excludes OBBT on variable indices that are tight for the solution of the relaxation.
 """
-function trivial_filtering!(m::Optimizer, n::NodeBB)
+function trivial_filtering!(m::GlobalOptimizer, n::NodeBB)
 
-    obbt_tolerance = m.obbt_tolerance
     m._preprocess_termination_status = MOI.get(m.relaxed_optimizer, MOI.TerminationStatus())
     m._preprocess_result_status = MOI.get(m.relaxed_optimizer, MOI.PrimalStatus())
     valid_flag, feasible_flag = is_globally_optimal(m._preprocess_termination_status,
                                                     m._preprocess_result_status)
 
     if valid_flag && feasible_flag
-        for j = 1:length(m._obbt_working_lower_index)
-            if @inbounds m._obbt_working_lower_index[j]
-                vi = @inbounds m._relaxed_variable_index[j]
+        @inbounds for j = 1:length(m._obbt_working_lower_index)
+            if m._obbt_working_lower_index[j]
+                vi = m._relaxed_variable_index[j]
                 diff = MOI.get(m.relaxed_optimizer, MOI.VariablePrimal(), vi)
-                diff -= @inbounds n.lower_variable_bound[j]
-                if abs(diff) <= obbt_tolerance
-                    @inbounds m._obbt_working_lower_index[j] = false
+                diff -= n.lower_variable_bound[j]
+                if abs(diff) <= _obbt_tolerance(m)
+                    m._obbt_working_lower_index[j] = false
                 end
             end
         end
-        for j = 1:length(m._obbt_working_upper_index)
-            if @inbounds m._obbt_working_upper_index[j]
-                vi = @inbounds m._relaxed_variable_index[j]
+        @inbounds for j = 1:length(m._obbt_working_upper_index)
+            if m._obbt_working_upper_index[j]
+                vi = m._relaxed_variable_index[j]
                 diff = -MOI.get(m.relaxed_optimizer, MOI.VariablePrimal(), vi)
-                diff += @inbounds n.upper_variable_bound[j]
-                if abs(diff) <= obbt_tolerance
-                    @inbounds m._obbt_working_upper_index[j] = false
+                diff += n.upper_variable_bound[j]
+                if abs(diff) <= _obbt_tolerance(m)
+                    m._obbt_working_upper_index[j] = false
                 end
             end
         end
@@ -101,7 +100,7 @@ end
 
 Excludes OBBT on variable indices after a search in a filtering direction.
 """
-function aggressive_filtering!(m::Optimizer, n::NodeBB)
+function aggressive_filtering!(m::GlobalOptimizer, n::NodeBB)
 
     # Initial filtering vector (negative one direction per remark in Gleixner2017)
     variable_number = m._working_problem._variable_num
@@ -119,8 +118,8 @@ function aggressive_filtering!(m::Optimizer, n::NodeBB)
         if @inbounds m._new_low_index[i] && @inbounds n.lower_variable_bound[i] === -Inf
             @inbounds m._new_low_index[i] = false
         end
-        if @inbounds m._new_low_index[i] && @inbounds n.upper_variable_bound[i] === Inf
-            @inbounds m._new_low_index[i] = false
+        if @inbounds m._new_upp_index[i] && @inbounds n.upper_variable_bound[i] === Inf
+            @inbounds m._new_upp_index[i] = false
         end
     end
 
@@ -187,17 +186,15 @@ end
 """
     set_node_flag!
 """
-function set_node_flag!(m::Optimizer)
-    for constr in m._working_problem._nonlinear_constr
-        set_node_flag!(constr)
-    end
+function set_node_flag!(m::GlobalOptimizer)
+    foreach(set_node_flag!, m._working_problem._nonlinear_constr)
     return nothing
 end
 
 """
     set_reference_point!
 """
-function set_reference_point!(m::Optimizer)
+function set_reference_point!(m::GlobalOptimizer)
 
     evaluator = m._working_problem._relaxed_evaluator
     evaluator_x = evaluator.x
@@ -217,9 +214,7 @@ function set_reference_point!(m::Optimizer)
     end
 
     if new_reference_point
-        for constr in m._working_problem._nonlinear_constr
-            constr.has_value = false
-        end
+        foreach(x -> (x.has_value = false;), m._working_problem._nonlinear_constr)
     end
     fill!(evaluator.subexpressions_eval, false)
 
@@ -233,7 +228,7 @@ Performs OBBT with filtering and greedy ordering as detailed in:
 Gleixner, A.M., Berthold, T., Müller, B. et al. J Glob Optim (2017) 67: 731.
 https://doi.org/10.1007/s10898-016-0450-4
 """
-function obbt!(m::Optimizer)
+function obbt!(m::GlobalOptimizer)
 
     feasibility = true
 
@@ -435,15 +430,15 @@ function load_fbbt_buffer!(m::Optimizer)
     lower_variable_bound = n.lower_variable_bound
     upper_variable_bound = n.upper_variable_bound
 
-    for i = 1:m._working_problem._variable_num
-        if @inbounds m._branch_variables[i]
-            indx = @inbounds sol_to_branch[i]
-            @inbounds m._lower_fbbt_buffer[i] = lower_variable_bound[indx]
-            @inbounds m._upper_fbbt_buffer[i] = upper_variable_bound[indx]
+    @inbounds for i = 1:m._working_problem._variable_num
+        if m._branch_variables[i]
+            indx = sol_to_branch[i]
+            m._lower_fbbt_buffer[i] = lower_variable_bound[indx]
+            m._upper_fbbt_buffer[i] = upper_variable_bound[indx]
 
         else
-            @inbounds m._lower_fbbt_buffer[i] = m._working_problem._variable_info[i].lower_bound
-            @inbounds m._upper_fbbt_buffer[i] = m._working_problem._variable_info[i].upper_bound
+            m._lower_fbbt_buffer[i] = m._working_problem._variable_info[i].lower_bound
+            m._upper_fbbt_buffer[i] = m._working_problem._variable_info[i].upper_bound
 
         end
     end

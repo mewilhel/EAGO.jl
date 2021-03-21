@@ -46,9 +46,9 @@ $(FUNCTIONNAME)
 
 Prints node information for the B&B problem. Node id, bound, and interval box.
 """
-function print_node!(m::GlobalOptimizer)
+function print_node!(m::GlobalOptimizer{N,T}) where {N,T<:Real}
     n = m._current_node
-    bound = (m._input_problem._optimization_sense === MOI.MIN_SENSE) ? n.lower_bound : -n.lower_bound
+    bound = _optimization_sense(m) == MOI.MIN_SENSE ? n.lower_bound : -n.lower_bound
     println(" ")
     println("Node ID: $(n.id), Lower Bound: $(bound), Lower Variable Bounds:
              $(n.lower_variable_bound), Upper Variable Bounds: $(n.upper_variable_bound)")
