@@ -12,6 +12,6 @@ from the bound.
 function branch_node!(t::ExtensionType, m::GlobalOptimizer{N,T})
     was_branched = _conic_branch!(t, m)
     !was_branched && (was_branched &= _fractional_integer_branch!(t, m))
-    !was_branched && (was_branched &= _cvx_relative_width_branch!(t, m))
+    !was_branched && (was_branched &= _continuous_branch!(t, m))
     return nothing
 end

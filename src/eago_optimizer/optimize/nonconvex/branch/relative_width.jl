@@ -16,16 +16,10 @@ function _fractional_integer_branch!(t::ExtensionType, m::GlobalOptimizer{N,T}) 
     return false
 end
 
-function _cvx_relative_width_branch!(t::ExtensionType, m::GlobalOptimizer{N,T}) where {N,T}
-    n = m._current_node
-
-    lvbs = m._lower_variable_bound
-    uvbs = m._upper_variable_bound
-
+function _select_branch_variable!(m)
     max_pos = 0
     max_val = -Inf
     temp_max = 0.0
-
     flag = true
     for i = 1:m._branch_variable_num
         si = m._branch_to_sol_map[i]
@@ -39,21 +33,32 @@ function _cvx_relative_width_branch!(t::ExtensionType, m::GlobalOptimizer{N,T}) 
             end
         end
     end
+    return max_pos
+end
 
-    lvb  = lvbs[max_pos]
-    uvb  = uvbs[max_pos]
-    si   = m._branch_to_sol_map[max_pos]
+function _select_branch_point!(m)
+    n = m._current_node
+    lvbs = m._lower_variable_bound
+    uvbs = m._upper_variable_bound
+    lvb  = lvbs[bi]
+    uvb  = uvbs[bi]
+    si   = m._branch_to_sol_map[bi]
     lsol = m._lower_solution[si]
-
     cvx_f = m.branch_cvx_factor
     cvx_g = m.branch_offset
-
-    branch_pnt = cvx_f*lsol + (1.0 - cvx_f)*(lvb + uvb)/2.0
-    if branch_pnt < lvb*(1.0 - cvx_g) + cvx_g*uvb
-        branch_pnt = (1.0 - cvx_g)*lvb + cvx_g*uvb
-    elseif branch_pnt > cvx_g*lvb + (1.0 - cvx_g)*uvb
-        branch_pnt = cvx_g*lvb + (1.0 - cvx_g)*uvb
+    bp = cvx_f*lsol + (1.0 - cvx_f)*(lvb + uvb)/2.0
+    if bp < lvb*(1.0 - cvx_g) + cvx_g*uvb
+        bp = (1.0 - cvx_g)*lvb + cvx_g*uvb
+    elseif bp > cvx_g*lvb + (1.0 - cvx_g)*uvb
+        bp = cvx_g*lvb + (1.0 - cvx_g)*uvb
     end
+    return bp
+end
+
+function _continuous_branch!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
+
+    bi = _select_branch_variable!(m)
+    bp = _select_branch_point!(m)
 
     # rounds into branch points, which in turn prevents the
     # solution at the branch point from being discarded
@@ -62,14 +67,14 @@ function _cvx_relative_width_branch!(t::ExtensionType, m::GlobalOptimizer{N,T}) 
     new_depth = n.depth + 1
 
     m._maximum_node_id += 1
-    uvb_1 = ntuple(i -> (i == max_pos ? nextfloat(branch_pnt) : _lower_branch_bound(m, i)), N)
-    X1 = NodeBB(_lower_branch_bound(m), uvb_1, lower_bound, upper_bound, new_depth, m._maximum_node_id)
-    push!(m._stack, X1)
+    push!(m._stack, NodeBB(_branch_lo(m),
+                           ntuple(i -> (i == bi ? nextfloat(bp) : _branch_hi(m, i)), N),
+                           lower_bound, upper_bound, new_depth, m._maximum_node_id))
 
     m._maximum_node_id += 1
-    lvb_2 = ntuple(i -> (i == max_pos ? prevfloat(branch_pnt) : _lower_branch_bound(m, i)), N)
-    X2 = NodeBB(lvb_2, _upper_branch_bound(m), lower_bound, upper_bound, new_depth, m._maximum_node_id)
-    push!(m._stack, X2)
+    push!(m._stack, NodeBB(ntuple(i -> (i == bi ? prevfloat(bp) : _branch_lo(m, i)), N),
+                           _branch_hi(m),
+                           lower_bound, upper_bound, new_depth, m._maximum_node_id))
 
     m._node_repetitions = 1
     m._node_count += 2

@@ -1,16 +1,3 @@
-function reset_relaxation!(m::GlobalOptimizer{N,T})
-
-    m._working_problem._relaxed_evaluator.is_first_eval = true
-    fill!(m._working_problem._relaxed_evaluator.subexpressions_eval, false)
-
-    m._new_eval_constraint = true
-
-    delete_nl_constraints!(m)
-    delete_objective_cuts!(m)
-
-    return nothing
-end
-
 """
 $(SIGNATURES)
 
@@ -84,9 +71,7 @@ function update_relaxed_problem_box!(m::GlobalOptimizer{N,T})
 end
 
 function interval_objective_bound(m::GlobalOptimizer{N,T}, n::NodeBB)
-
     interval_objective_bound = bound_objective(m)
-
     if interval_objective_bound > m._lower_objective_value
         m._lower_objective_value = interval_objective_bound
         fill!(m._lower_lvd, 0.0)
@@ -94,7 +79,6 @@ function interval_objective_bound(m::GlobalOptimizer{N,T}, n::NodeBB)
         m._cut_add_flag = false
         return true
     end
-
     return false
 end
 

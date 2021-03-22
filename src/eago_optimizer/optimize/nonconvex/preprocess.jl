@@ -1,3 +1,16 @@
+function _reset_relaxation!(m::GlobalOptimizer{N,T})
+
+    m._working_problem._relaxed_evaluator.is_first_eval = true
+    fill!(m._working_problem._relaxed_evaluator.subexpressions_eval, false)
+
+    m._new_eval_constraint = true
+
+    delete_nl_constraints!(m)
+    delete_objective_cuts!(m)
+
+    return nothing
+end
+
 """
 $(SIGNATURES)
 
@@ -7,7 +20,7 @@ constraint programming walk up to tolerances specified in
 """
 function preprocess!(t::ExtensionType, m::GlobalOptimizer{N,T})
 
-    reset_relaxation!(m)
+    _reset_relaxation!(m)
 
     wp = m._working_problem
 
