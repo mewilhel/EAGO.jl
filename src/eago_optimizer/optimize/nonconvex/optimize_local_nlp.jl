@@ -12,6 +12,36 @@
 # solve_local_nlp! are also included.
 #############################################################################
 
+
+"""
+$(SIGNATURES)
+
+Takes an `MOI.TerminationStatusCode` and a `MOI.ResultStatusCode` and returns `true`
+if this corresponds to a solution that is proven to be feasible.
+Returns `false` otherwise.
+"""
+function is_feasible_solution(t::MOI.TerminationStatusCode, r::MOI.ResultStatusCode)
+
+    termination_flag = false
+    result_flag = false
+
+    (t == MOI.OPTIMAL) && (termination_flag = true)
+    (t == MOI.LOCALLY_SOLVED) && (termination_flag = true)
+
+    # This is default solver specific... the acceptable constraint tolerances
+    # are set to the same values as the basic tolerance. As a result, an
+    # acceptably solved solution is feasible but non necessarily optimal
+    # so it should be treated as a feasible point
+    if (t == MOI.ALMOST_LOCALLY_SOLVED) && (r == MOI.NEARLY_FEASIBLE_POINT)
+        termination_flag = true
+        result_flag = true
+    end
+
+    (r == MOI.FEASIBLE_POINT) && (result_flag = true)
+
+    return (termination_flag && result_flag)
+end
+
 """
 
 Shifts the resulting local nlp objective value `f*` by `(1.0 + relative_tolerance/100.0)*f* + absolute_tolerance/100.0`.
@@ -131,6 +161,43 @@ function solve_local_nlp!(m::Optimizer)
     _set_starting_point!(bridged_opt, m)
     MOI.optimize!(bridged_opt)
     _unpack_local_nlp_solve!(m, bridged_opt, idx_map)
+
+    return nothing
+end
+
+"""
+$(SIGNATURES)
+
+Default check to see if the upper bounding problem should be run. By default,
+The upper bounding problem is run on every node up to depth `upper_bounding_depth`
+and is triggered with a probability of `0.5^(depth - upper_bounding_depth)`
+afterwards.
+"""
+function default_nlp_heurestic(m::GlobalOptimizer{N,T})
+    bool = false
+    ubd_limit = m.upper_bounding_depth
+    depth = m._current_node.depth
+    bool |= (depth <= ubd_limit)
+    bool |= (rand() < 0.5^(depth - m.upper_bounding_depth))
+    return bool
+end
+
+"""
+$(SIGNATURES)
+
+Default upper bounding problem which simply calls `solve_local_nlp!` to solve
+the nlp locally.
+"""
+function upper_problem!(t::ExtensionType, m::GlobalOptimizer{N,T}) where {N,T<:Real}
+
+    if !default_nlp_heurestic(m)
+        m._upper_feasibility = false
+        m._upper_objective_value = Inf
+
+    else
+        solve_local_nlp!(m)
+
+    end
 
     return nothing
 end

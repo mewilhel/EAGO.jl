@@ -20,12 +20,14 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         _current_objective_xref::Vector{Float64} = Float64[]
         _prior_objective_xref::Vector{Float64} = Float64[]
 
-        # set in label_branch_variables! and label_fixed_variables! respectively in parse.jl
         _user_branch_variables::Bool = false
         _fixed_variable::Vector{Bool} = Bool[]
         _branch_variable_num::Int = 0
-        _branch_to_sol_map::Vector{Int} = Int[]
-        _sol_to_branch_map::Vector{Int} = Int[]
+        _branch_to_variable_map::Vector{Int} = Int[]
+        _variable_to_branch_map::Vector{Int} = Int[]
+
+        _lower_variable_bound::Vector{Float64} = Float64[]
+        _upper_variable_bound::Vector{Float64} = Float64[]
 
         # all subproblem immutable subproblem status are set in global_solve in corresponding routines
         # in optimize_nonconvex.jl
@@ -40,8 +42,8 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
 
         # set in TODO
         _lower_solution::Vector{Float64} = Float64[]
-        _lower_lvd::Vector{Float64} = Float64[]
-        _lower_uvd::Vector{Float64} = Float64[]
+        _lower_lvd::Vector{Float64}      = Float64[]
+        _lower_uvd::Vector{Float64}      = Float64[]
 
         _cut_result_status::MOI.ResultStatusCode = MOI.OTHER_RESULT_STATUS
         _cut_termination_status::MOI.TerminationStatusCode = MOI.OPTIMIZE_NOT_CALLED

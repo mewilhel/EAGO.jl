@@ -467,3 +467,14 @@ end
 function eliminate_fixed_variables!(f::BufferedNonlinearFunction{V}, v::Vector{VariableInfo}) where V
     eliminate_fixed_variables!(f.expr, v)
 end
+
+
+function set_evaluator_flags!(d, is_post, is_intersect, is_first_eval, interval_intersect)
+
+    d.is_post = is_post
+    d.is_intersect = is_intersect
+    d.is_first_eval = is_first_eval
+    d.interval_intersect = interval_intersect
+
+    return nothing
+end
