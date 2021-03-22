@@ -6,7 +6,7 @@ variable.
 
 $(TYPEDFIELDS)
 """
-Base.@kwdef struct VariableInfo
+Base.@kwdef struct VariableInfo{T<:AbstractFloat}
     "Is the variable integer valued?"
     is_integer::Bool                                            = false
     "Boolean indicating whether finite lower bound exists."
@@ -18,16 +18,16 @@ Base.@kwdef struct VariableInfo
     "Indicates that no constraints have been set"
     has_constraints::Bool                                       = false
     "Lower bounds. May be -Inf."
-    lower_bound::Float64                                        = -Inf
+    lower_bound::T                                              = -Inf
     "Upper bounds. May be Inf."
-    upper_bound::Float64                                        = Inf
+    upper_bound::T                                              = Inf
     ""
 end
 _is_integer(x::VariableInfo) = x.is_integer
 _has_lower_bound(x::VariableInfo) = x.has_lower_bound
 _has_upper_bound(x::VariableInfo) = x.has_upper_bound
-_lower_bound(x::VariableInfo) = x.lower_bound
-_upper_bound(x::VariableInfo) = x.upper_bound
+_lower_bound(x::VariableInfo{T}) where {T <: AbstractFloat} = x.lower_bound
+_upper_bound(x::VariableInfo{T}) where {T <: AbstractFloat} = x.upper_bound
 
 _is_fixed(x::VariableInfo) = x.is_fixed
 function _is_less_than(x::VariableInfo)
@@ -42,31 +42,30 @@ function _is_greater_than(x::VariableInfo)
     flag &= !x.is_integer
     return flag
 end
-function _is_zero_one(x::VariableInfo)
-    flag = iszero(x.lower_bound)
-    flag &= isone(x.upper_bound)
-    flag &= x.is_integer
-    return flag
-end
 function _is_int_interval(x::VariableInfo)
-    flag = x.has_lower_bound)
+    flag = x.has_lower_bound
     flag &= x.has_upper_bound
     flag &= x.is_integer
     return flag
 end
 function _is_real_interval(x::VariableInfo)
-    flag = x.has_lower_bound)
+    flag = x.has_lower_bound
     flag &= x.has_upper_bound
     flag &= !x.is_integer
     return flag
 end
+function _is_zero_one(x::VariableInfo{T}) where {T <: AbstractFloat}
+    flag = iszero(x.lower_bound)
+    flag &= isone(x.upper_bound)
+    flag &= x.is_integer
+    return flag
+end
 
-mid(x::VariableInfo) = 0.5*(_upper_bound(x) - _lower_bound(x))
+mid(x::VariableInfo{T}) where {T <: AbstractFloat} = 0.5*(_upper_bound(x) - _lower_bound(x))
+empty_variable_info(::Type{T}) where T = VariableInfo{T}(lower_bound = Inf,
+                                                         upper_bound = -Inf)
 
-empty_variable_info() = VariableInfo(lower_bound = Inf,
-                                     upper_bound = -Inf)
-
-Base.isempty(v::VariableInfo) = _lower_bound(v) > _upper_bound(v)
+Base.isempty(v::VariableInfo{T}) where {T <: AbstractFloat} = _lower_bound(v) > _upper_bound(v)
 function check_isempty(l, u, b)
     flag = l < u
     if b
@@ -75,25 +74,25 @@ function check_isempty(l, u, b)
     return !flag
 end
 
-function VariableInfo(::ZO)
+function VariableInfo(::Type{T}, ::ZO)
     return VariableInfo(is_integer = true,
                         has_lower_bound = true,
                         has_upper_bound = true,
                         has_constraints = true,
-                        lower_bound = 0.0,
-                        upper_bound = 1.0)
+                        lower_bound = zero(T),
+                        upper_bound = one(T))
 end
 
-function VariableInfo(it::IT)
-    VariableInfo(has_lower_bound = !isinf(it.lower),
-                 has_upper_bound = !isinf(it.upper),
-                 has_constraints = !isinf(it.lower) | !isinf(it.upper),
-                 is_fixed = it.lower == it.upper,
-                 lower_bound = it.lower,
-                 upper_bound = it.upper)
+function VariableInfo(it::MOI.Interval{T}) where {T <: AbstractFloat}
+    VariableInfo{T}(has_lower_bound = !isinf(it.lower),
+                    has_upper_bound = !isinf(it.upper),
+                    has_constraints = !isinf(it.lower) | !isinf(it.upper),
+                    is_fixed = it.lower == it.upper,
+                    lower_bound = it.lower,
+                    upper_bound = it.upper)
 end
 
-function VariableInfo(v::VariableInfo, ::ZO)
+function VariableInfo(v::VariableInfo{T}, ::ZO)
     isempty(v) && (return v)
     l = max(0.0, _lower_bound(v))
     u = min(1.0, _upper_bound(v))
@@ -109,12 +108,12 @@ function VariableInfo(v::VariableInfo, ::ZO)
                         upper_bound = u)
 end
 
-function VariableInfo(v::VariableInfo, it::IT)
+function VariableInfo(v::VariableInfo{T}, it::MOI.Interval{T}) where {T <: AbstractFloat}
     isempty(v) && (return v)
     l = max(it.lower, _lower_bound(v))
     u = max(it.upper, _upper_bound(v))
     if check_isempty(l, u, _is_integer(v))
-        return empty_variable_info()
+        return empty_variable_info(T)
     end
     return VariableInfo(is_integer = _is_integer(v),
                         has_lower_bound = !isinf(l),
@@ -125,9 +124,9 @@ function VariableInfo(v::VariableInfo, it::IT)
                         upper_bound = u)
 end
 
-_ET(v::VariableInfo)  = ET(v.lower_bound)
-_IT(v::VariableInfo)  = IT(v.lower_bound)
-_GT(v::VariableInfo)  = GT(v.lower_bound)
-_LT(v::VariableInfo)  = LT(v.upper_bound)
-_ZO(v::VariableInfo)  = ZO()
-_INT(v::VariableInfo) = MOI.Semiinteger(v.lower_bound, v.upper_bound)
+_ZO(v::VariableInfo)  = MOI.ZeroOne()
+_ET(v::VariableInfo{T}) where {T <: AbstractFloat}  = MOI.EqualTo{T}(v.lower_bound)
+_IT(v::VariableInfo{T}) where {T <: AbstractFloat}  = MOI.Interval{T}(v.lower_bound)
+_GT(v::VariableInfo{T}) where {T <: AbstractFloat}  = MOI.GreaterThan{T}(v.lower_bound)
+_LT(v::VariableInfo{T}) where {T <: AbstractFloat}  = MOI.LessThan{T}(v.upper_bound)
+_INT(v::VariableInfo{T}) where {T <: AbstractFloat} = MOI.Semiinteger{T}(v.lower_bound, v.upper_bound)
