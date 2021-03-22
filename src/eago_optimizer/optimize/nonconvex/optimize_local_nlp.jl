@@ -12,7 +12,6 @@
 # solve_local_nlp! are also included.
 #############################################################################
 
-
 """
 $(SIGNATURES)
 
@@ -40,43 +39,6 @@ function is_feasible_solution(t::MOI.TerminationStatusCode, r::MOI.ResultStatusC
     (r == MOI.FEASIBLE_POINT) && (result_flag = true)
 
     return (termination_flag && result_flag)
-end
-
-"""
-
-Shifts the resulting local nlp objective value `f*` by `(1.0 + relative_tolerance/100.0)*f* + absolute_tolerance/100.0`.
-This assumes that the local solvers relative tolerance and absolute tolerance is significantly lower than the global
-tolerance (local problem is minimum).
-"""
-function stored_adjusted_upper_bound!(d::Optimizer, v::Float64)
-    adj_atol = d.absolute_tolerance/100.0
-    adj_rtol = d.relative_tolerance/100.0
-    if v > 0.0
-        d._upper_objective_value = v*(1.0 + adj_rtol) + adj_atol
-    else
-        d._upper_objective_value = v*(1.0 - adj_rtol) + adj_atol
-    end
-
-    return nothing
-end
-
-revert_adjusted_upper_bound!(t::ExtensionType, d::Optimizer) = nothing
-
-function revert_adjusted_upper_bound!(t::DefaultExt, d::Optimizer)
-
-    adj_atol = d.absolute_tolerance/100.0
-    adj_rtol = d.relative_tolerance/100.0
-
-    adj_objective_value = d._global_upper_bound
-    adj_objective_value -= adj_atol
-    if adj_objective_value > 0.0
-        adj_objective_value /= (1.0 + adj_rtol)
-    else
-        adj_objective_value /= (1.0 - adj_rtol)
-    end
-    d._global_upper_bound = adj_objective_value
-
-    return nothing
 end
 
 function _update_branch_variables!(nlp_opt, m)
@@ -134,7 +96,6 @@ function _unpack_local_nlp_solve!(m::Optimizer, opt::T, idx_map; adjust_bnd::Boo
     if is_feasible_solution(m._upper_termination_status, m._upper_result_status)
         m._upper_feasibility = true
         value = MOI.get(nlp_optimizer, MOI.ObjectiveValue())
-        stored_adjusted_upper_bound!(m, value)
         m._best_upper_value = min(value, m._best_upper_value)
         m._upper_solution .= MOI.get(nlp_optimizer, MOI.VariablePrimal(), upper_variables)
     else
@@ -188,16 +149,13 @@ $(SIGNATURES)
 Default upper bounding problem which simply calls `solve_local_nlp!` to solve
 the nlp locally.
 """
-function upper_problem!(t::ExtensionType, m::GlobalOptimizer{N,T}) where {N,T<:Real}
+function upper_problem!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S}
 
     if !default_nlp_heurestic(m)
         m._upper_feasibility = false
         m._upper_objective_value = Inf
-
     else
         solve_local_nlp!(m)
-
     end
-
     return nothing
 end

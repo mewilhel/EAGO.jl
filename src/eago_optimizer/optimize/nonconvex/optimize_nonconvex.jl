@@ -15,7 +15,7 @@ $(SIGNATURES)
 
 Selects node with the lowest lower bound in stack.
 """
-function node_selection!(t::ExtensionType, m::GlobalOptimizer{N,T}) where {N,T}
+function node_selection!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     m._node_count -= 1
     m._current_node = popmin!(m._stack)
     return nothing
@@ -26,14 +26,14 @@ $(SIGNATURES)
 
 Stores the current node to the stack after updating lower/upper bounds.
 """
-function single_storage!(t::ExtensionType, m::GlobalOptimizer{N,T})
-    y = m._current_node
+function single_storage!(t::ExtensionType, m::GlobalOptimizer{N,T<:AbstractFloat,S}) where {N,T<:AbstractFloat,S}
+    n = m._current_node
     m._node_repetitions += 1
     m._node_count += 1
-    lower_bound = max(y.lower_bound, m._lower_objective_value)
-    upper_bound = min(y.upper_bound, m._upper_objective_value)
-    push!(m._stack, NodeBB(y.lower_variable_bound, y.upper_variable_bound,
-                           lower_bound, upper_bound, y.depth, y.id))
+    lower_bound = max(n.lower_bound, m._lower_objective_value)
+    upper_bound = min(n.upper_bound, m._upper_objective_value)
+    push!(m._stack, NodeBB(y.lower_variable_bound, n.upper_variable_bound,
+                           lower_bound, upper_bound, n.depth, n.id))
 
     return nothing
 end
@@ -44,32 +44,26 @@ $(SIGNATURES)
 Selects and deletes nodes from stack with lower bounds greater than global
 upper bound.
 """
-function fathom!(t::ExtensionType, m::GlobalOptimizer{N,T})
-
+function fathom!(t::ExtensionType, m::GlobalOptimizer{N,T<:AbstractFloat,S}) where {N,T<:AbstractFloat,S}
     upper = m._global_upper_bound
     continue_flag = !isempty(m._stack)
-
     while continue_flag
         max_node = maximum(m._stack)
         max_check = (max_node.lower_bound > upper)
-
         if max_check
             popmax!(m._stack)
             m._node_count -= 1
             if isempty(m._stack)
                 continue_flag = false
             end
-
         else
             if !max_check
                 continue_flag = false
             elseif isempty(m._stack)
                 continue_flag = false
             end
-
         end
     end
-
     return nothing
 end
 
@@ -83,6 +77,14 @@ repeat_check(t::ExtensionType, m::GlobalOptimizer) = false
 relative_gap(L::Float64, U::Float64) = ((L > -Inf) && (U < Inf)) ?  abs(U - L)/(max(abs(L), abs(U))) : Inf
 relative_tolerance(L::Float64, U::Float64, tol::Float64) = relative_gap(L, U)  > tol || ~(L > -Inf)
 
+function _terminate_store!(m::GlobalOptimizer, t::MOI.TerminationStatusCode,
+                           r::MOI.ResultStatusCode, s::String)
+    m._termination_status_code = t
+    m._result_status_code = r
+    (_verbosity(m) >= 3) && println(s)
+    return nothing
+end
+
 """
 $(SIGNATURES)
 
@@ -90,60 +92,26 @@ Checks for termination of algorithm due to satisfying absolute or relative
 tolerance, infeasibility, or a specified limit, returns a boolean valued true
 if algorithm should continue.
 """
-function termination_check(t::ExtensionType, m::GlobalOptimizer{N,T}) where {N,T<:Real}
-
-    node_in_stack = length(m._stack)
-    L = m._global_lower_bound
-    U = m._global_upper_bound
-
-    if node_in_stack == 0
-
+function termination_check(t::ExtensionType, m::GlobalOptimizer)
+    if length(m._stack) == 0
         if m._first_solution_node > 0
-            m._termination_status_code = MOI.OPTIMAL
-            m._result_status_code = MOI.FEASIBLE_POINT
-            (m.verbosity >= 3) && println("Empty Stack: Exhaustive Search Finished")
-
+            _terminate_store!(m, MOI.OPTIMAL, MOI.FEASIBLE_POINT, "Empty Stack: Exhaustive Search Finished")
         else
-            m._termination_status_code = MOI.INFEASIBLE
-            m._result_status_code = MOI.INFEASIBILITY_CERTIFICATE
-            (m.verbosity >= 3) && println("Empty Stack: Infeasible")
+            _terminate_store!(m, MOI.INFEASIBLE,MOI.INFEASIBILITY_CERTIFICATE, "Empty Stack: Infeasible")
         end
-
-    elseif node_in_stack >= m.node_limit
-
-        m._termination_status_code = MOI.NODE_LIMIT
-        m._result_status_code = MOI.UNKNOWN_RESULT_STATUS
-        (m.verbosity >= 3) && println("Node Limit Exceeded")
-
+    elseif length(m._stack) >= m._node_limit
+        _terminate_store!(m, MOI.NODE_LIMIT, MOI.UNKNOWN_RESULT_STATUS, "Node Limit Exceeded")
     elseif m._iteration_count >= m.iteration_limit
-
-        m._termination_status_code = MOI.ITERATION_LIMIT
-        m._result_status_code = MOI.UNKNOWN_RESULT_STATUS
-        (m.verbosity >= 3) && println("Maximum Iteration Exceeded")
-
-    elseif ~relative_tolerance(L, U, m.relative_tolerance)
-
-        m._termination_status_code = MOI.OPTIMAL
-        m._result_status_code = MOI.FEASIBLE_POINT
-        (m.verbosity >= 3) && println("Relative Tolerance Achieved")
-
-    elseif (U - L) < m.absolute_tolerance
-
-        m._termination_status_code = MOI.OPTIMAL
-        m._result_status_code = MOI.FEASIBLE_POINT
-        (m.verbosity >= 3) && println("Absolute Tolerance Achieved")
-
+        _terminate_store!(m, MOI.ITERATION_LIMIT, MOI.UNKNOWN_RESULT_STATUS, "Maximum Iteration Exceeded")
+    elseif _relative_gap(m) < m._relative_tolerance
+        _terminate_store!(m, MOI.OPTIMAL, MOI.FEASIBLE_POINT, "Relative Tolerance Achieved")
+    elseif _relative_gap(m) < m._absolute_tolerance
+        _terminate_store!(m, MOI.OPTIMAL, MOI.FEASIBLE_POINT, "Absolute Tolerance Achieved")
     elseif m._run_time > m.time_limit
-
-        m._termination_status_code = MOI.TIME_LIMIT
-        m._result_status_code = MOI.UNKNOWN_RESULT_STATUS
-        (m.verbosity >= 3) && println("Time Limit Exceeded")
-
+        _terminate_store!(m, MOI.TIME_LIMIT, MOI.UNKNOWN_RESULT_STATUS, "Time Limit Exceeded")
     else
-
         return false
     end
-
     return true
 end
 
@@ -153,7 +121,7 @@ $(SIGNATURES)
 Checks for convergence of algorithm with respect to absolute and/or relative
 tolerances.
 """
-function convergence_check(t::ExtensionType, m::GlobalOptimizer{N,T}) where {N,T<:Real}
+function convergence_check(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S}
 
   L = m._lower_objective_value
   U = m._global_upper_bound
@@ -177,9 +145,9 @@ $(SIGNATURES)
 Provides a hook for extensions to EAGO as opposed to standard global, local,
 or linear solvers.
 """
-optimize_hook!(t::ExtensionType, m::GlobalOptimizer{N,T}) where {N,T<:Real} = nothing
+optimize_hook!(t::ExtensionType, m::GlobalOptimizer) = nothing
 
-function store_candidate_solution!(m::GlobalOptimizer{N,T}) where {N,T<:Real}
+function store_candidate_solution!(m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S}
     if m._upper_feasibility && (m._upper_objective_value < m._global_upper_bound)
         m._feasible_solution_found = true
         m._first_solution_node = m._maximum_node_id
@@ -189,7 +157,7 @@ function store_candidate_solution!(m::GlobalOptimizer{N,T}) where {N,T<:Real}
     return nothing
 end
 
-function set_global_lower_bound!(m::GlobalOptimizer{N,T}) where {N,T<:Real}
+function set_global_lower_bound!(m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S}
     if !isempty(m._stack)
         min_node = minimum(m._stack)
         lower_bound = min_node.lower_bound
@@ -201,22 +169,14 @@ function set_global_lower_bound!(m::GlobalOptimizer{N,T}) where {N,T<:Real}
 end
 
 # wraps subroutine call to isolate ExtensionType
-parse_global!(m::GlobalOptimizer{N,T}) where T = parse_global!(m.ext_type, m)
-presolve_global!(m::GlobalOptimizer{N,T}) where T = presolve_global!(m.ext_type, m)
-termination_check(m::GlobalOptimizer{N,T}) where T = termination_check(m.ext_type, m)
-cut_condition(m::GlobalOptimizer{N,T}) where T = cut_condition(m.ext_type, m)
-convergence_check(m::GlobalOptimizer{N,T}) where T = convergence_check(m.ext_type, m)
-repeat_check(m::GlobalOptimizer{N,T}) where T = repeat_check(m.ext_type, m)
-node_selection!(m::GlobalOptimizer{N,T}) where T = node_selection!(m.ext_type, m)
-preprocess!(m::GlobalOptimizer{N,T}) where T = preprocess!(m.ext_type, m)
-lower_problem!(m::GlobalOptimizer{N,T}) where T = lower_problem!(m.ext_type, m)
-add_cut!(m::GlobalOptimizer{N,T}) where T = add_cut!(m.ext_type, m)
-upper_problem!(m::GlobalOptimizer{N,T}) where T = upper_problem!(m.ext_type, m)
-postprocess!(m::GlobalOptimizer{N,T}) where T = postprocess!(m.ext_type, m)
-single_storage!(m::GlobalOptimizer{N,T}) where T = single_storage!(m.ext_type, m)
-branch_node!(m::GlobalOptimizer{N,T}) where T = branch_node!(m.ext_type, m)
-fathom!(m::GlobalOptimizer{N,T}) where T = fathom!(m.ext_type, m)
-revert_adjusted_upper_bound!(m::GlobalOptimizer{N,T}) where T = revert_adjusted_upper_bound!(m.ext_type, m)
+for f in (:parse_global!, :presolve_global!, :termination_check, :cut_condition,
+          :convergence_check, :repeat_check, :node_selection!, :preprocess!,
+          :lower_problem!, :add_cut!, :upper_problem!, :postprocess!,
+          :single_storage, :branch_node!, :fathom!)
+    @eval function ($f)(m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S}
+        ($f)(m.ext_type, m)
+    end
+end
 
 """
 $(TYPEDSIGNATURES)

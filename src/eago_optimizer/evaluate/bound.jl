@@ -116,17 +116,32 @@ end
 ###
 ### NONLINEAR FUNCTIONS
 ###
-
 function lower_interval_bound(m::Optimizer, d::BufferedNonlinearFunction{V}, n::NodeBB) where V
     !d.has_value && forward_pass!(m._working_problem._relaxed_evaluator, d)
     ex = d.expr
     v = ex.isnumber[1] ? ex.numberstorage[1] : ex.setstorage[1].Intv.lo
     return v
 end
-
 function interval_bound(m::Optimizer, d::BufferedNonlinearFunction{V}, n::NodeBB) where V
     !d.has_value && forward_pass!(d.evaluator, d)
     ex = d.expr
     v = ex.isnumber[1] ? Interval(ex.numberstorage[1]) : ex.setstorage[1].Intv
     return v.lo, v.hi
+end
+
+_is_feas(m::GlobalOptimizer{N,T}, x::AffineFunctionIneq, n) = lower_interval_bound(m, x, n) <= 0.0
+_is_feas(m::GlobalOptimizer{N,T}, x::BufferedQuadraticIneq, n) = lower_interval_bound(m, x, n) <= 0.0
+function _is_feas(m::GlobalOptimizer{N,T}, x::AffineFunctionEq, n)
+    lower_value, upper_value = interval_bound(m, x, n)
+    return lower_value <= 0.0 <= upper_value
+end
+function _is_feas(m::GlobalOptimizer{N,T}, x::BufferedQuadraticEq, n)
+    lower_value, upper_value = interval_bound(m, x, n)
+    return lower_value <= 0.0 <= upper_value
+end
+function _is_feas(m::GlobalOptimizer{N,T}, x::NonlinearExpression, n)
+    lower_value, upper_value = interval_bound(m, x, n)
+    feasible_flag &= upper_value < x.lower_bound
+    feasible_flag &= lower_value > x.upper_bound
+    return !feasible_flag
 end

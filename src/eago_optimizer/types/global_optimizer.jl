@@ -5,7 +5,7 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         _current_node::NodeBB{N,T} = NodeBB{N,T}()
 
         _input_to_local_map::MOIU.IndexMap                            = MOIU.IndexMap()
-        _constraint_primal::Dict{CI,Union{Float64,Vector{Float64}}}   = Dict{CI,Float64}()
+        _constraint_primal::Dict{CI,Union{T,Vector{T}}}   = Dict{CI,T}()
         _constraint_offset::Vector{Int}             = Int[]
         _constraint_index_num::Int = 0
         _constraint_row_num::Int = 0
@@ -13,12 +13,12 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         #_working_problem::ParsedProblem = ParsedProblem()
 
         _first_relax_point_set::Bool = false
-        _current_xref::Vector{Float64} = Float64[]
-        _candidate_xref::Vector{Float64} = Float64[]
+        _current_xref::Vector{T} = T[]
+        _candidate_xref::Vector{T} = T[]
 
         _use_prior_objective_xref::Bool = false
-        _current_objective_xref::Vector{Float64} = Float64[]
-        _prior_objective_xref::Vector{Float64} = Float64[]
+        _current_objective_xref::Vector{T} = T[]
+        _prior_objective_xref::Vector{T} = T[]
 
         _user_branch_variables::Bool = false
         _fixed_variable::Vector{Bool} = Bool[]
@@ -26,8 +26,8 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         _branch_to_variable_map::Vector{Int} = Int[]
         _variable_to_branch_map::Vector{Int} = Int[]
 
-        _lower_variable_bound::Vector{Float64} = Float64[]
-        _upper_variable_bound::Vector{Float64} = Float64[]
+        _lower_variable_bound::Vector{T} = T[]
+        _upper_variable_bound::Vector{T} = T[]
 
         # all subproblem immutable subproblem status are set in global_solve in corresponding routines
         # in optimize_nonconvex.jl
@@ -38,57 +38,57 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         _lower_result_status::MOI.ResultStatusCode = MOI.OTHER_RESULT_STATUS
         _lower_termination_status::MOI.TerminationStatusCode = MOI.OPTIMIZE_NOT_CALLED
         _lower_feasibility::Bool = true
-        _lower_objective_value::Float64 = -Inf
+        _lower_objective_value::T = -Inf
 
         # set in TODO
-        _lower_solution::Vector{Float64} = Float64[]
-        _lower_lvd::Vector{Float64}      = Float64[]
-        _lower_uvd::Vector{Float64}      = Float64[]
+        _lower_solution::Vector{T} = T[]
+        _lower_lvd::Vector{T}      = T[]
+        _lower_uvd::Vector{T}      = T[]
 
         _cut_result_status::MOI.ResultStatusCode = MOI.OTHER_RESULT_STATUS
         _cut_termination_status::MOI.TerminationStatusCode = MOI.OPTIMIZE_NOT_CALLED
-        _cut_objective_value::Float64 = -Inf
+        _cut_objective_value::T = -Inf
         _cut_feasibility::Bool = true
 
         # set in TODO
-        _cut_solution::Vector{Float64} = Float64[]
+        _cut_solution::Vector{T} = T[]
 
         _upper_result_status::MOI.ResultStatusCode = MOI.OTHER_RESULT_STATUS
         _upper_termination_status::MOI.TerminationStatusCode = MOI.OPTIMIZE_NOT_CALLED
         _upper_feasibility::Bool = true
-        _upper_objective_value::Float64 = Inf
+        _upper_objective_value::T = Inf
 
         # array is initialized to correct size in TODO, reset in single_nlp_solve! in optimize_convex.jl
         _upper_variables::Vector{VI} =  VI[]
 
         # set in TODO
-        _upper_solution::Vector{Float64} = Float64[]
+        _upper_solution::Vector{T} = T[]
 
         _postprocess_feasibility::Bool = true
 
-        _time_left::Float64 = 1000.0
-        _start_time::Float64 = 0.0
-        _run_time::Float64 = 0.0
-        _parse_time::Float64 = 0.0
-        _presolve_time::Float64 = 0.0
-        _last_preprocess_time::Float64 = 0.0
-        _last_lower_problem_time::Float64 = 0.0
-        _last_upper_problem_time::Float64 = 0.0
-        _last_postprocessing_time::Float64 = 0.0
+        _time_left::T = 1000.0
+        _start_time::T = 0.0
+        _run_time::T = 0.0
+        _parse_time::T = 0.0
+        _presolve_time::T = 0.0
+        _last_preprocess_time::T = 0.0
+        _last_lower_problem_time::T = 0.0
+        _last_upper_problem_time::T = 0.0
+        _last_postprocessing_time::T = 0.0
 
         # reset in initial_parse! in parse.jl
-        _min_converged_value::Float64 = Inf
-        _global_lower_bound::Float64 = -Inf
-        _global_upper_bound::Float64 = Inf
-        _maximum_node_id::Int64 = 0
-        _iteration_count::Int64 = 0
-        _node_count::Int64 = 0
+        _min_converged_value::T = Inf
+        _global_lower_bound::T = -Inf
+        _global_upper_bound::T = Inf
+        _maximum_node_id::Int = 0
+        _iteration_count::Int = 0
+        _node_count::Int = 0
 
         # Storage for output, reset in initial_parse! in parse.jl
-        _solution_value::Float64 = 0.0
+        _solution_value::T = 0.0
         _feasible_solution_found::Bool = false
-        _first_solution_node::Int64 = -1
-        _best_upper_value::Float64 = Inf
+        _first_solution_node::Int = -1
+        _best_upper_value::T = Inf
 
         # Optimality-Based Bound Tightening (OBBT) Options
         # set in TODO
@@ -105,22 +105,22 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         _obbt_performed_flag::Bool = false
 
         # Buffers for fbbt, set in presolve, used in preprocess
-        _lower_fbbt_buffer::Vector{Float64} = Float64[]
-        _upper_fbbt_buffer::Vector{Float64} = Float64[]
+        _lower_fbbt_buffer::Vector{T} = T[]
+        _upper_fbbt_buffer::Vector{T} = T[]
 
         # Feasibility-Based Bound Tightening Options
         # set in set_constraint_propagation_fbbt in domain_reduction.jl
-        _cp_improvement::Float64 = 0.0
+        _cp_improvement::T = 0.0
         _cp_evaluation_reverse::Bool = false
 
-        _cut_iterations::Int64 = 0
+        _cut_iterations::Int = 0
         _cut_add_flag::Bool = false
 
         # Options for Repetition (If DBBT Performed Well)
         # set in within preprocess in optimize_nonconvex.jl
-        _node_repetitions::Int64 = 0
-        _initial_volume::Float64 = 0.0
-        _final_volume::Float64 = 0.0
+        _node_repetitions::Int = 0
+        _initial_volume::T = 0.0
+        _final_volume::T = 0.0
 
         # Log
         _log::Log = Log()
@@ -159,10 +159,10 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         #_relaxed_evaluator::Evaluator = Evaluator{1,NS}()
         #_relaxed_constraint_bounds::Vector{MOI.NLPBoundsPair} = Vector{MOI.NLPBoundsPair}[]
 end
-GlobalOptimizer() = GlobalOptimizer{1,Float64,DefaultExt}()
+GlobalOptimizer(::Type{T}) where T<:AbstractFloat = GlobalOptimizer{1,T,DefaultExt}()
 
 function MOI.is_empty(m::GlobalOptimizer{N,T}) where {N,T}
-    empty_opt = GlobalOptimizer()
+    empty_opt = GlobalOptimizer(T)
     is_empty_flag = true
     for f in fieldnames(GlobalOptimizer)
         if f == :_stack

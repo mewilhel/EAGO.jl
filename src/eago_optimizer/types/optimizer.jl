@@ -29,7 +29,7 @@ prior to initializing a global solve.
 export Optimizer
 mutable struct Optimizer{T<:Real} <: MOI.AbstractOptimizer
     _model::InputModel{T}
-    _options::GlobalOptimizerOptions
+    _options::GlobalOptimizerOptions{T}
     _solver::GlobalOptimizer
     _problem_type::ProblemType
 
@@ -56,8 +56,8 @@ mutable struct Optimizer{T<:Real} <: MOI.AbstractOptimizer
 end
 function Optimizer{T}(; kwargs...) where T<:Real
     model   = InputModel{T}()
-    options = GlobalOptimizerOptions(;kwargs...)
-    solver  = GlobalOptimizer()
+    options = GlobalOptimizerOptions{T}(;kwargs...)
+    solver  = GlobalOptimizer(T)
     problem_type = UNCLASSIFIED
 
     termination_status_code = MOI.OPTIMIZE_NOT_CALLED
@@ -77,8 +77,8 @@ function Optimizer{T}(; kwargs...) where T<:Real
     run_time     = 0.0
     parse_time   = 0.0
 
-    solution          = Float64[]
-    constraint_primal = Dict{CI,Float64}()
+    solution          = T[]
+    constraint_primal = Dict{CI,T}()
     input_to_solution_map = nothing
 
     return Optimizer{T}(model,
