@@ -17,23 +17,18 @@ const contlinear_excludes = String[
 ]
 
 const intlinear_excludes = String[
-    #"indicator1",    # doesn't currently support indicator sets
-    #"indicator2",
-    #"indicator3",
-    #"indicator4",
-
-    #"int2",
+    "indicator1",    # doesn't currently support indicator sets
+    "indicator2",    # can't check using Cbc until https://github.com/jump-dev/Cbc.jl/issues/151 is resolved
+    "indicator3",
+    "indicator4",
+    "int2",
 ]
 
 const contconic_excludes = String[
-    #"dualexp",
-    #"dualpow",
-    #"exp",
-    #"logdet",
-    #"rootdet",
-    #"relentr",
-    #"pow",
-    #"geomean"
+    "dualexp",  # Not directly bridged to common cones
+    "dualpow",
+    "logdet",
+    "rootdet",
 ]
 
 const contquadratic_excludes = String[
@@ -94,5 +89,9 @@ function test_moi(T::Type{<:Real}; solver_options...)
     end
 end
 
+# Test with mip_solver = Cbc as it supports SOS1 & SOS2 constraints
+# TODO: Use bridges for SOS1 & SOS2 constraint if unsupported
+# Need to test with GLPK as well to ensure subsolver supports constraint
+# coefficient modification.
 default_options = (:verbosity => 0,)
 test_moi(Float64; default_options...)

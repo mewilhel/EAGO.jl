@@ -164,14 +164,14 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
 end
 GlobalOptimizer(::Type{T}) where T<:AbstractFloat = GlobalOptimizer{1,T,DefaultExt}()
 
-function MOI.is_empty(m::GlobalOptimizer{N,T}) where {N,T}
-    empty_opt = GlobalOptimizer(T)
+function MOI.is_empty(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
+    empty_opt = GlobalOptimizer{N,T,S}()
     is_empty_flag = true
     for f in fieldnames(GlobalOptimizer)
         if f == :_stack
             is_empty_flag &= isempty(getfield(m, f))
         elseif f == :_current_node
-            is_empty_flag &= getfield(m, f) != NodeBB{N,T}()
+            is_empty_flag &= getfield(m, f) == NodeBB{N,T}()
         elseif f == :_log
         else
             if getfield(empty_opt, f) != getfield(m, f)

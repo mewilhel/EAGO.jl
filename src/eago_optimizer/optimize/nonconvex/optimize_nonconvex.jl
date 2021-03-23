@@ -174,7 +174,7 @@ for f in (:parse_global!, :presolve_global!, :termination_check, :cut_condition,
           :lower_problem!, :add_cut!, :upper_problem!, :postprocess!,
           :single_storage, :branch_node!, :fathom!)
     @eval function ($f)(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
-        ($f)(m.ext_type, m)
+        ($f)(m._ext_type, m)
     end
 end
 

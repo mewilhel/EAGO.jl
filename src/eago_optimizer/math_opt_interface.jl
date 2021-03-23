@@ -127,9 +127,9 @@ const EAGO_MODEL_NOT_STRUCT_ATTRIBUTES = setdiff(fieldnames(Optimizer), union(EA
                                                                               EAGO_MODEL_STRUCT_ATTRIBUTES))
 const EAGO_MODEL_EITHER_ATTRIBUTE = union(EAGO_MODEL_STRUCT_ATTRIBUTES, EAGO_MODEL_NOT_STRUCT_ATTRIBUTES)
 
-function MOI.empty!(m::Optimizer{T}) where T
+function MOI.empty!(m::Optimizer{T}) where {N,T<:AbstractFloat,S}
     m._model = InputModel{T}()
-    m._solver = GlobalOptimizer()
+    m._solver = GlobalOptimizer{}(T)
     m._problem_type = UNCLASSIFIED
 
     m._termination_status_code = MOI.OPTIMIZE_NOT_CALLED
@@ -148,7 +148,7 @@ function MOI.empty!(m::Optimizer{T}) where T
     return
 end
 
-function MOI.is_empty(m::Optimizer)
+function MOI.is_empty(m::Optimizer{T}) where {T<:AbstractFloat}
 
     is_empty_flag = MOI.is_empty(m._model)
     is_empty_flag &= MOI.is_empty(m._solver)

@@ -41,7 +41,10 @@ const CONE_FUNC_SET =  Union{Tuple{MOI.VectorOfVariables, MOI.NormInfinityCone},
                              Tuple{MOI.VectorOfVariables, MOI.DualExponentialCone},
                              Tuple{MOI.VectorOfVariables, MOI.RelativeEntropyCone},
                              Tuple{MOI.VectorOfVariables, MOI.NormSpectralCone},
-                             Tuple{MOI.VectorOfVariables, MOI.NormNuclearCone}}
+                             Tuple{MOI.VectorOfVariables, MOI.NormNuclearCone},
+                             Tuple{MOI.VectorOfVariables, MOI.PowerCone},
+                             Tuple{MOI.VectorOfVariables, MOI.DualPowerCone},
+                             }
 
 const SDP_FUNC_SET = Union{Tuple{MOI.VectorOfVariables, MOI.PositiveSemidefiniteConeTriangle},
                            Tuple{MOI.VectorOfVariables, MOI.PositiveSemidefiniteConeSquare},
@@ -59,6 +62,7 @@ for F in (LP, MILP, SOCP, SDP)
     @eval function _parse_classify_problem(::Val{$F}, m::Optimizer)
         ip = _input_model(m)
         flag = isempty(filter(x -> !_in_prob(Val{$F}(), x[1], x[2]), MOI.get(ip, MOI.ListOfConstraints())))
+        @show $F, MOI.get(ip, MOI.ListOfConstraints())
         flag &= _input_nlp_data(m) === nothing
         if flag
             m._problem_type = $F

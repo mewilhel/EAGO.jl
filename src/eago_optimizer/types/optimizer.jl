@@ -27,7 +27,7 @@ to _options, the GlobalOptimizer is remade to ensure type stability of subroutin
 prior to initializing a global solve.
 =#
 export Optimizer
-mutable struct Optimizer{T<:Real} <: MOI.AbstractOptimizer
+mutable struct Optimizer{T<:AbstractFloat} <: MOI.AbstractOptimizer
     _model::InputModel{T}
     _options::GlobalOptimizerOptions{T}
     _solver::GlobalOptimizer
@@ -36,22 +36,22 @@ mutable struct Optimizer{T<:Real} <: MOI.AbstractOptimizer
     _termination_status_code::MOI.TerminationStatusCode
     _primal_status_code::MOI.ResultStatusCode
 
-    _objective_value::Float64
-    _objective_bound::Float64
-    _relative_gap::Float64
-    _iteration_count::Int64
+    _objective_value::T
+    _objective_bound::T
+    _relative_gap::T
+    _iteration_count::Int
     _node_count::Int
 
     _is_silent::Bool
 
-    _start_time::Float64
-    _time_limit::Float64
-    _time_left::Float64
-    _run_time::Float64
-    _parse_time::Float64
+    _start_time::T
+    _time_limit::T
+    _time_left::T
+    _run_time::T
+    _parse_time::T
 
-    _solution::Vector{Float64}
-    _constraint_primal::Dict{CI,Union{Vector{Float64},Float64}}
+    _solution::Vector{T}
+    _constraint_primal::Dict{CI,Union{Vector{T},T}}
     _input_to_solution_map
 end
 function Optimizer{T}(; kwargs...) where T<:Real
@@ -111,22 +111,16 @@ end
 _input_model(m::Optimizer{T}) where T = m._model._input_model
 _input_nlp_data(m::Optimizer) = m._model._nlp_data
 
-function _set_cons_primal!(m::Optimizer, ci::CI{F,S}, v::Float64) where{F <: MOI.AbstractFunction,
-                                                                        S <: MOI.AbstractScalarSet}
+function _set_cons_primal!(m::Optimizer{T}, ci::CI{F,S}, v::T) where {F <: MOI.AbstractFunction,
+                                                                     S <: MOI.AbstractScalarSet,
+                                                                     T <: AbstractFloat}
     m._constraint_primal[ci] = v
     return
 end
 
-function _set_cons_primal!(m::Optimizer, ci::CI{F,S}, v::Vector{Float64}) where{F <: MOI.AbstractFunction,
-                                                                                S <: MOI.AbstractVectorSet}
+function _set_cons_primal!(m::Optimizer{T}, ci::CI{F,S}, v::Vector{T}) where {F <: MOI.AbstractFunction,
+                                                                              S <: MOI.AbstractVectorSet,
+                                                                              T <: AbstractFloat}
     m._constraint_primal[ci] = v
     return
-end
-
-@inline function _get_variable_lo(::typeof(:branch), m::Optimizer, i)
-    return _lower_variable_bound(m._current_node, m._sol_to_branch_map[i])
-end
-
-@inline function _get_variable_hi(::typeof(:branch), m::Optimizer, i)
-    return _upper_variable_bound(m._current_node, m._sol_to_branch_map[i])
 end
