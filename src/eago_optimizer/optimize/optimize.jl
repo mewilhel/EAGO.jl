@@ -11,8 +11,13 @@
 #############################################################################
 
 include("optimize_subsolve.jl")
-include("optimize_convex.jl")
-include("optimize_nonconvex.jl")
+include("nonconvex/presolve.jl")
+include("nonconvex/branch/branch.jl")
+include("nonconvex/optimize_local_nlp.jl")
+include("nonconvex/optimize_relax_lp.jl")
+include("nonconvex/preprocess.jl")
+include("nonconvex/postprocess.jl")
+include("nonconvex/optimize_nonconvex.jl")
 
 throw_optimize_hook!(m::Optimizer) = optimize_hook!(_ext_type(m), m)
 

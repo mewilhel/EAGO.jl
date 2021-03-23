@@ -54,12 +54,12 @@ ScalarCoefficientChange:
 #DONE
 
 function _bridge_optimizer!(v::Val{MILP}, m)
-    MOIB.add_bridge(m, MOIB.Constraint.SOS1toZOBridge{Float64})
-    MOIB.add_bridge(m, MOIB.Constraint.SOS2toZOBridge{Float64})
+    #MOIB.add_bridge(m, MOIB.Constraint.SOS1toZOBridge{Float64})
+    #MOIB.add_bridge(m, MOIB.Constraint.SOS2toZOBridge{Float64})
     return
 end
 
-for S in (LP, MILP, SOCP, SDP)
+for S in (LP, SOCP, SDP)
     @eval _bridge_optimizer!(v::Val{$S}, m) = nothing
 end
 for S in (DIFF_CVX, MICVX)

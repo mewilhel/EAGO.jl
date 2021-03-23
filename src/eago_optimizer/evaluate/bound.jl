@@ -129,17 +129,17 @@ function interval_bound(m::Optimizer, d::BufferedNonlinearFunction{V}, n::NodeBB
     return v.lo, v.hi
 end
 
-_is_feas(m::GlobalOptimizer{N,T}, x::AffineFunctionIneq, n) = lower_interval_bound(m, x, n) <= 0.0
-_is_feas(m::GlobalOptimizer{N,T}, x::BufferedQuadraticIneq, n) = lower_interval_bound(m, x, n) <= 0.0
-function _is_feas(m::GlobalOptimizer{N,T}, x::AffineFunctionEq, n)
+_is_feas(m::GlobalOptimizer{N,T,S}, x::AffineFunctionIneq, n) where {N,T<:AbstractFloat,S} = lower_interval_bound(m, x, n) <= 0.0
+_is_feas(m::GlobalOptimizer{N,T,S}, x::BufferedQuadraticIneq, n) where {N,T<:AbstractFloat,S} = lower_interval_bound(m, x, n) <= 0.0
+function _is_feas(m::GlobalOptimizer{N,T,S}, x::AffineFunctionEq, n) where {N,T<:AbstractFloat,S}
     lower_value, upper_value = interval_bound(m, x, n)
     return lower_value <= 0.0 <= upper_value
 end
-function _is_feas(m::GlobalOptimizer{N,T}, x::BufferedQuadraticEq, n)
+function _is_feas(m::GlobalOptimizer{N,T,S}, x::BufferedQuadraticEq, n) where {N,T<:AbstractFloat,S}
     lower_value, upper_value = interval_bound(m, x, n)
     return lower_value <= 0.0 <= upper_value
 end
-function _is_feas(m::GlobalOptimizer{N,T}, x::NonlinearExpression, n)
+function _is_feas(m::GlobalOptimizer{N,T,S}, x::NonlinearExpression, n) where {N,T<:AbstractFloat,S}
     lower_value, upper_value = interval_bound(m, x, n)
     feasible_flag &= upper_value < x.lower_bound
     feasible_flag &= lower_value > x.upper_bound

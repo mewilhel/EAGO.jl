@@ -1,4 +1,4 @@
-function _reset_relaxation!(m::GlobalOptimizer{N,T})
+function _reset_relaxation!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     m._working_problem._relaxed_evaluator.is_first_eval = true
     fill!(m._working_problem._relaxed_evaluator.subexpressions_eval, false)
@@ -18,7 +18,7 @@ Runs interval, linear, quadratic contractor methods followed by obbt and a
 constraint programming walk up to tolerances specified in
 `EAGO.GlobalOptimizer` object.
 """
-function preprocess!(t::ExtensionType, m::GlobalOptimizer{N,T})
+function preprocess!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     _reset_relaxation!(m)
 

@@ -70,7 +70,7 @@ $(TYPEDSIGNATURES)
 Loads variables, linear constraints, and empty storage for first nlp and
 quadratic cut.
 """
-function load_relaxed_problem!(m::GlobalOptimizer{N,T})
+function load_relaxed_problem!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     opt = m.relaxed_optimizer
 
@@ -158,7 +158,7 @@ $(TYPEDSIGNATURES)
 
 Creates an initial node with initial box constraints and adds it to the stack.
 """
-function create_initial_node!(m::GlobalOptimizer{N,T})
+function create_initial_node!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     branch_variable_num = m._branch_variable_num
     lower_bound = zeros(Float64, branch_variable_num)
@@ -182,7 +182,7 @@ function create_initial_node!(m::GlobalOptimizer{N,T})
     return nothing
 end
 
-function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T})
+function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     ip = _input_problem(m)
     wp = _working_problem(m)

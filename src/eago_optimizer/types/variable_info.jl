@@ -74,13 +74,13 @@ function check_isempty(l, u, b)
     return !flag
 end
 
-function VariableInfo(::Type{T}, ::ZO)
-    return VariableInfo(is_integer = true,
-                        has_lower_bound = true,
-                        has_upper_bound = true,
-                        has_constraints = true,
-                        lower_bound = zero(T),
-                        upper_bound = one(T))
+function VariableInfo(::Type{T}, ::ZO) where {T <: AbstractFloat}
+    return VariableInfo{T}(is_integer = true,
+                           has_lower_bound = true,
+                           has_upper_bound = true,
+                           has_constraints = true,
+                           lower_bound = zero(T),
+                           upper_bound = one(T))
 end
 
 function VariableInfo(it::MOI.Interval{T}) where {T <: AbstractFloat}
@@ -92,14 +92,14 @@ function VariableInfo(it::MOI.Interval{T}) where {T <: AbstractFloat}
                     upper_bound = it.upper)
 end
 
-function VariableInfo(v::VariableInfo{T}, ::ZO)
+function VariableInfo(v::VariableInfo{T}, ::ZO) where {T <: AbstractFloat}
     isempty(v) && (return v)
     l = max(0.0, _lower_bound(v))
     u = min(1.0, _upper_bound(v))
     if check_isempty(l, u, _is_integer(v))
         return empty_variable_info()
     end
-    return VariableInfo(is_integer = true,
+    return VariableInfo{T}(is_integer = true,
                         has_lower_bound = true,
                         has_upper_bound = true,
                         has_constraints = true,

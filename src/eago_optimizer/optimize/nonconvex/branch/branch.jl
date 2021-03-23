@@ -8,7 +8,7 @@ function _fractional_integer_branch!(t::ExtensionType, m::GlobalOptimizer{N,T,S}
         integer_count = 0
         for i in m.branch_variables
             if _is_unfixed_integer(m, i)
-                isinteger(_lower_solution(::branch, m, i))
+                isinteger(_lower_solution(BranchVar, m, i))
                 integer_count += 1
             end
         end
@@ -22,12 +22,12 @@ end
 non-convex MINLP." Optimization Methods & Software 24.4-5 (2009): 597-634.
 =#
 function _select_branch_point!(m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S}
-    l = _lower_bound(:branch, m, i)
-    u = _upper_bound(:branch, m, i)
-    s = _lower_solution(:branch, m, i)
+    l = _lower_bound(BranchVar, m, i)
+    u = _upper_bound(BranchVar, m, i)
+    s = _lower_solution(BranchVar, m, i)
     α = _branch_cvx_α(m)
     b = _branch_offset_β(m)*(u - l)
-    return max(l + b, min(u - b, α*s + (one(T) - α)*_mid(:branch, m, i))
+    return max(l + b, min(u - b, α*s + (one(T) - α)*_mid(BranchVar, m, i)))
 end
 
 function _continuous_branch!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
@@ -43,12 +43,12 @@ function _continuous_branch!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where 
 
     m._maximum_node_id += 1
     push!(m._stack, NodeBB(_upper_bound(:branch, m),
-                           ntuple(i -> (i == bi ? nextfloat(bp) : _upper_bound(:branch, m, i)), N),
+                           ntuple(i -> (i == bi ? nextfloat(bp) : _upper_bound(BranchVar, m, i)), N),
                            lower_bound, upper_bound, new_depth, m._maximum_node_id,
                            bi, BD_NEG))
 
     m._maximum_node_id += 1
-    push!(m._stack, NodeBB(ntuple(i -> (i == bi ? prevfloat(bp) : _lower_bound(:branch, m, i)), N),
+    push!(m._stack, NodeBB(ntuple(i -> (i == bi ? prevfloat(bp) : _lower_bound(BranchVar, m, i)), N),
                            _upper_bound(:branch, m),
                            lower_bound, upper_bound, new_depth, m._maximum_node_id,
                            bi, BD_POS))
@@ -69,7 +69,7 @@ the midpoint of the node. If this solution lies within `branch_offset/width` of
 a bound then the branch point is moved to a distance of `branch_offset/width`
 from the bound.
 """
-function branch_node!(t::ExtensionType, m::GlobalOptimizer{N,T})
+function branch_node!(t::ExtensionType, m::GlobalOptimizer)
     was_branched = _conic_branch!(t, m)
     !was_branched && (was_branched &= _fractional_integer_branch!(t, m))
     !was_branched && (was_branched &= _continuous_branch!(t, m))

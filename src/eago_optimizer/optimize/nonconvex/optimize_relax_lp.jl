@@ -44,7 +44,7 @@ Retrieves the lower and upper duals for variable bounds from the
 `relaxed_optimizer` and sets the appropriate values in the
 `_lower_lvd` and `_lower_uvd` storage fields.
 """
-function set_dual!(m::GlobalOptimizer{N,T})
+function set_dual!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     opt = m.relaxed_optimizer
     foreach(t -> (m._lower_uvd[t[2]] = MOI.get(opt, MOI.ConstraintDual(), t[1]);), m._relaxed_variable_lt)
     foreach(t -> (m._lower_lvd[t[2]] = MOI.get(opt, MOI.ConstraintDual(), t[1]);), m._relaxed_variable_gt)
@@ -58,10 +58,10 @@ Updates the relaxed constraint by setting the constraint set of `v == x*`` ,
 `xL_i <= x_i`, and `x_i <= xU_i` for each such constraint added to the relaxed
 optimizer.
 """
-function update_relaxed_problem_box!(m::GlobalOptimizer{N,T})
+function update_relaxed_problem_box!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     opt = m.relaxed_optimizer
-    lb = _lower_bound(:full, m)
-    ub = _upper_bound(:full, m)
+    lb = _lower_bound(FullVar, m)
+    ub = _upper_bound(FullVar, m)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], ET(lb[x[2]])), m._relaxed_variable_eq)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], LT(ub[x[2]])), m._relaxed_variable_lt)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], GT(ub[x[2]])), m._relaxed_variable_gt)
@@ -70,12 +70,12 @@ function update_relaxed_problem_box!(m::GlobalOptimizer{N,T})
     return nothing
 end
 
-function interval_objective_bound(m::GlobalOptimizer{N,T}, n::NodeBB)
+function interval_objective_bound(m::GlobalOptimizer{N,T,S}, n::NodeBB) where {N,T<:AbstractFloat,S}
     interval_objective_bound = bound_objective(m)
     if interval_objective_bound > m._lower_objective_value
         m._lower_objective_value = interval_objective_bound
-        fill!(m._lower_lvd, 0.0)
-        fill!(m._lower_uvd, 0.0)
+        fill!(m._lower_lvd, zero(T))
+        fill!(m._lower_uvd, zero(T))
         m._cut_add_flag = false
         return true
     end
@@ -90,7 +90,7 @@ calculation. This is called when the optimizer used to compute the lower bound
 does not return a termination and primal status code indicating that it
 successfully solved the relaxation to a globally optimal point.
 """
-function fallback_interval_lower_bound!(m::GlobalOptimizer{N,T}, n::NodeBB)
+function fallback_interval_lower_bound!(m::GlobalOptimizer{N,T,S}, n::NodeBB) where {N,T<:AbstractFloat,S}
 
     feas = true
     wp = _working_problem(m)
@@ -114,7 +114,7 @@ function fallback_interval_lower_bound!(m::GlobalOptimizer{N,T}, n::NodeBB)
     return
 end
 
-function intrepret_relaxed_solution(m::GlobalOptimizer, d::T) where T
+function intrepret_relaxed_solution(m::GlobalOptimizer{N,T,S}, d::T) where {N,T<:AbstractFloat,S}
     valid_flag, feasible_flag = is_globally_optimal(m._lower_termination_status,
                                                     m._lower_result_status)
     if valid_flag && feasible_flag
@@ -140,7 +140,7 @@ $(SIGNATURES)
 Constructs and solves the relaxation using the default EAGO relaxation scheme
 and optimizer on node `y`.
 """
-function lower_problem!(t::ExtensionType, m::GlobalOptimizer{N,T})
+function lower_problem!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     n = m._current_node
 
@@ -175,7 +175,7 @@ $(SIGNATURES)
 
 Updates the internal storage in the optimizer after a valid feasible cut is added.
 """
-function cut_update!(m::GlobalOptimizer{N,T})
+function cut_update!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     m._cut_feasibility = true
 
@@ -212,7 +212,7 @@ cut at. If no cut should be added the constraints not modified in place are
 deleted from the relaxed optimizer and the solution is compared with the
 interval lower bound. The best lower bound is then used.
 """
-function cut_condition(t::ExtensionType, m::GlobalOptimizer{N,T})
+function cut_condition(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     # always add cut if below the minimum iteration limit, otherwise add cut
     # the number of cuts is less than the maximum and the distance between
@@ -262,7 +262,7 @@ $(SIGNATURES)
 
 Adds a cut for each constraint and the objective function to the subproblem.
 """
-function add_cut!(t::ExtensionType, m::GlobalOptimizer{N,T})
+function add_cut!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     fill!(m._working_problem._relaxed_evaluator.subexpressions_eval, false)
     m._working_problem._relaxed_evaluator.is_first_eval = true

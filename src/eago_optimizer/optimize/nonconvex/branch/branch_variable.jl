@@ -44,7 +44,7 @@ function _variable_infeasibility(m, d::BranchOracle{T}, i) where T<:Real
     return d.μ1*tsum + d.μ2*tmin + d.μ3*tmax
 end
 
-function _set_δ!(m, d::BranchOracle{T}, i) where T<:Real
+function _set_δ!(::Val{BW_INFEASIBLE}, m::GlobalOptimizer, d::BranchOracle, i) where T<:Real
     _set_constraint_infeasibility!(m, i) # sets m._constr_inf
     v = _variable_infeasibility(m, d, i)
     m._variable_inf[i] = v
@@ -53,25 +53,25 @@ function _set_δ!(m, d::BranchOracle{T}, i) where T<:Real
     return
 end
 
-function _set_δ!(d::BranchOracle{T}, xb, i) where {T<:Real}
-    l = _lower_bound(:branch, m, i)
-    u = _upper_bound(:branch, m, i)
+function _set_δ!(::Val{BW_INTERVAL_BRANCH}, m::GlobalOptimizer, d::BranchOracle, i) where {T<:Real}
+    l = _lower_bound(BranchVar, m, i)
+    u = _upper_bound(BranchVar, m, i)
     d.δm[i] = isfinite(l) ? (xb - l) : _variable_infeasibility(m, d, i)
     d.δp[i]  = isfinite(u) ? (u - xb) : _variable_infeasibility(m, d, i)
     return
 end
 
-function _set_δ!(d::PseudoCost{PCBranchIntervalRev,T}, xb, i) where {T<:Real}
-    l = _lower_bound(:branch, m, i)
-    u = _upper_bound(:branch, m, i)
+function _set_δ!(::Val{BW_INTERVAL_BRANCH_REV}, m::GlobalOptimizer, d::BranchOracle, i) where {T<:Real}
+    l = _lower_bound(BranchVar, m, i)
+    u = _upper_bound(BranchVar, m, i)
     d.δm[i] = isfinite(l) ? (u - xb) : _variable_infeasibility(m, d, i)
     d.δp[i] = isfinite(u) ? (xb - l) : _variable_infeasibility(m, d, i)
     return
 end
 
-function _set_δ!(d::PseudoCost{PCIntervalLP,T}, xlp, i) where {T<:Real}
-    l = _lower_bound(:branch, m, i)
-    u = _upper_bound(:branch, m, i)
+function _set_δ!(::Val{BW_INTERVAL_LP}, m::GlobalOptimizer, d::BranchOracle, i) where {T<:Real}
+    l = _lower_bound(BranchVar, m, i)
+    u = _upper_bound(BranchVar, m, i)
     ρ = d.β*(u - l)
     xlp_adj = max(min(xlp, u - ρ), l + ρ)
     d.δm[i] = isfinite(l) ? (xlp_adj - l) : _variable_infeasibility(m, d, i)
@@ -79,13 +79,30 @@ function _set_δ!(d::PseudoCost{PCIntervalLP,T}, xlp, i) where {T<:Real}
     return
 end
 
-function _set_δ!(d::PseudoCost{PCIntervalLPRev,T}) where {T<:Real}
-    l = _lower_bound(:branch, m, i)
-    u = _upper_bound(:branch, m, i)
+function _set_δ!(::Val{BW_INTERVAL_LP_REV}, m::GlobalOptimizer, d::BranchOracle, i) where {T<:Real}
+    l = _lower_bound(BranchVar, m, i)
+    u = _upper_bound(BranchVar, m, i)
     ρ = d.β*(u - l)
     xlp_adj = max(min(xlp, u - ρ), l + ρ)
     d.δm[i] = isfinite(l) ? (u - xlp_adj) : _variable_infeasibility(m, d, i)
     d.δp[i] = isfinite(u) ? (xlp_adj - l) : _variable_infeasibility(m, d, i)
+    return
+end
+
+function _set_δ!(m::GlobalOptimizer, i)
+    s = m._branch_oracle.strategy
+    if s == BW_INTERVAL_LP
+        _set_δ!(Val(BW_INTERVAL_LP), m, m._branch_oracle, i)
+    elseif s == BW_INTERVAL_LP_REV
+        _set_δ!(Val(BW_INTERVAL_LP_REV), m, m._branch_oracle, i)
+    elseif s == BW_INTERVAL_BRANCH
+        _set_δ!(Val(BW_INTERVAL_BRANCH), m, m._branch_oracle, i)
+    elseif s == BW_INTERVAL_BRANCH_REV
+        _set_δ!(Val(BW_INTERVAL_BRANCH_REV), m, m._branch_oracle, i)
+    elseif s == BW_INFEASIBLE
+        _set_δ!(Val(BW_INFEASIBLE), m, m._branch_oracle, i)
+    end
+    return nothing
 end
 
 function _pseudocost_branch!()

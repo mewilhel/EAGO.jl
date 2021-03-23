@@ -1,3 +1,6 @@
+struct FullVar end
+struct BranchVar end
+
 Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.AbstractOptimizer
 
         _ext_type::S = S()
@@ -184,36 +187,36 @@ end
 TODO: StructArray access is faster here for most...
 =#
 
-function _is_unfixed_integer(::typeof(:full), m::GlobalOptimizer, i)
+function _is_unfixed_integer(::FullVar, m::GlobalOptimizer, i)
 end
-function _is_unfixed_integer(::typeof(:branch), m::GlobalOptimizer, i)
+function _is_unfixed_integer(::BranchVar, m::GlobalOptimizer, i)
 end
 
 for (f,arr) in ((:_lower_bound, :_lower_variable_bound),
                 (:_upper_bound, :_upper_variable_bound),
                 (:_lower_solution, :_lower_solution),)
-    @eval function ($f)(::typeof(:full), m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
+    @eval function ($f)(::FullVar, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
         m.$arr
     end
-    @eval function ($f)(::typeof(:full), m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+    @eval function ($f)(::FullVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
         m.$arr[i]
     end
-    @eval function ($f)(::typeof(:branch), m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
+    @eval function ($f)(::BranchVar, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
         m.$arr[m._branch_variable]
     end
-    @eval function ($f)(::typeof(:branch), m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+    @eval function ($f)(::BranchVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
         m.$arr[m._branch_variable[i]]
     end
 end
 
-function _mid(::typeof(:full), m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
-    0.5*(_upper_bound(:full, m) - _lower_bound(:full, m))
+function _mid(::FullVar, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
+    0.5*(_upper_bound(FullVar, m) - _lower_bound(FullVar, m))
 end
-function _mid(::typeof(:full), m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
-    0.5*(_upper_bound(:full, m, i) - _lower_bound(:full, m, i))
+function _mid(::FullVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+    0.5*(_upper_bound(FullVar, m, i) - _lower_bound(FullVar, m, i))
 end
 
-function _mid(::typeof(:branch), m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
+function _mid(::BranchVar, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
 end
-function _mid(::typeof(:branch), m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+function _mid(::BranchVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
 end

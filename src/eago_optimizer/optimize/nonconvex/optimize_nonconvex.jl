@@ -26,7 +26,7 @@ $(SIGNATURES)
 
 Stores the current node to the stack after updating lower/upper bounds.
 """
-function single_storage!(t::ExtensionType, m::GlobalOptimizer{N,T<:AbstractFloat,S}) where {N,T<:AbstractFloat,S}
+function single_storage!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     n = m._current_node
     m._node_repetitions += 1
     m._node_count += 1
@@ -44,7 +44,7 @@ $(SIGNATURES)
 Selects and deletes nodes from stack with lower bounds greater than global
 upper bound.
 """
-function fathom!(t::ExtensionType, m::GlobalOptimizer{N,T<:AbstractFloat,S}) where {N,T<:AbstractFloat,S}
+function fathom!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     upper = m._global_upper_bound
     continue_flag = !isempty(m._stack)
     while continue_flag
@@ -121,13 +121,13 @@ $(SIGNATURES)
 Checks for convergence of algorithm with respect to absolute and/or relative
 tolerances.
 """
-function convergence_check(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S}
+function convergence_check(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
   L = m._lower_objective_value
   U = m._global_upper_bound
   t = (U - L) <= _absolute_tolerance(m)
   if (U < Inf) && (L > Inf)
-      t |= (abs(U - L)/(max(abs(L), abs(U))) <= _relative_tolerance(m)
+      t |= (abs(U - L)/(max(abs(L), abs(U))) <= _relative_tolerance(m))
   end
 
   if t && m._min_converged_value < Inf
@@ -147,7 +147,7 @@ or linear solvers.
 """
 optimize_hook!(t::ExtensionType, m::GlobalOptimizer) = nothing
 
-function store_candidate_solution!(m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S}
+function store_candidate_solution!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     if m._upper_feasibility && (m._upper_objective_value < m._global_upper_bound)
         m._feasible_solution_found = true
         m._first_solution_node = m._maximum_node_id
@@ -157,7 +157,7 @@ function store_candidate_solution!(m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S
     return nothing
 end
 
-function set_global_lower_bound!(m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S}
+function set_global_lower_bound!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     if !isempty(m._stack)
         min_node = minimum(m._stack)
         lower_bound = min_node.lower_bound
@@ -173,7 +173,7 @@ for f in (:parse_global!, :presolve_global!, :termination_check, :cut_condition,
           :convergence_check, :repeat_check, :node_selection!, :preprocess!,
           :lower_problem!, :add_cut!, :upper_problem!, :postprocess!,
           :single_storage, :branch_node!, :fathom!)
-    @eval function ($f)(m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S}
+    @eval function ($f)(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
         ($f)(m.ext_type, m)
     end
 end
@@ -183,7 +183,7 @@ $(TYPEDSIGNATURES)
 
 Solves the branch and bound problem with the input EAGO optimizer object.
 """
-function global_solve!(m::GlobalOptimizer)
+function global_solve!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     m._iteration_count = 1
     m._node_count = 1
