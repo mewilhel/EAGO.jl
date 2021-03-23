@@ -33,7 +33,7 @@ const contconic_excludes = String[
 
 const contquadratic_excludes = String[
     "ncqcp",
-    "qp",
+    #"qp",
     "socp",
     "qcp",
 ]

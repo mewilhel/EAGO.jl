@@ -62,7 +62,6 @@ for F in (LP, MILP, SOCP, SDP)
     @eval function _parse_classify_problem(::Val{$F}, m::Optimizer)
         ip = _input_model(m)
         flag = isempty(filter(x -> !_in_prob(Val{$F}(), x[1], x[2]), MOI.get(ip, MOI.ListOfConstraints())))
-        @show $F, MOI.get(ip, MOI.ListOfConstraints())
         flag &= _input_nlp_data(m) === nothing
         if flag
             m._problem_type = $F

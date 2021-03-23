@@ -159,29 +159,14 @@ $(TYPEDSIGNATURES)
 Creates an initial node with initial box constraints and adds it to the stack.
 """
 function create_initial_node!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
-
-    branch_variable_num = m._branch_variable_num
-    lower_bound = zeros(Float64, branch_variable_num)
-    upper_bound = zeros(Float64, branch_variable_num)
-    branch_count = 1
-
-    for i = 1:m._working_problem._variable_num
-        vi = m._working_problem._variable_info[i]
-        if m._branch_variables[i]
-            lower_bound[branch_count] = vi.lower_bound
-            upper_bound[branch_count] = vi.upper_bound
-            branch_count += 1
-        end
-    end
-
-    n = NodeBB(lower_bound, upper_bound, -Inf, Inf, 1, 1)
-    push!(m._stack, n)
+    push!(m._stack, NodeBB(ntuple(i -> _lower_bound(BranchVar, m, i), m._branch_variable_num),
+                           ntuple(i -> _upper_bound(BranchVar, m, i), m._branch_variable_num),
+                           -Inf, Inf, 1, 1, 0, BD_NONE))
     m._node_count = 1
     m._maximum_node_id += 1
 
     return nothing
 end
-
 function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     ip = _input_problem(m)
@@ -207,9 +192,6 @@ function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,
     # copies the nlp_block from the input_problem to the working problem
     _max_to_min!(m)
     reform_epigraph!(m)
-
-    # labels the variable info and the _fixed_variable vector for each fixed variable
-    label_fixed_variables!(m)
 
     # labels variables to branch on
     label_branch_variables!(m)
