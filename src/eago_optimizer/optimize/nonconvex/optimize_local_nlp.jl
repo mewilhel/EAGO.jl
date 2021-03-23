@@ -12,34 +12,6 @@
 # solve_local_nlp! are also included.
 #############################################################################
 
-"""
-$(SIGNATURES)
-
-Takes an `MOI.TerminationStatusCode` and a `MOI.ResultStatusCode` and returns `true`
-if this corresponds to a solution that is proven to be feasible.
-Returns `false` otherwise.
-"""
-function is_feasible_solution(t::MOI.TerminationStatusCode, r::MOI.ResultStatusCode)
-
-    termination_flag = false
-    result_flag = false
-
-    (t == MOI.OPTIMAL) && (termination_flag = true)
-    (t == MOI.LOCALLY_SOLVED) && (termination_flag = true)
-
-    # This is default solver specific... the acceptable constraint tolerances
-    # are set to the same values as the basic tolerance. As a result, an
-    # acceptably solved solution is feasible but non necessarily optimal
-    # so it should be treated as a feasible point
-    if (t == MOI.ALMOST_LOCALLY_SOLVED) && (r == MOI.NEARLY_FEASIBLE_POINT)
-        termination_flag = true
-        result_flag = true
-    end
-
-    (r == MOI.FEASIBLE_POINT) && (result_flag = true)
-
-    return (termination_flag && result_flag)
-end
 
 function _update_branch_variables!(nlp_opt, m)
     n = m._current_node
@@ -67,6 +39,35 @@ function _update_branch_variables!(nlp_opt, m)
         end
     end
     return nothing
+end
+
+"""
+$(SIGNATURES)
+
+Takes an `MOI.TerminationStatusCode` and a `MOI.ResultStatusCode` and returns `true`
+if this corresponds to a solution that is proven to be feasible.
+Returns `false` otherwise.
+"""
+function is_feasible_solution(t::MOI.TerminationStatusCode, r::MOI.ResultStatusCode)
+
+    termination_flag = false
+    result_flag = false
+
+    (t == MOI.OPTIMAL) && (termination_flag = true)
+    (t == MOI.LOCALLY_SOLVED) && (termination_flag = true)
+
+    # This is default solver specific... the acceptable constraint tolerances
+    # are set to the same values as the basic tolerance. As a result, an
+    # acceptably solved solution is feasible but non necessarily optimal
+    # so it should be treated as a feasible point
+    if (t == MOI.ALMOST_LOCALLY_SOLVED) && (r == MOI.NEARLY_FEASIBLE_POINT)
+        termination_flag = true
+        result_flag = true
+    end
+
+    (r == MOI.FEASIBLE_POINT) && (result_flag = true)
+
+    return (termination_flag && result_flag)
 end
 
 # TODO: Select between infeasible starting point reduction strategies
