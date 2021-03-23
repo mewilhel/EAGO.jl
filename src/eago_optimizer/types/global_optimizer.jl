@@ -179,3 +179,41 @@ function MOI.is_empty(m::GlobalOptimizer{N,T}) where {N,T}
     end
     return is_empty_flag
 end
+
+#=
+TODO: StructArray access is faster here for most...
+=#
+
+function _is_unfixed_integer(::typeof(:full), m::GlobalOptimizer, i)
+end
+function _is_unfixed_integer(::typeof(:branch), m::GlobalOptimizer, i)
+end
+
+for (f,arr) in ((:_lower_bound, :_lower_variable_bound),
+                (:_upper_bound, :_upper_variable_bound),
+                (:_lower_solution, :_lower_solution),)
+    @eval function ($f)(::typeof(:full), m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
+        m.$arr
+    end
+    @eval function ($f)(::typeof(:full), m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+        m.$arr[i]
+    end
+    @eval function ($f)(::typeof(:branch), m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
+        m.$arr[m._branch_variable]
+    end
+    @eval function ($f)(::typeof(:branch), m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+        m.$arr[m._branch_variable[i]]
+    end
+end
+
+function _mid(::typeof(:full), m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
+    0.5*(_upper_bound(:full, m) - _lower_bound(:full, m))
+end
+function _mid(::typeof(:full), m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+    0.5*(_upper_bound(:full, m, i) - _lower_bound(:full, m, i))
+end
+
+function _mid(::typeof(:branch), m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
+end
+function _mid(::typeof(:branch), m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+end

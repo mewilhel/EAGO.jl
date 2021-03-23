@@ -60,8 +60,8 @@ optimizer.
 """
 function update_relaxed_problem_box!(m::GlobalOptimizer{N,T})
     opt = m.relaxed_optimizer
-    lb = _lower_variable_bound(m)
-    ub = _upper_variable_bound(m)
+    lb = _lower_bound(:full, m)
+    ub = _upper_bound(:full, m)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], ET(lb[x[2]])), m._relaxed_variable_eq)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], LT(ub[x[2]])), m._relaxed_variable_lt)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], GT(ub[x[2]])), m._relaxed_variable_gt)

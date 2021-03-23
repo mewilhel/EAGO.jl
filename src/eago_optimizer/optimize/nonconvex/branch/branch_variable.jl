@@ -54,24 +54,24 @@ function _set_δ!(m, d::BranchOracle{T}, i) where T<:Real
 end
 
 function _set_δ!(d::BranchOracle{T}, xb, i) where {T<:Real}
-    l = _lower_branch_bound(m, i)
-    u = _upper_branch_bound(m, i)
+    l = _lower_bound(:branch, m, i)
+    u = _upper_bound(:branch, m, i)
     d.δm[i] = isfinite(l) ? (xb - l) : _variable_infeasibility(m, d, i)
     d.δp[i]  = isfinite(u) ? (u - xb) : _variable_infeasibility(m, d, i)
     return
 end
 
 function _set_δ!(d::PseudoCost{PCBranchIntervalRev,T}, xb, i) where {T<:Real}
-    l = _lower_branch_bound(m, i)
-    u = _upper_branch_bound(m, i)
+    l = _lower_bound(:branch, m, i)
+    u = _upper_bound(:branch, m, i)
     d.δm[i] = isfinite(l) ? (u - xb) : _variable_infeasibility(m, d, i)
     d.δp[i] = isfinite(u) ? (xb - l) : _variable_infeasibility(m, d, i)
     return
 end
 
 function _set_δ!(d::PseudoCost{PCIntervalLP,T}, xlp, i) where {T<:Real}
-    l = _lower_branch_bound(m, i)
-    u = _upper_branch_bound(m, i)
+    l = _lower_bound(:branch, m, i)
+    u = _upper_bound(:branch, m, i)
     ρ = d.β*(u - l)
     xlp_adj = max(min(xlp, u - ρ), l + ρ)
     d.δm[i] = isfinite(l) ? (xlp_adj - l) : _variable_infeasibility(m, d, i)
@@ -80,8 +80,8 @@ function _set_δ!(d::PseudoCost{PCIntervalLP,T}, xlp, i) where {T<:Real}
 end
 
 function _set_δ!(d::PseudoCost{PCIntervalLPRev,T}) where {T<:Real}
-    l = _lower_branch_bound(m, i)
-    u = _upper_branch_bound(m, i)
+    l = _lower_bound(:branch, m, i)
+    u = _upper_bound(:branch, m, i)
     ρ = d.β*(u - l)
     xlp_adj = max(min(xlp, u - ρ), l + ρ)
     d.δm[i] = isfinite(l) ? (u - xlp_adj) : _variable_infeasibility(m, d, i)

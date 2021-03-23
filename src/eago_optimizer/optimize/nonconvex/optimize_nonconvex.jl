@@ -32,7 +32,7 @@ function single_storage!(t::ExtensionType, m::GlobalOptimizer{N,T<:AbstractFloat
     m._node_count += 1
     lower_bound = max(n.lower_bound, m._lower_objective_value)
     upper_bound = min(n.upper_bound, m._upper_objective_value)
-    push!(m._stack, NodeBB(y.lower_variable_bound, n.upper_variable_bound,
+    push!(m._stack, NodeBB(n.lower_variable_bound, n.upper_variable_bound,
                            lower_bound, upper_bound, n.depth, n.id))
 
     return nothing
