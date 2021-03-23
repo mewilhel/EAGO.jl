@@ -1,3 +1,8 @@
+
+#=
+5.3.1 of Belotti, Pietro, et al. "Branching and bounds tighteningtechniques for
+non-convex MINLP." Optimization Methods & Software 24.4-5 (2009): 597-634.
+=#
 function _select_branch_point!(m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S}
     l = _branch_lo(m, i)
     u = _branch_hi(m, i)

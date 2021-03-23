@@ -31,12 +31,14 @@ function _continuous_branch!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where 
     m._maximum_node_id += 1
     push!(m._stack, NodeBB(_branch_lo(m),
                            ntuple(i -> (i == bi ? nextfloat(bp) : _branch_hi(m, i)), N),
-                           lower_bound, upper_bound, new_depth, m._maximum_node_id))
+                           lower_bound, upper_bound, new_depth, m._maximum_node_id,
+                           bi, BD_NEG))
 
     m._maximum_node_id += 1
     push!(m._stack, NodeBB(ntuple(i -> (i == bi ? prevfloat(bp) : _branch_lo(m, i)), N),
                            _branch_hi(m),
-                           lower_bound, upper_bound, new_depth, m._maximum_node_id))
+                           lower_bound, upper_bound, new_depth, m._maximum_node_id,
+                           bi, BD_POS))
 
     m._node_repetitions = 1
     m._node_count += 2

@@ -8,6 +8,7 @@
 # src/eago_optimizer/node_bb.jl
 # Defines storage for a node in the B&B tree & utilities functions
 #############################################################################
+@enum(BranchDirection, BD_NONE, BD_NEG, BD_POS)
 
 """
 $(TYPEDEF)
@@ -29,19 +30,22 @@ struct NodeBB{N,T<:AbstractFloat}
     depth::Int
     "Unique id for each node."
     id::Int
-    "Is continuous"
-    cont::Bool
+    "Last Variable Branched On"
+    last_branch::Int
+    "Branch Direction"
+    branch_direction::BranchDirection
 end
 
 # Constructors
 function NodeBB{N,T}() where {N,T<:AbstractFloat}
     NodeBB{N,T}(ntuple(x->zero(T), N),
                 ntuple(x->zero(T), N),
-                -Inf, Inf, 0, 1, false)
+                -Inf, Inf, 0, 1, 0, BD_NONE)
 end
 function NodeBB(x::NodeBB{N,T}) where {N,T<:AbstractFloat}
     NodeBB{N,T}(x.lower_variable_bound, x.upper_variable_bound,
-                x.lower_bound, x.upper_bound, x.depth, x.id, x.cont)
+                x.lower_bound, x.upper_bound, x.depth, x.id,
+                x.last_branch, x.branch_direction)
 end
 
 # Copy utilities
@@ -49,7 +53,7 @@ function Base.copy(x::NodeBB{N,T}) where {N,T<:AbstractFloat}
     NodeBB{N,T}(x.lower_variable_bound,
                 x.upper_variable_bound,
                 x.lower_bound, x.upper_bound,
-                x.depth, x.id, x.cont)
+                x.depth, x.id, x.last_branch, x.branch_direction)
 end
 
 # Access functions for broadcasting data easily
@@ -61,7 +65,9 @@ lower_variable_bound(x::NodeBB{N,T}, id::Int, nid::Int) where {N,T<:AbstractFloa
 upper_variable_bound(x::NodeBB{N,T}, id::Int, nid::Int) where {N,T<:AbstractFloat} = x.upper_variable_bound[id:nid]
 lower_bound(x::NodeBB{N,T}) where {N,T<:AbstractFloat} = x.lower_bound
 upper_bound(x::NodeBB{N,T}) where {N,T<:AbstractFloat} = x.upper_bound
-depth(x::NodeBB{N,T}) where {N,T<:AbstractFloat} = x.depth
+depth(x::NodeBB) = x.depth
+last_branch(x::NodeBB) = x.last_branch
+branch_direction(x::NodeBB) = x.branch_direction
 
 # Iterations Functions
 Base.isless(x::NodeBB{N,T}, y::NodeBB{N,T}) where {N,T<:AbstractFloat} = x.lower_bound < y.lower_bound
