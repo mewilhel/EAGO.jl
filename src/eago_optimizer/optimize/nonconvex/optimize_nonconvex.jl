@@ -13,11 +13,18 @@
 """
 $(SIGNATURES)
 
-Selects node with the lowest lower bound in stack.
+Selects node with the lowest lower bound in stack & loads `_lower_variable_bound`
+and `_upper_variable_bound` fields.
 """
 function node_selection!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     m._node_count -= 1
     m._current_node = popmin!(m._stack)
+    i = 1
+    for j in m._branch_variable
+        m._lower_variable_bound[j] = lower_variable_bound(m._current_node, i)
+        m._upper_variable_bound[j] = upper_variable_bound(m._current_node, i)
+        i += 1
+    end
     return nothing
 end
 
@@ -32,9 +39,10 @@ function single_storage!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T
     m._node_count += 1
     lower_bound = max(n.lower_bound, m._lower_objective_value)
     upper_bound = min(n.upper_bound, m._upper_objective_value)
-    push!(m._stack, NodeBB(n.lower_variable_bound, n.upper_variable_bound,
-                           lower_bound, upper_bound, n.depth, n.id))
-
+    push!(m._stack, NodeBB(ntuple(i -> _lower_bound(BranchVar, m, i), N),
+                           ntuple(i -> _upper_bound(BranchVar, m, i), N),
+                           lower_bound, upper_bound, n.depth, n.id,
+                           n.last_branch, n.branch_direction))
     return nothing
 end
 

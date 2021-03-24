@@ -86,12 +86,20 @@ function _label_branch!(d, m, ci::CI{VECVAR,SOC_CONE}, start::Int = 1)
     return
 end
 
-function _label_branch_nl!(d, f)
+function _label_branch_nl!(d, expr::Expr)
+    _is_linear()
+    _is_quadratic()
+    _is_soc()
+    _is_exp()
+    _is_pow()
+    # dfs to find variables...
+
     for i in f.expr.grad_sparsity
         m._branch_variables[i] = true
     end
     return
 end
+=#
 
 #=
 Labels branching and nonbranching variables, remakes the optimizer for correct
