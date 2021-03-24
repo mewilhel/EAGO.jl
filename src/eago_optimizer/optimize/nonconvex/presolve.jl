@@ -159,9 +159,9 @@ $(TYPEDSIGNATURES)
 Creates an initial node with initial box constraints and adds it to the stack.
 """
 function create_initial_node!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
-    push!(m._stack, NodeBB(ntuple(i -> _lower_bound(BranchVar, m, i), m._branch_variable_num),
-                           ntuple(i -> _upper_bound(BranchVar, m, i), m._branch_variable_num),
-                           -Inf, Inf, 1, 1, 0, BD_NONE))
+    push!(m._stack, NodeBB{N,T}(ntuple(i -> _lower_bound(BranchVar, m, i), N),
+                                ntuple(i -> _upper_bound(BranchVar, m, i), N),
+                                -Inf, Inf, 1, 1, 0, BD_NONE))
     m._node_count = 1
     m._maximum_node_id += 1
 

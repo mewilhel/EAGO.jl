@@ -70,8 +70,70 @@ for F in (LP, MILP, SOCP, SDP)
     end
 end
 
-function _parse_classify_problem(::Val{MINCVX}, m::Optimizer)
+function _label_branch!(d, m, ci::CI{SQF,S}) where S
+    sqf = MOI.get(m, MOI.ConstraintFunction(), ci)
+    for term in sqf.quadratic_terms
+        d[term.variable_index_1.value] = true
+        d[term.variable_index_2.value] = true
+    end
+    return
+end
+function _label_branch!(d, m, ci::CI{VECVAR,SOC_CONE}, start::Int = 1)
+    vv = MOI.get(m, MOI.ConstraintFunction(), ci)
+    for i = start:length(vv)
+        d[vv.variables[i].value] = true
+    end
+    return
+end
+
+function _label_branch_nl!(d, f)
+    for i in f.expr.grad_sparsity
+        m._branch_variables[i] = true
+    end
+    return
+end
+
+#=
+Labels branching and nonbranching variables, remakes the optimizer for correct
+dimension of NodeBB.
+=#
+function _parse_classify_problem(::Val{MINCVX}, m::Optimizer{T}) where T<:AbstractFloat
     m._problem_type = MINCVX
+
+    d = Dict{Int,Bool}()
+
+    sqf_lt_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF,LT}())
+    sqf_gt_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF,GT}())
+    sqf_et_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF,ET}())
+    foreach(ci -> _label_branch!(d, m, ci), sqf_lt_list)
+    foreach(ci -> _label_branch!(d, m, ci), sqf_gt_list)
+    foreach(ci -> _label_branch!(d, m, ci), sqf_et_list)
+
+    soc_list = MOI.get(m, MOI.ListOfConstraintIndices{VECVAR,SOC_CONE}())
+    exp_list = MOI.get(m, MOI.ListOfConstraintIndices{VECVAR,EXP_CONE}())
+    pow_list = MOI.get(m, MOI.ListOfConstraintIndices{VECVAR,POW_CONE}())
+    psd_list = MOI.get(m, MOI.ListOfConstraintIndices{VECVAR,PSD_CONE}())
+    foreach(ci -> _label_branch!(d, m, ci, start = 2), soc_list)
+    foreach(ci -> _label_branch!(d, m, ci), exp_list)
+    foreach(ci -> _label_branch!(d, m, ci), pow_list)
+    foreach(ci -> _label_branch!(d, m, ci), psd_list)
+
+    #=
+    Get branch variables from nonlinear expressions
+    nl_data = MOI.get(m, MOI.NLPBlock())
+    nl_evaluator = nl_data.evaluator
+    nl_bnds = nl_data.constraint_bounds
+    MOI.initialize(nl_evaluator, Symbol[:ExprGraph])
+
+    if nl_data.has_objective
+        objective_expr(nl_evaluator)
+    end
+    constraint_expr(nl_evaluator, i)
+    =#
+
+    m._solver = GlobalOptimizer{branch_num, T, typeof(_ext_type(m)}()
+    m._solver._ext_type = _ext_type(m)
+
     return true
 end
 
