@@ -70,21 +70,19 @@ for S in (DIFF_CVX, MICVX)
     end
 end
 
-for (T, sub_optimizer) in ((LP, :_lp_optimizer),
-                            (MILP, :_mip_optimizer),
-                            (SOCP, :_socp_optimizer),
-                            (SDP, :_semidefinite_optimizer),
-                            (DIFF_CVX, :_nlp_optimizer),
-                            (MICVX, :_minlp_optimizer))
+for (T, sub_optimizer) in ((LP, :_mip_optimizer),
+                           (MILP, :_mip_optimizer),
+                           (SOCP, :_socp_optimizer),
+                           (SDP, :_semidefinite_optimizer),
+                           (DIFF_CVX, :_nlp_optimizer),
+                           (MICVX, :_minlp_optimizer))
 
     @eval function optimize!(::Val{$T}, m::Optimizer)
 
         opt = MOI.instantiate(($sub_optimizer)(m), with_bridge_type = Float64)
         #set_config!(m, opt)
         _bridge_optimizer!(Val{$T}(), opt)
-        m._input_to_solution_map = MOI.copy_to(opt,
-                                               _input_model(m);
-                                               copy_names = false)
+        m._input_to_solution_map = MOI.copy_to(opt, _input_model(m); copy_names = false)
 
         if _verbosity(m) < 5
             MOI.set(opt, MOI.Silent(), true)

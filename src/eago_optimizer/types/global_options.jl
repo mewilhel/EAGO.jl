@@ -2,8 +2,6 @@
 Base.@kwdef mutable struct GlobalOptimizerOptions{T<:AbstractFloat}
 
     # Subsolver Options
-    "Subsolver used to solve linear programs"
-    lp_optimizer::MOI.OptimizerWithAttributes = MOI.OptimizerWithAttributes(GLPK.Optimizer)
     "Subsolver used to solve mixed-integer linear programs"
     mip_optimizer::MOI.OptimizerWithAttributes = MOI.OptimizerWithAttributes(GLPK.Optimizer)
     "Subsolver used to solve second-order conic programs"

@@ -41,6 +41,26 @@ function _update_branch_variables!(nlp_opt, m)
     return nothing
 end
 
+# TODO: Select between infeasible starting point reduction strategies
+function _set_starting_point!(opt, m)
+    for i = 1:m._working_problem._variable_num
+        if m._branch_variables[i]
+            vp = mid(m, m._sol_to_branch_map[i])
+        else
+            vp = mid(m._working_problem.variable_info[i])
+            if isinf(vp)
+                if isinf(_lower_bound(m._working_problem.variable_info[i]))
+                    vp = _lower_bound(m._working_problem.variable_info[i])
+                else
+                    vp = _upper_bound(m._working_problem.variable_info[i])
+                end
+            end
+        end
+        MOI.set(opt, MOI.VariablePrimalStart(m._upper_variables[i]), vp)
+    end
+    return nothing
+end
+
 """
 $(SIGNATURES)
 
@@ -70,26 +90,6 @@ function is_feasible_solution(t::MOI.TerminationStatusCode, r::MOI.ResultStatusC
     return (termination_flag && result_flag)
 end
 
-# TODO: Select between infeasible starting point reduction strategies
-function _set_starting_point!(opt, m)
-    for i = 1:m._working_problem._variable_num
-        if m._branch_variables[i]
-            vp = mid(m, m._sol_to_branch_map[i])
-        else
-            vp = mid(m._working_problem.variable_info[i])
-            if isinf(vp)
-                if isinf(_lower_bound(m._working_problem.variable_info[i]))
-                    vp = _lower_bound(m._working_problem.variable_info[i])
-                else
-                    vp = _upper_bound(m._working_problem.variable_info[i])
-                end
-            end
-        end
-        MOI.set(opt, MOI.VariablePrimalStart(m._upper_variables[i]), vp)
-    end
-    return nothing
-end
-
 function _unpack_local_nlp_solve!(m::Optimizer, opt::T, idx_map; adjust_bnd::Bool = true) where T
     # Process output info and save to CurrentUpperInfo object
     m._upper_termination_status = MOI.get(nlp_optimizer, MOI.TerminationStatus())
@@ -111,7 +111,7 @@ end
 Constructs and solves the problem locally on on node `y` updated the upper
 solution informaton in the optimizer.
 """
-function solve_local_nlp!(m::Optimizer)
+function solve_local_nlp!(m::Optimizer, i)
 
     opt = m.nlp_optimizer
     #set_config!(m, opt)
@@ -119,8 +119,8 @@ function solve_local_nlp!(m::Optimizer)
     idx_map = MOIU.default_copy_to(bridged_opt, m._input_problem, false)
     (m.verbosity < 5) && MOI.set(bridged_opt, MOI.Silent(), true)
 
-    _update_branch_variables!(bridged_opt, m)
-    _set_starting_point!(bridged_opt, m)
+    _update_branch_variables!(bridged_opt, m, i)
+    _set_starting_point!(bridged_opt, m, i)
     MOI.optimize!(bridged_opt)
     _unpack_local_nlp_solve!(m, bridged_opt, idx_map)
 
@@ -155,8 +155,10 @@ function upper_problem!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<
     if !default_nlp_heurestic(m)
         m._upper_feasibility = false
         m._upper_objective_value = Inf
+    elseif _multistart_heurestic(m)
+        _multistart_local_nlp!(m)
     else
-        solve_local_nlp!(m)
+        _solve_local_nlp!(m, 1)
     end
     return nothing
 end

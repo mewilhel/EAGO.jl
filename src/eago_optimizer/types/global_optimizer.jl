@@ -187,9 +187,9 @@ end
 TODO: StructArray access is faster here for most...
 =#
 
-function _is_unfixed_integer(::FullVar, m::GlobalOptimizer, i)
+Base.@propagate_inbounds function _is_unfixed_integer(::FullVar, m::GlobalOptimizer, i)
 end
-function _is_unfixed_integer(::BranchVar, m::GlobalOptimizer, i)
+Base.@propagate_inbounds function _is_unfixed_integer(::BranchVar, m::GlobalOptimizer, i)
 end
 
 for (f,arr) in ((:_lower_bound, :_lower_variable_bound),
@@ -198,25 +198,38 @@ for (f,arr) in ((:_lower_bound, :_lower_variable_bound),
     @eval function ($f)(::FullVar, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
         m.$arr
     end
-    @eval function ($f)(::FullVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+    @eval Base.@propagate_inbounds function ($f)(::FullVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
         m.$arr[i]
     end
-    @eval function ($f)(::BranchVar, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
+    @eval Base.@propagate_inbounds function ($f)(::BranchVar, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
         m.$arr[m._branch_variable]
     end
-    @eval function ($f)(::BranchVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+    @eval Base.@propagate_inbounds function ($f)(::BranchVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
         m.$arr[m._branch_variable[i]]
     end
 end
 
+Base.@propagate_inbounds function _set_lower_bound!(::BranchVar, m::GlobalOptimizer{N,T,S}, i, v) where {N,T<:Real,S<:ExtensionType}
+    m._lower_variable_bound[m._branch_variable[i]] = v
+end
+Base.@propagate_inbounds function _set_lower_bound!(::FullVar, m::GlobalOptimizer{N,T,S}, i, v) where {N,T<:Real,S<:ExtensionType}
+    m._lower_variable_bound[i] = v
+end
+Base.@propagate_inbounds function _set_upper_bound!(::BranchVar, m::GlobalOptimizer{N,T,S}, i, v) where {N,T<:Real,S<:ExtensionType}
+    m._upper_variable_bound[m._branch_variable[i]] = v
+end
+Base.@propagate_inbounds function _set_upper_bound!(::FullVar, m::GlobalOptimizer{N,T,S}, i, v) where {N,T<:Real,S<:ExtensionType}
+    m._upper_variable_bound[i] = v
+end
+
+
 function _mid(::FullVar, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
     0.5*(_upper_bound(FullVar, m) - _lower_bound(FullVar, m))
 end
-function _mid(::FullVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+Base.@propagate_inbounds function _mid(::FullVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
     0.5*(_upper_bound(FullVar, m, i) - _lower_bound(FullVar, m, i))
 end
-
 function _mid(::BranchVar, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:ExtensionType}
 end
-function _mid(::BranchVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
+Base.@propagate_inbounds function _mid(::BranchVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
 end

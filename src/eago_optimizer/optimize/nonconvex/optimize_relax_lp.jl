@@ -172,12 +172,14 @@ function lower_problem!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<
     end
 
     # activate integer variables and solve mixed integer formulation
-    if valid_flag && feasible_flag
+    if valid_flag && feasible_flag && (_integer_variable_num(m) > 0)
         _update_mip_box!()
         MOI.optimize!(m.relaxed_optimizer)
-        result_num = MOI.get(m, MOI.ResultCount())
-        if result_num > 1
-            # store additional mixed integer feasible solutions
+        m._lower_result_num = MOI.get(m, MOI.ResultCount())
+        if m._lower_result_num > 1
+            for i, j = 1:_variable_num(_working_problem(m)), 2:m._lower_result_num
+                m._lower_solution_candidate[j] = MOI.get(d, MOI.VariablePrimal(j), m._relaxed_variable_index[i])
+            end
         end
     end
 

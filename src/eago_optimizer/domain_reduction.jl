@@ -8,48 +8,12 @@
 # src/eago_optimizer/domain_reduction.jl
 # Contains subroutines used for domain reduction.
 #############################################################################
-
-"""
-    variable_dbbt!
-
-Tightens the bounds of the `_current_node` using the current global upper bound
-and the duality information obtained from the relaxation.
-"""
-function variable_dbbt!(n::NodeBB, mult_lo::Vector{Float64}, mult_hi::Vector{Float64},
-                        LBD::Float64, UBD::Float64, nx::Int64)
-
-    delta = UBD - LBD
-    lvbs = n.lower_variable_bound
-    uvbs = n.upper_variable_bound
-    if LBD <= UBD
-        @inbounds for i = 1:nx
-            ml = mult_lo[i]
-            if ml > 0.0
-                cut = lvbs[i] + delta/ml
-                if cut < uvbs[i]
-                    uvbs[i] = cut
-                end
-            else
-                mh = mult_hi[i]
-                if mh > 0.0
-                    cut = uvbs[i] - delta/mh
-                    if cut > lvbs[i]
-                        lvbs[i] = cut
-                    end
-                end
-            end
-         end
-    end
-
-    return nothing
-end
-
 """
     trivial_filtering!
 
 Excludes OBBT on variable indices that are tight for the solution of the relaxation.
 """
-function trivial_filtering!(m::GlobalOptimizer, n::NodeBB)
+function trivial_filtering!(m::GlobalOptimizer)
 
     m._preprocess_termination_status = MOI.get(m.relaxed_optimizer, MOI.TerminationStatus())
     m._preprocess_result_status = MOI.get(m.relaxed_optimizer, MOI.PrimalStatus())
@@ -61,7 +25,7 @@ function trivial_filtering!(m::GlobalOptimizer, n::NodeBB)
             if m._obbt_working_lower_index[j]
                 vi = m._relaxed_variable_index[j]
                 diff = MOI.get(m.relaxed_optimizer, MOI.VariablePrimal(), vi)
-                diff -= n.lower_variable_bound[j]
+                diff -= m._lower_variable_bound[j]
                 if abs(diff) <= _obbt_tolerance(m)
                     m._obbt_working_lower_index[j] = false
                 end
@@ -71,7 +35,7 @@ function trivial_filtering!(m::GlobalOptimizer, n::NodeBB)
             if m._obbt_working_upper_index[j]
                 vi = m._relaxed_variable_index[j]
                 diff = -MOI.get(m.relaxed_optimizer, MOI.VariablePrimal(), vi)
-                diff += n.upper_variable_bound[j]
+                diff += m._upper_variable_bound[j]
                 if abs(diff) <= _obbt_tolerance(m)
                     m._obbt_working_upper_index[j] = false
                 end
@@ -100,7 +64,7 @@ end
 
 Excludes OBBT on variable indices after a search in a filtering direction.
 """
-function aggressive_filtering!(m::GlobalOptimizer, n::NodeBB)
+function aggressive_filtering!(m::GlobalOptimizer)
 
     # Initial filtering vector (negative one direction per remark in Gleixner2017)
     variable_number = m._working_problem._variable_num
@@ -115,10 +79,10 @@ function aggressive_filtering!(m::GlobalOptimizer, n::NodeBB)
 
     # Exclude unbounded directions
     for i = 1:obbt_variable_num
-        if @inbounds m._new_low_index[i] && @inbounds n.lower_variable_bound[i] === -Inf
+        if @inbounds m._new_low_index[i] && @inbounds m._lower_variable_bound[i] === -Inf
             @inbounds m._new_low_index[i] = false
         end
-        if @inbounds m._new_upp_index[i] && @inbounds n.upper_variable_bound[i] === Inf
+        if @inbounds m._new_upp_index[i] && @inbounds m._upper_variable_bound[i] === Inf
             @inbounds m._new_upp_index[i] = false
         end
     end
@@ -167,10 +131,10 @@ function aggressive_filtering!(m::GlobalOptimizer, n::NodeBB)
             copyto!(m._new_upp_index, m._old_upp_index)
             for i = 1:obbt_variable_num
                 vp_value =  @inbounds variable_primal[i]
-                if @inbounds m._old_low_index[i] && vp_value == @inbounds n.lower_variable_bound[i]
+                if @inbounds m._old_low_index[i] && vp_value == @inbounds m.lower_variable_bound[i]
                     @inbounds m._new_low_index[i] = false
                 end
-                if @inbounds m._old_upp_index[i] && vp_value == @inbounds n.upper_variable_bound[i]
+                if @inbounds m._old_upp_index[i] && vp_value == @inbounds m.upper_variable_bound[i]
                     @inbounds m._new_upp_index[i] = false
                 end
             end
@@ -423,26 +387,10 @@ end
 """
     load_fbbt_buffer!
 """
-function load_fbbt_buffer!(m::Optimizer)
-
-    n = m._current_node
-    sol_to_branch = m._sol_to_branch_map
-    lower_variable_bound = n.lower_variable_bound
-    upper_variable_bound = n.upper_variable_bound
-
-    @inbounds for i = 1:m._working_problem._variable_num
-        if m._branch_variables[i]
-            indx = sol_to_branch[i]
-            m._lower_fbbt_buffer[i] = lower_variable_bound[indx]
-            m._upper_fbbt_buffer[i] = upper_variable_bound[indx]
-
-        else
-            m._lower_fbbt_buffer[i] = m._working_problem._variable_info[i].lower_bound
-            m._upper_fbbt_buffer[i] = m._working_problem._variable_info[i].upper_bound
-
-        end
-    end
-
+function load_fbbt_buffer!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
+    # TODO: Check if lower_fbbt_buffer is needed anymore
+    @__dot__ m._lower_fbbt_buffer = _lower_bound(FullVar, m, 1:m._variable_num)
+    @__dot__ m._upper_fbbt_buffer = _upper_bound(FullVar, m, 1:m._variable_num)
     return nothing
 end
 

@@ -59,10 +59,10 @@ end
 # Access functions for broadcasting data easily
 lower_variable_bound(x::NodeBB{N,T}) where {N,T<:AbstractFloat} = x.lower_variable_bound
 upper_variable_bound(x::NodeBB{N,T}) where {N,T<:AbstractFloat} = x.upper_variable_bound
-lower_variable_bound(x::NodeBB{N,T}, i::Int) where {N,T<:AbstractFloat} = x.lower_variable_bound[i]
-upper_variable_bound(x::NodeBB{N,T}, i::Int) where {N,T<:AbstractFloat} = x.upper_variable_bound[i]
-lower_variable_bound(x::NodeBB{N,T}, id::Int, nid::Int) where {N,T<:AbstractFloat} = x.lower_variable_bound[id:nid]
-upper_variable_bound(x::NodeBB{N,T}, id::Int, nid::Int) where {N,T<:AbstractFloat} = x.upper_variable_bound[id:nid]
+Base.@propagate_inbounds lower_variable_bound(x::NodeBB{N,T}, i::Int) where {N,T<:AbstractFloat} = x.lower_variable_bound[i]
+Base.@propagate_inbounds upper_variable_bound(x::NodeBB{N,T}, i::Int) where {N,T<:AbstractFloat} = x.upper_variable_bound[i]
+Base.@propagate_inbounds lower_variable_bound(x::NodeBB{N,T}, id::Int, nid::Int) where {N,T<:AbstractFloat} = x.lower_variable_bound[id:nid]
+Base.@propagate_inbounds upper_variable_bound(x::NodeBB{N,T}, id::Int, nid::Int) where {N,T<:AbstractFloat} = x.upper_variable_bound[id:nid]
 lower_bound(x::NodeBB{N,T}) where {N,T<:AbstractFloat} = x.lower_bound
 upper_bound(x::NodeBB{N,T}) where {N,T<:AbstractFloat} = x.upper_bound
 depth(x::NodeBB) = x.depth
@@ -97,4 +97,4 @@ end
 # Compute middle & diameter
 diam(x::NodeBB{N,T}) where {N,T<:AbstractFloat} = x.upper_variable_bound - x.lower_variable_bound
 mid(x::NodeBB{N,T}) where {N,T<:AbstractFloat} = 0.5*(x.upper_variable_bound + x.lower_variable_bound)
-mid(x::NodeBB{N,T}, i) where {N,T<:AbstractFloat} = 0.5*(x.upper_variable_bound[i] + x.lower_variable_bound[i])
+Base.@propagate_inbounds mid(x::NodeBB{N,T}, i) where {N,T<:AbstractFloat} = 0.5*(x.upper_variable_bound[i] + x.lower_variable_bound[i])
