@@ -86,6 +86,7 @@ function _label_branch!(d, m, ci::CI{VECVAR,SOC_CONE}, start::Int = 1)
     return
 end
 
+#=
 function _label_branch_nl!(d, expr::Expr)
     _is_linear()
     _is_quadratic()

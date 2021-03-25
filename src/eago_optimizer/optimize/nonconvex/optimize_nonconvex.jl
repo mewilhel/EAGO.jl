@@ -168,9 +168,9 @@ end
 function set_global_lower_bound!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     if !isempty(m._stack)
         min_node = minimum(m._stack)
-        lower_bound = min_node.lower_bound
-        if m._global_lower_bound < lower_bound
-            m._global_lower_bound = lower_bound
+        l = min_node.lower_bound
+        if m._global_lower_bound < l
+            m._global_lower_bound = l
         end
     end
     return nothing

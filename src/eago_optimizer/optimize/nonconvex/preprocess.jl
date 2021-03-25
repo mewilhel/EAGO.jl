@@ -32,7 +32,6 @@ function preprocess!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:Ab
     m._initial_volume = prod(i -> _mid(BranchVar, m, i), 1:N)
 
     if m.fbbt_lp_depth >= m._iteration_count
-        load_fbbt_buffer!(m)
         for i = 1:m.fbbt_lp_repetitions
             if feasible_flag
                 for saf_leq in wp._saf_leq
@@ -48,7 +47,6 @@ function preprocess!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:Ab
                 !feasible_flag && break
             end
         end
-        unpack_fbbt_buffer!(m)
     end
 
     # done after cp to prevent using cp specific flags in cut generation
