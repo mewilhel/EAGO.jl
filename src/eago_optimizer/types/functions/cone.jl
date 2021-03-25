@@ -19,10 +19,10 @@ $(TYPEDEF)
 
 Stores a second-order cone with a buffer.
 """
-mutable struct BufferedSOC <: AbstractEAGOConstraint
+mutable struct BufferedSOC{T<:AbstractFloat} <: AbstractEAGOConstraint
     variables::VECVAR
-    buffer::Dict{Int, Float64}
-    saf::SAF
+    buffer::Dict{Int, T}
+    saf::SAF{T}
     len::Int
 end
 
@@ -33,7 +33,7 @@ function BufferedSOC(func::VECVAR, set::SOC_CONE)
     len = length(func.variables)
     buffer = Dict{Int, Float64}([(variable.value, 0.0) for variable in func.variables])
     saf = SAF(fill(SAT(0.0, VI(1)), len), 0.0)
-    return BufferedSOC(copy(func), buffer, saf, len)
+    return BufferedSOC{Float64}(copy(func), buffer, saf, len)
 end
 
 ###

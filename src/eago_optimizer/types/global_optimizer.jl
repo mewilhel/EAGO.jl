@@ -7,9 +7,9 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         _stack::BinaryMinMaxHeap{NodeBB{N,T}} = BinaryMinMaxHeap{NodeBB{N,T}}()
         _current_node::NodeBB{N,T} = NodeBB{N,T}()
 
-        _input_to_local_map::MOIU.IndexMap                            = MOIU.IndexMap()
-        _constraint_primal::Dict{CI,Union{T,Vector{T}}}   = Dict{CI,T}()
-        _constraint_offset::Vector{Int}             = Int[]
+        _input_to_local_map::MOIU.IndexMap              = MOIU.IndexMap()
+        _constraint_primal::Dict{CI,Union{T,Vector{T}}} = Dict{CI,T}()
+        _constraint_offset::Vector{Int}                 = Int[]
         _constraint_index_num::Int = 0
         _constraint_row_num::Int = 0
         # loaded from _input_problem by TODO
@@ -106,10 +106,6 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         _obbt_variables::Vector{VI} = VI[]
         _obbt_variable_num::Int = 0
         _obbt_performed_flag::Bool = false
-
-        # Buffers for fbbt, set in presolve, used in preprocess
-        _lower_fbbt_buffer::Vector{T} = T[]
-        _upper_fbbt_buffer::Vector{T} = T[]
 
         # Feasibility-Based Bound Tightening Options
         # set in set_constraint_propagation_fbbt in domain_reduction.jl

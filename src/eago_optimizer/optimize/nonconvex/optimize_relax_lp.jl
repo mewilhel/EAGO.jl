@@ -70,7 +70,7 @@ function update_relaxed_problem_box!(m::GlobalOptimizer{N,T,S}) where {N,T<:Abst
     return nothing
 end
 
-function interval_objective_bound(m::GlobalOptimizer{N,T,S}, n::NodeBB) where {N,T<:AbstractFloat,S}
+function interval_objective_bound(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     interval_objective_bound = bound_objective(m)
     if interval_objective_bound > m._lower_objective_value
         m._lower_objective_value = interval_objective_bound
@@ -90,7 +90,7 @@ calculation. This is called when the optimizer used to compute the lower bound
 does not return a termination and primal status code indicating that it
 successfully solved the relaxation to a globally optimal point.
 """
-function fallback_interval_lower_bound!(m::GlobalOptimizer{N,T,S}, n::NodeBB) where {N,T<:AbstractFloat,S}
+function fallback_interval_lower_bound!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     feas = true
     wp = _working_problem(m)

@@ -385,41 +385,6 @@ function obbt!(m::GlobalOptimizer)
 end
 
 """
-    load_fbbt_buffer!
-"""
-function load_fbbt_buffer!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
-    # TODO: Check if lower_fbbt_buffer is needed anymore
-    @__dot__ m._lower_fbbt_buffer = _lower_bound(FullVar, m, 1:m._variable_num)
-    @__dot__ m._upper_fbbt_buffer = _upper_bound(FullVar, m, 1:m._variable_num)
-    return nothing
-end
-
-"""
-    unpack_fbbt_buffer!
-"""
-function unpack_fbbt_buffer!(m::Optimizer)
-
-    n = m._current_node
-    sol_to_branch = m._sol_to_branch_map
-    lower_variable_bound = n.lower_variable_bound
-    upper_variable_bound = n.upper_variable_bound
-
-    for i = 1:m._working_problem._variable_num
-        if m._branch_variables[i]
-            indx = sol_to_branch[i]
-            if m._lower_fbbt_buffer[i] > lower_variable_bound[indx]
-                lower_variable_bound[indx] = m._lower_fbbt_buffer[i]
-            end
-            if upper_variable_bound[indx] > m._upper_fbbt_buffer[i]
-                upper_variable_bound[indx] = m._upper_fbbt_buffer[i]
-            end
-        end
-    end
-
-    return nothing
-end
-
-"""
     fbbt!
 
 Performs feasibility-based bound tightening on a back-end constraint and returns `true` if it is feasible or
@@ -430,61 +395,46 @@ function fbbt! end
 function fbbt!(m::Optimizer, f::AffineFunctionIneq)
 
     # compute full sum
-    lower_bounds = m._lower_fbbt_buffer
-    upper_bounds = m._upper_fbbt_buffer
-
-    terms = f.terms
     temp_sum = -f.constant
-
-    for k = 1:f.len
-
-        aik, indx_k = @inbounds terms[k]
+    @inbounds for k = 1:f.len
+        aik, indx_k = f.terms[k]
         if aik !== 0.0
-            aik_xL = aik*(@inbounds lower_bounds[indx_k])
-            aik_xU = aik*(@inbounds upper_bounds[indx_k])
+            aik_xL = aik*_lower_bound(FullVar, m, indx_k)
+            aik_xU = aik*_upper_bound(FullVar, m, indx_k)
             temp_sum -= min(aik_xL, aik_xU)
         end
     end
 
     # subtract extra term, check to see if implied bound is better, if so update the node and
     # the working sum if the node is now empty then break
-
-    for k = 1:f.len
-
-        aik, indx_k = @inbounds terms[k]
+    @inbounds for k = 1:f.len
+        aik, indx_k = f.terms[k]
         if aik !== 0.0
-
-            xL = @inbounds lower_bounds[indx_k]
-            xU = @inbounds upper_bounds[indx_k]
-
+            xL = _lower_bound(FullVar, m, indx_k)
+            xU = _upper_bound(FullVar, m, indx_k)
             aik_xL = aik*xL
             aik_xU = aik*xU
-
             temp_sum += min(aik_xL, aik_xU)
             xh = temp_sum/aik
 
             if aik > 0.0
                 (xh < xL) && return false
                 if xh > xL
-                    @inbounds upper_bounds[indx_k] = xh
+                    _set_upper_bound(FullVar, m, indx_k, xh)
                 end
-
             elseif aik < 0.0
                 (xh > xU) && return false
                 if xh < xU
-                    @inbounds lower_bounds[indx_k] = xh
+                    _set_lower_bound(FullVar, m, indx_k, xh)
                 end
-
             else
                 temp_sum -= min(aik_xL, aik_xU)
                 continue
-
             end
 
-            aik_xL = aik*(@inbounds lower_bounds[indx_k])
-            aik_xU = aik*(@inbounds upper_bounds[indx_k])
+            aik_xL = aik*_lower_bound(FullVar, m, indx_k)
+            aik_xU = aik*_upper_bound(FullVar, m, indx_k)
             temp_sum -= min(aik_xL, aik_xU)
-
         end
     end
 
@@ -494,34 +444,29 @@ end
 function fbbt!(m::Optimizer, f::AffineFunctionEq)
 
     # compute full sum
-    lower_bounds = m._lower_fbbt_buffer
-    upper_bounds = m._upper_fbbt_buffer
-
     terms = f.terms
     temp_sum_leq = -f.constant
     temp_sum_geq = -f.constant
 
-    for k = 1:f.len
-        aik, indx_k = @inbounds terms[k]
-
+    @inbounds for k = 1:f.len
+        aik, indx_k = terms[k]
         if aik !== 0.0
-            aik_xL = aik*(@inbounds lower_bounds[indx_k])
-            aik_xU = aik*(@inbounds upper_bounds[indx_k])
+            aik_xL = aik*_lower_bound(FullVar, m, indx_k)
+            aik_xU = aik*_upper_bound(FullVar, m, indx_k)
             temp_sum_leq -= min(aik_xL, aik_xU)
             temp_sum_geq -= max(aik_xL, aik_xU)
-
         end
     end
 
     # subtract extra term, check to see if implied bound is better, if so update the node and
     # the working sum if the node is now empty then break
-    for k = 1:f.len
+    @inbounds for k = 1:f.len
 
-        aik, indx_k = @inbounds terms[k]
+        aik, indx_k = terms[k]
         if aik !== 0.0
 
-            xL = @inbounds lower_bounds[indx_k]
-            xU = @inbounds upper_bounds[indx_k]
+            xL = _lower_bound(FullVar, m, indx_k)
+            xU = _upper_bound(FullVar, m, indx_k)
 
             aik_xL = aik*xL
             aik_xU = aik*xU
@@ -558,8 +503,8 @@ function fbbt!(m::Optimizer, f::AffineFunctionEq)
                 continue
 
             end
-            aik_xL = aik*(@inbounds lower_bounds[indx_k])
-            aik_xU = aik*(@inbounds upper_bounds[indx_k])
+            aik_xL = aik*_lower_bound(FullVar, m, indx_k)
+            aik_xU = aik*_upper_bound(FullVar, m, indx_k)
 
             temp_sum_leq -= min(aik_xL, aik_xU)
             temp_sum_geq -= max(aik_xL, aik_xU)

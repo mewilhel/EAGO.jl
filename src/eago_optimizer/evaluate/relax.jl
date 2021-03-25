@@ -19,29 +19,25 @@ ensure that only numerically safe affine relaxations are added. Checks that
 i) ``|b| <= safe b`, ii) `safe_l <= abs(ai) <= safe u`, and iii) violates
 `safe_l <= abs(ai/aj) <= safe_u`.
 """
-function is_safe_cut!(m::Optimizer, f::SAF)
+function is_safe_cut!(m::GlobalOptimizer{N,T,S}, f::SAF) where {N,T<:AbstractFloat,S}
 
     safe_l = m.cut_safe_l
     safe_u = m.cut_safe_u
-    safe_b = m.cut_safe_b
 
     # violates |b| <= safe_b
-    (abs(f.constant) > safe_b) && return false
+    (abs(f.constant) > m.cut_safe_b) && return false
 
     term_count = length(f.terms)
     for i = 1:term_count
-
         ai = (@inbounds f.terms[i]).coefficient
-        if ai !== 0.0
-
-            # violates safe_l <= abs(ai) <= safe_u
+        if !iszero(ai)
             ai_abs = abs(ai)
+            # violates safe_l <= abs(ai) <= safe_u
             !(safe_l <= abs(ai) <= safe_u) && return false
-
-            # violates safe_l <= abs(ai/aj) <= safe_u
             for j = i:term_count
                 aj = (@inbounds f.terms[j]).coefficient
-                if aj !== 0.0
+                if !iszero(aj)
+                    # violates safe_l <= abs(ai/aj) <= safe_u
                     !(safe_l <= abs(ai/aj) <= safe_u) && return false
                 end
             end
@@ -65,12 +61,10 @@ Default routine for relaxing quadratic constraint `func < 0.0` on node `n`.
 Takes affine bounds of convex part at point `x0` and secant line bounds on
 concave parts.
 """
-function affine_relax_quadratic!(func::SQF, buffer::Dict{Int,Float64}, saf::SAF,
+function affine_relax_quadratic!(func::SQF, d::Dict{Int,Float64}, saf::SAF,
                                  n::NodeBB, sol_to_branch_map::Vector{Int},
                                  x::Vector{Float64})
 
-    lower_bounds = n.lower_variable_bounds
-    upper_bounds = n.upper_variable_bounds
     quadratic_constant = func.constant
 
     # Affine terms only contribute coefficients, so the respective
@@ -83,78 +77,61 @@ function affine_relax_quadratic!(func::SQF, buffer::Dict{Int,Float64}, saf::SAF,
         a = term.coefficient
         idx1 = term.variable_index_1.value
         idx2 = term.variable_index_2.value
-        sol_idx1 = sol_to_branch_map[idx1]
-        sol_idx2 = sol_to_branch_map[idx2]
-        x0_1 = x[sol_idx1]
-        xL_1 = lower_bounds[sol_idx1]
-        xU_1 = upper_bounds[sol_idx1]
+        x1 = x[sol_idx1]                    # TODO FIX THIS
+        xL1 = _lower_bound(FullVar, m, idx1)
+        xU1 = _upper_bound(FullVar, m, idx1)
 
-        if idx1 === idx2
-
-            if a > 0.0
-                buffer[idx1] += a*x0_1
-                quadratic_constant -= 0.5*a*x0_1*x0_1
-
+        if idx1 == idx2
+            if a > zero(T)
+                d[idx1] += a*x1
+                quadratic_constant -= 0.5*a*x1*x1
             else
-                if !isinf(xL_1) && !isinf(xU_1)
-                    buffer[idx1] += 0.5*a*(xL_1 + xU_1)
-                    quadratic_constant -= 0.5*a*xL_1*xU_1
+                if !isinf(xL1) && !isinf(xU1)
+                    d[idx1] += 0.5*a*(xL1 + xU1)
+                    quadratic_constant -= 0.5*a*xL1*xU1
                 else
                     return false
                 end
             end
-
         else
-            x0_2 = x[sol_idx2]
-            xL_2 = lower_bounds[sol_idx2]
-            xU_2 = upper_bounds[sol_idx2]
-
+            x2 = x[sol_idx2]
+            xL2 = _lower_bound(FullVar, m, idx2)
+            xU2 = _upper_bound(FullVar, m, idx2)
             if a > 0.0
-                if (!isinf(xL_1) && !isinf(xL_2)) &&
-                   ((xU_1 - xL_1)*x0_2 + (xU_2 - xL_2)*x0_1 <= xU_1*xU_2 - xL_1*xL_2)
-                    buffer[idx1] += a*xL_2
-                    buffer[idx2] += a*xL_1
-                    quadratic_constant -= a*xL_1*xL_2
-
-                elseif !isinf(xU_1) && !isinf(xU_2)
-                    buffer[idx1] += a*xU_2
-                    buffer[idx2] += a*xU_1
-                    quadratic_constant -= a*xU_1*xU_2
-
+                if (!isinf(xL1) && !isinf(xL2)) &&
+                   ((xU1 - xL1)*x2 + (xU2 - xL2)*x1 <= xU1*xU2 - xL1*xL2)
+                    d[idx1] += a*xL2
+                    d[idx2] += a*xL1
+                    quadratic_constant -= a*xL1*xL2
+                elseif !isinf(xU1) && !isinf(xU2)
+                    d[idx1] += a*xU2
+                    d[idx2] += a*xU1
+                    quadratic_constant -= a*xU1*xU2
                 else
                     return false
-
                 end
             else
-                if (!isinf(xU_1) && !isinf(xL_2)) &&
-                   ((xU_1 - xL_1)*x0_2 - (xU_2 - xL_2)*x0_1 <= xU_1*xL_2 - xL_1*xU_2)
-
-                    buffer[idx1] += a*xL_2
-                    buffer[idx2] += a*xU_1
-                    quadratic_constant -= a*xU_1*xL_2
-
-                elseif !isinf(xL_1) && !isinf(xU_2)
-                    buffer[idx1] += a*xU_2
-                    buffer[idx2] += a*xL_1
-                    quadratic_constant -= a*xL_1*xU_2
-
+                if (!isinf(xU1) && !isinf(xL2)) &&
+                   ((xU1 - xL1)*x2 - (xU2 - xL2)*x1 <= xU1*xL2 - xL1*xU2)
+                    d[idx1] += a*xL2
+                    d[idx2] += a*xU1
+                    quadratic_constant -= a*xU1*xL2
+                elseif !isinf(xL1) && !isinf(xU2)
+                    d[idx1] += a*xU2
+                    d[idx2] += a*xL1
+                    quadratic_constant -= a*xL1*xU2
                 else
                     return false
                 end
             end
         end
     end
-
-    for term in func.affine_terms
-        a0 = term.coefficient
-        idx = term.variable_index.value
-        buffer[idx] += a0
-    end
+    foreach(x -> (d[x.variable_index.value] = x.coefficient;), func.affine_terms)
 
     count = 1
-    for (key, value) in buffer
+    for (key, value) in d
         saf.terms[count] = SAT(value, VI(key))
-        buffer[key] = 0.0
+        d[key] = 0.0
         count += 1
     end
     saf.constant = quadratic_constant
@@ -382,10 +359,3 @@ function set_first_relax_point!(m::Optimizer)
 
     return nothing
 end
-
-#=
-Linear Relax -> Load LP Type
-Bridge:
-# The `NormInfinityCone` is representable with LP constraints
-# The `NormOneCone` is representable with LP constraint
-=#

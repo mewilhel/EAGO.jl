@@ -54,20 +54,20 @@ end
 ### Constructor definitions
 ###
 
-function create_buffer_dict(func::SQF)
+function create_buffer_dict(func::SQF{T}) where {T<:AbstractFloat}
 
-    buffer = Dict{Int, Float64}()
+    d = Dict{Int, T}()
 
     for term in func.quadratic_terms
-        buffer[term.variable_index_1.value] = 0.0
-        buffer[term.variable_index_2.value] = 0.0
+        d[term.variable_index_1.value] = zero(T)
+        d[term.variable_index_2.value] = zero(T)
     end
 
     for term in func.affine_terms
-        buffer[term.variable_index.value] = 0.0
+        d[term.variable_index.value] = zero(T)
     end
 
-    return buffer
+    return d
 end
 
 BufferedQuadraticIneq() = BufferedQuadraticIneq(SQF(SQT[], SAT[], 0.0), Dict{Int, Float64}(), SAF(SAT[], 0.0), 0)

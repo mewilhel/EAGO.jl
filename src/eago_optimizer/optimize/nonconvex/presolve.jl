@@ -213,7 +213,7 @@ function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,
     # to use a reformulated upper problem presents itself
     m._lower_solution      = zeros(Float64, m._working_problem._variable_num)
     m._cut_solution        = zeros(Float64, m._working_problem._variable_num)
-    m._solution = zeros(Float64, m._working_problem._variable_num)
+    m._solution            = zeros(Float64, m._working_problem._variable_num)
     m._upper_solution      = zeros(Float64, m._working_problem._variable_num)
     m._upper_variables     = fill(VI(-1), m._working_problem._variable_num)
 

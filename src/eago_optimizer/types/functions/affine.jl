@@ -22,17 +22,17 @@ $(TYPEDEF)
 Current only used for bound tightening. Stores a representation
 of an affine inequality.
 """
-mutable struct AffineFunctionIneq <: AbstractEAGOConstraint
-    func::SAF
+mutable struct AffineFunctionIneq{T<:AbstractFloat} <: AbstractEAGOConstraint
+    func::SAF{T}
     len::Int
 end
 AffineFunctionIneq() = AffineFunctionIneq(SAF(SAT[],0.0), 0)
-function AffineFunctionIneq(func::SAF, set::LT)
+function AffineFunctionIneq(func::SAF{T}, set::LT{T}) where {T<:AbstractFloat}
     func.constant -= set.upper
     return AffineFunctionIneq(func, length(func.terms))
 end
 
-function AffineFunctionIneq(func::SAF, set::GT)
+function AffineFunctionIneq(func::SAF{T}, set::GT{T})) where {T<:AbstractFloat}
     func.constant = set.lower - func.constant
     return AffineFunctionIneq(func, length(func.terms))
 end
@@ -43,12 +43,12 @@ $(TYPEDEF)
 Current only used for bound tightening. Stores a representation
 of an affine equality.
 """
-mutable struct AffineFunctionEq <: AbstractEAGOConstraint
-    func::SAF
+mutable struct AffineFunctionEq{T<:AbstractFloat} <: AbstractEAGOConstraint
+    func::SAF{T}
     len::Int
 end
 AffineFunctionEq() = AffineFunctionEq(Tuple{Float64,Int}[], 0.0, 0)
-function AffineFunctionEq(func::SAF, set::ET)
+function AffineFunctionEq(func::SAF{T}, set::ET{T})) where {T<:AbstractFloat}
     func.constant -= set.value
     return AffineFunctionEq(func, length(func.terms))
 end

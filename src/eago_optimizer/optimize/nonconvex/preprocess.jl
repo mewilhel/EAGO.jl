@@ -29,8 +29,7 @@ function preprocess!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:Ab
     m._obbt_performed_flag = false
 
     # compute initial volume
-    m._initial_volume = prod(upper_variable_bound(m._current_node) -
-                             lower_variable_bound(m._current_node))
+    m._initial_volume = prod(i -> _mid(BranchVar, m, i), 1:N)
 
     if m.fbbt_lp_depth >= m._iteration_count
         load_fbbt_buffer!(m)
@@ -76,12 +75,10 @@ function preprocess!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:Ab
         m._obbt_performed_flag = true
         !feasible_flag && break
         obbt_count += 1
-        perform_obbt_flag     = (obbt_count < m.obbt_repetitions)
+        perform_obbt_flag = (obbt_count < m.obbt_repetitions)
     end
 
-    m._final_volume = prod(upper_variable_bound(m._current_node) -
-                           lower_variable_bound(m._current_node))
-
+    m._final_volume = prod(i -> _mid(BranchVar, m, i), 1:N)
     m._preprocess_feasibility = feasible_flag
 
     return nothing
