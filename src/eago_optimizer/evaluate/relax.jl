@@ -128,11 +128,11 @@ function affine_relax_quadratic!(func::SQF, d::Dict{Int,Float64}, saf::SAF,
     end
     foreach(x -> (d[x.variable_index.value] = x.coefficient;), func.affine_terms)
 
-    count = 1
-    for (key, value) in d
-        saf.terms[count] = SAT(value, VI(key))
-        d[key] = 0.0
-        count += 1
+    i = 1
+    for (k, v) in d
+        saf.terms[i] = SAT(v, VI(k))
+        d[k] = 0.0
+        i += 1
     end
     saf.constant = quadratic_constant
 
@@ -191,45 +191,31 @@ end
 $(FUNCTIONNAME)
 """
 function affine_relax_nonlinear!(f::BufferedNonlinearFunction{MC{N,T}}, evaluator::Evaluator,
-                                 use_cvx::Bool, new_pass::Bool, is_constraint::Bool) where {N,T<:RelaxTag}
+                                 use_cvx::Bool, new_pass::Bool) where {N,T<:RelaxTag}
 
-    if new_pass
-        forward_pass!(evaluator, f)
-    end
+    new_pass && forward_pass!(evaluator, f)
     x = evaluator.x
     finite_cut = true
 
-    expr = f.expr
-    grad_sparsity = expr.grad_sparsity
-    if expr.isnumber[1]
-        f.saf.constant = expr.numberstorage[1]
-        map!(x -> SAT(0.0, VI(x)), f.saf.terms, grad_sparsity)
-
+    if f.expr.isnumber[1]
+        f.saf.constant = f.expr.numberstorage[1]
+        map!(i -> SAT(0.0, VI(i)), f.saf.terms, f.expr.grad_sparsity)
     else
-        setvalue = expr.setstorage[1]
+        setvalue = f.expr.setstorage[1]
         finite_cut &= !(isempty(setvalue) || isnan(setvalue))
-
         if finite_cut
             value = f.expr.setstorage[1]
             f.saf.constant = use_cvx ? value.cv : -value.cc
             for i = 1:N
-                vval = @inbounds grad_sparsity[i]
-                if use_cvx
-                    coef = @inbounds value.cv_grad[i]
-                else
-                    coef = @inbounds -value.cc_grad[i]
-                end
-                f.saf.terms[i] = SAT(coef, VI(vval))
-                xv = @inbounds x[vval]
-                f.saf.constant = sub_round(f.saf.constant , mul_round(coef, xv, RoundUp), RoundDown)
+                vi = f.expr.grad_sparsity[i]
+                c = use_cvx ? value.cv_grad[i] : -value.cc_grad[i]
+                f.saf.terms[i] = SAT(c, VI(vi))
+                f.saf.constant = sub_round(f.saf.constant , mul_round(coef, x[vi], RoundUp), RoundDown)
             end
-            if is_constraint
-                bnd_used =  use_cvx ? -f.upper_bound : f.lower_bound
-                f.saf.constant = add_round(f.saf.constant, bnd_used, RoundDown)
-            end
+            bnd_used =  use_cvx ? -f.upper_bound : f.lower_bound
+            f.saf.constant = add_round(f.saf.constant, bnd_used, RoundDown)
         end
     end
-
     return finite_cut
 end
 
@@ -237,17 +223,12 @@ end
 $(TYPEDSIGNATURES)
 """
 function check_set_affine_nl!(m::Optimizer, f::BufferedNonlinearFunction{MC{N,T}}, finite_cut_generated::Bool, check_safe::Bool) where {N,T<:RelaxTag}
-
-    constraint_tol = m.absolute_constraint_feas_tolerance
-    if finite_cut_generated
-        if !check_safe || is_safe_cut!(m, f.saf)
-            lt = LT(-f.saf.constant + constraint_tol)
-            f.saf.constant = 0.0
-            ci = MOI.add_constraint(m.relaxed_optimizer, f.saf, lt)
-            push!(m._buffered_nonlinear_ci, ci)
-        end
+    if finite_cut_generated && (!check_safe || is_safe_cut!(m, f.saf))
+        lt = LT(-f.saf.constant + m.absolute_constraint_feas_tolerance)
+        f.saf.constant = 0.0
+        ci = MOI.add_constraint(m.relaxed_optimizer, f.saf, lt)
+        push!(m._buffered_nonlinear_ci, ci)
     end
-
     return nothing
 end
 
@@ -257,10 +238,10 @@ $(TYPEDSIGNATURES)
 function relax!(m::Optimizer, f::BufferedNonlinearFunction{MC{N,T}}, check_safe::Bool) where {N,T<:RelaxTag}
     evaluator = m._working_problem._relaxed_evaluator
 
-    finite_cut_generated = affine_relax_nonlinear!(f, evaluator, true, true, true)
+    finite_cut_generated = affine_relax_nonlinear!(f, evaluator, true, true)
     check_set_affine_nl!(m, f, finite_cut_generated, check_safe)
 
-    finite_cut_generated = affine_relax_nonlinear!(f, evaluator, false, false, true)
+    finite_cut_generated = affine_relax_nonlinear!(f, evaluator, false, false)
     check_set_affine_nl!(m, f, finite_cut_generated, check_safe)
 
     return nothing
@@ -272,20 +253,14 @@ $(FUNCTIONNAME)
 Adds linear objective cut constraint to the `x.relaxed_optimizer`.
 """
 function objective_cut!(m::Optimizer, check_safe::Bool)
-
-    UBD = m._global_upper_bound
-    constraint_tol = m.absolute_constraint_feas_tolerance
-    if m.objective_cut_on && m._global_upper_bound < Inf
+    u = m._global_upper_bound
+    if u < Inf
         wp = m._working_problem
-        formulated_constant = wp._objective.constant
-        wp._objective.constant = 0.0
         if check_safe && is_safe_cut!(m, wp._objective)
-            ci_saf = MOI.add_constraint(m.relaxed_optimizer, wp._objective, LT(UBD - wp._objective.constant + constraint_tol))
-            push!(m._objective_cut_ci_saf, ci_saf)
+            val = u - wp._objective.constant + m.abs_constraint_feas_tol
+            MOI.set(m.mip_solver, MOI.ConstraintSet(), m._obj_ci, LT(val))
         end
-        wp._objective.constant = formulated_constant
     end
-
     return nothing
 end
 
@@ -329,17 +304,6 @@ function delete_nl_constraints!(m::Optimizer)
     empty!(m._buffered_quadratic_ineq_ci)
     empty!(m._buffered_quadratic_eq_ci)
     empty!(m._buffered_nonlinear_ci)
-    return
-end
-
-"""
-$(FUNCTIONNAME)
-
-Deletes all scalar-affine objective cuts added to the relaxed optimizer.
-"""
-function delete_objective_cuts!(m::Optimizer)
-    MOI.delete.(m.relaxed_optimizer, m._objective_cut_ci_saf)
-    empty!(m._objective_cut_ci_saf)
     return
 end
 

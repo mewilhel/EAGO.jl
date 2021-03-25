@@ -129,11 +129,6 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         _buffered_quadratic_eq_ci::Vector{CI{SAF,LT}} = CI{SAF,LT}[]
         _buffered_nonlinear_ci::Vector{CI{SAF,LT}} = CI{SAF,LT}[]
 
-        # initialized to empty in constructor (or via MOI.empty), filled in objective_cut in relax.jl
-        # called by obbt in domain_reduction.jl, lower_problem, and add_cut in optimize_nonconvex.jl,
-        # emptied in delete_objective_cuts! in relax.jl
-        _objective_cut_ci_saf::Vector{CI{SAF,LT}} = CI{SAF,LT}[]
-
         # need to retreive primal _relaxed_variable_index
         # set in TODO
         #"Number of variables actively branched on in B&B routine (excludes linear and fixed)"

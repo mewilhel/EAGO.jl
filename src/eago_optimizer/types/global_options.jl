@@ -160,8 +160,6 @@ Base.@kwdef mutable struct GlobalOptimizerOptions{T<:AbstractFloat}
     "Add cut if the L1 distance from the prior cutting point to the new cutting
     point normalized by the box volume is greater than the tolerance (default = 0.05)."
     cut_tolerance::T = 0.05
-    "Adds an objective cut to the relaxed problem (default = true)."
-    objective_cut_on::Bool = true
 
     "Use tolerances to determine safe cuts in a Khajavirad 2018 manner"
     cut_safe_on::Bool = true
