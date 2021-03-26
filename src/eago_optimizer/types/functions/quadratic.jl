@@ -21,10 +21,10 @@ $(TYPEDEF)
 
 Stores a general quadratic inequality constraint with a buffer.
 """
-mutable struct BufferedQuadraticIneq <: AbstractEAGOConstraint
-    func::SQF
-    buffer::Dict{Int, Float64}
-    saf::SAF
+mutable struct BufferedQuadraticIneq{T<:AbstractFloat} <: AbstractEAGOConstraint
+    func::SQF{T}
+    buffer::Dict{Int,T}
+    saf::SAF{T}
     len::Int
 end
 
@@ -33,11 +33,11 @@ $(TYPEDEF)
 
 Stores a general quadratic equality constraint with a buffer.
 """
-mutable struct BufferedQuadraticEq <: AbstractEAGOConstraint
-    func::SQF
-    minus_func::SQF
-    buffer::Dict{Int, Float64}
-    saf::SAF
+mutable struct BufferedQuadraticEq{T<:AbstractFloat} <: AbstractEAGOConstraint
+    func::SQF{T}
+    minus_func::SQF{T}
+    buffer::Dict{Int,T}
+    saf::SAF{T}
     len::Int
 end
 
@@ -56,7 +56,7 @@ end
 
 function create_buffer_dict(func::SQF{T}) where {T<:AbstractFloat}
 
-    d = Dict{Int, T}()
+    d = Dict{Int,T}()
 
     for term in func.quadratic_terms
         d[term.variable_index_1.value] = zero(T)
@@ -70,43 +70,40 @@ function create_buffer_dict(func::SQF{T}) where {T<:AbstractFloat}
     return d
 end
 
-BufferedQuadraticIneq() = BufferedQuadraticIneq(SQF(SQT[], SAT[], 0.0), Dict{Int, Float64}(), SAF(SAT[], 0.0), 0)
+function BufferedQuadraticIneq{T}() where T<:AbstractFloat
+    BufferedQuadraticIneq{T}(SQF{T}(SQT{T}[], SAT{T}[], zero(T)),
+                             Dict{Int, T}(), SAF{T}(SAT{T}[], zero(T)), zero(T))
+end
 
-function BufferedQuadraticIneq(func::SQF, set::LT)
-
-    buffer = create_buffer_dict(func)
-    saf = SAF([SAT(0.0, VI(k)) for k in keys(buffer)], 0.0)
-    len = length(buffer)
+function BufferedQuadraticIneq(func::SQF{T}, set::LT{T}) where T<:AbstractFloat
+    b = create_buffer_dict(func)
+    saf = SAF{T}([SAT{T}(zero(T), VI(k)) for k in keys(b)], zero(T))
     cfunc = copy(func)
     cfunc.constant -= set.upper
-
-    return BufferedQuadraticIneq(cfunc, buffer, saf, len)
+    return BufferedQuadraticIneq{T}(cfunc, b, saf, length(b))
 end
 
-function BufferedQuadraticIneq(func::SQF, set::GT)
-
-    buffer = create_buffer_dict(func)
-    saf = SAF([SAT(0.0, VI(k)) for k in keys(buffer)], 0.0)
-    len = length(buffer)
-    cfunc = MOIU.operate(-, Float64, func)
+function BufferedQuadraticIneq(func::SQF{T}, set::GT{T}) where T<:AbstractFloat
+    b = create_buffer_dict(func)
+    saf = SAF{T}([SAT{T}(zero(T), VI(k)) for k in keys(b)], zero(T))
+    cfunc = MOIU.operate(-, T, func)
     cfunc.constant += set.lower
-
-    return BufferedQuadraticIneq(cfunc, buffer, saf, len)
+    return BufferedQuadraticIneq(cfunc, b, saf, length(b))
 end
 
-BufferedQuadraticEq() = BufferedQuadraticEq(SQF(SQT[], SAT[], 0.0), SQF(SQT[], SAT[], 0.0), Dict{Int, Float64}(), SAF(SAT[], 0.0), 0)
+function BufferedQuadraticEq{T}() where T<:AbstractFloat
+    BufferedQuadraticEq{T}(SQF{T}(SQT{T}[], SAT{T}[], zero(T)),
+                           SQF{T}(SQT{T}[], SAT{T}[], zero(T)),
+                           Dict{Int,T}(), SAF{T}(SAT{T}[], zero(T)), zero(T))
 
-function BufferedQuadraticEq(func::SQF, set::ET)
-
-    buffer = create_buffer_dict(func)
-    saf = SAF([SAT(0.0, VI(k)) for k in keys(buffer)], 0.0)
-    len = length(buffer)
+function BufferedQuadraticEq(func::SQF{T}, set::ET{T}) where T<:AbstractFloat
+    b = create_buffer_dict(func)
+    saf = SAF{T}([SAT{T}(zero(T), VI(k)) for k in keys(b)], zero(T))
     cfunc1 = copy(func)
     cfunc1.constant -= set.value
-    cfunc2 = MOIU.operate(-, Float64, func)
+    cfunc2 = MOIU.operate(-, T, func)
     cfunc2.constant += set.value
-
-    return BufferedQuadraticEq(cfunc1, cfunc2, buffer, saf, len)
+    return BufferedQuadraticEq(cfunc1, cfunc2, buffer, saf, length(b))
 end
 
 #=

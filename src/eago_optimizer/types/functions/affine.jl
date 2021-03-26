@@ -26,15 +26,15 @@ mutable struct AffineFunctionIneq{T<:AbstractFloat} <: AbstractEAGOConstraint
     func::SAF{T}
     len::Int
 end
-AffineFunctionIneq() = AffineFunctionIneq(SAF(SAT[],0.0), 0)
+AffineFunctionIneq{T}() where {T<:AbstractFloat} = AffineFunctionIneq{T}(SAF{T}(SAT{T}[], zero(T)), zero(T))
+
 function AffineFunctionIneq(func::SAF{T}, set::LT{T}) where {T<:AbstractFloat}
     func.constant -= set.upper
-    return AffineFunctionIneq(func, length(func.terms))
+    return AffineFunctionIneq{T}(func, length(func.terms))
 end
-
 function AffineFunctionIneq(func::SAF{T}, set::GT{T})) where {T<:AbstractFloat}
     func.constant = set.lower - func.constant
-    return AffineFunctionIneq(func, length(func.terms))
+    return AffineFunctionIneq{T}(func, length(func.terms))
 end
 
 """
@@ -47,10 +47,10 @@ mutable struct AffineFunctionEq{T<:AbstractFloat} <: AbstractEAGOConstraint
     func::SAF{T}
     len::Int
 end
-AffineFunctionEq() = AffineFunctionEq(Tuple{Float64,Int}[], 0.0, 0)
+AffineFunctionEq{T}() where T<:AbstractFloat = AffineFunctionEq{T}(Tuple{T,Int}[], zero(T), 0)
 function AffineFunctionEq(func::SAF{T}, set::ET{T})) where {T<:AbstractFloat}
     func.constant -= set.value
-    return AffineFunctionEq(func, length(func.terms))
+    return AffineFunctionEq{T}(func, length(func.terms))
 end
 
 ###
@@ -59,13 +59,12 @@ end
 
 function eliminate_fixed_variables!(f::T, v::Vector{VariableInfo}) where T <: Union{AffineFunctionIneq,
                                                                                     AffineFunctionEq}
+    deleted_count = 0
     for i = 1:f.len
         sat = @inbounds f.func.terms[i - deleted_count]
-        coeff = sat.coefficient
-        indx = sat.value
-        variable_info = @inbounds v[indx]
-        if variable_info.is_fixed
-            f.constant += coeff*variable_info.lower_bound
+        vi = @inbounds v[sat.value]
+        if vi.is_fixed
+            f.constant += (sat.coefficient)*vi.lower_bound
             deleteat!(f.terms, i - deleted_count)
             deleted_count += 1
         end
