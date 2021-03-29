@@ -10,6 +10,9 @@
 # LP, SOCP, MILP, MISOCP, and convex problem types.
 #############################################################################
 
+#include(joinpath(@__DIR__, "parse_bridge_nl", "parse_bridge_nl.jl"))
+include(joinpath(@__DIR__, "label_branch.jl"))
+
 const INTEGER_FUNC_SET{T <: Real} = Union{Tuple{MOI.SingleVariable, MOI.ZeroOne},
                                           Tuple{MOI.SingleVariable, MOI.Integer},
                                           Tuple{MOI.SingleVariable, MOI.Semicontinuous},
@@ -70,38 +73,6 @@ for F in (LP, MILP, SOCP, SDP)
     end
 end
 
-function _label_branch!(d, m, ci::CI{SQF,S}) where S
-    sqf = MOI.get(m, MOI.ConstraintFunction(), ci)
-    for term in sqf.quadratic_terms
-        d[term.variable_index_1.value] = true
-        d[term.variable_index_2.value] = true
-    end
-    return
-end
-function _label_branch!(d, m, ci::CI{VECVAR,SOC_CONE}, start::Int = 1)
-    vv = MOI.get(m, MOI.ConstraintFunction(), ci)
-    for i = start:length(vv)
-        d[vv.variables[i].value] = true
-    end
-    return
-end
-
-#=
-function _label_branch_nl!(d, expr::Expr)
-    _is_linear()
-    _is_quadratic()
-    _is_soc()
-    _is_exp()
-    _is_pow()
-    # dfs to find variables...
-
-    for i in f.expr.grad_sparsity
-        m._branch_variables[i] = true
-    end
-    return
-end
-=#
-
 #=
 Labels branching and nonbranching variables, remakes the optimizer for correct
 dimension of NodeBB.
@@ -127,18 +98,10 @@ function _parse_classify_problem(::Val{MINCVX}, m::Optimizer{T}) where T<:Abstra
     foreach(ci -> _label_branch!(d, m, ci), pow_list)
     foreach(ci -> _label_branch!(d, m, ci), psd_list)
 
-    #=
-    Get branch variables from nonlinear expressions
-    nl_data = MOI.get(m, MOI.NLPBlock())
-    nl_evaluator = nl_data.evaluator
-    nl_bnds = nl_data.constraint_bounds
-    MOI.initialize(nl_evaluator, Symbol[:ExprGraph])
+    #Get branch variables from nonlinear expressions
+    _label_nl!(d, _input_nlp_data(m))
 
-    if nl_data.has_objective
-        objective_expr(nl_evaluator)
-    end
-    constraint_expr(nl_evaluator, i)
-    =#
+    branch_num = length(keys(d))
 
     m._solver = GlobalOptimizer{branch_num, T, typeof(_ext_type(m))}()
     m._solver._ext_type = _ext_type(m)
@@ -151,6 +114,7 @@ end
 Classifies the problem type
 """
 function _parse_classify_problem!(m::Optimizer)
+    #_parse_bridge_nl!(m)
     _parse_classify_problem(Val{LP}(), m)       && return
     _parse_classify_problem(Val{MILP}(), m)     && return
     _parse_classify_problem(Val{SOCP}(), m)     && return
