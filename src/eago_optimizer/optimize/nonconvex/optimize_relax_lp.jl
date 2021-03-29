@@ -103,7 +103,7 @@ function _update_lp_box!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], LT(ub[x[2]])),           m._relaxed_variable_lt)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], GT(ub[x[2]])),           m._relaxed_variable_gt)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], IT(lb[x[2]], ub[x[2]])), m._relaxed_variable_it)
-    foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], IT(zero(T), one(T)),     m._relaxed_variable_zo)
+    foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], IT(zero(T), one(T))),    m._relaxed_variable_zo)
     foreach(x -> MOI.set(opt, MOI.ConstraintSet(), x[1], IT(lb[x[2]], ub[x[2]])), m._relaxed_variable_int)
     return nothing
 end
@@ -176,8 +176,10 @@ function lower_problem!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<
         MOI.optimize!(m.relaxed_optimizer)
         m._lower_result_num = MOI.get(m, MOI.ResultCount())
         if m._lower_result_num > 1
-            for i, j = 1:_variable_num(_working_problem(m)), 2:m._lower_result_num
-                m._lower_solution_candidate[j] = MOI.get(d, MOI.VariablePrimal(j), m._relaxed_variable_index[i])
+            for i = 1:_variable_num(_working_problem(m))
+                for j = 2:m._lower_result_num
+                    m._lower_solution_candidate[j] = MOI.get(d, MOI.VariablePrimal(j), m._relaxed_variable_index[i])
+                end
             end
         end
     end

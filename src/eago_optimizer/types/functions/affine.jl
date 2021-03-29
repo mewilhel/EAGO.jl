@@ -32,7 +32,7 @@ function AffineFunctionIneq(func::SAF{T}, set::LT{T}) where {T<:AbstractFloat}
     func.constant -= set.upper
     return AffineFunctionIneq{T}(func, length(func.terms))
 end
-function AffineFunctionIneq(func::SAF{T}, set::GT{T})) where {T<:AbstractFloat}
+function AffineFunctionIneq(func::SAF{T}, set::GT{T}) where {T<:AbstractFloat}
     func.constant = set.lower - func.constant
     return AffineFunctionIneq{T}(func, length(func.terms))
 end
@@ -48,7 +48,7 @@ mutable struct AffineFunctionEq{T<:AbstractFloat} <: AbstractEAGOConstraint
     len::Int
 end
 AffineFunctionEq{T}() where T<:AbstractFloat = AffineFunctionEq{T}(Tuple{T,Int}[], zero(T), 0)
-function AffineFunctionEq(func::SAF{T}, set::ET{T})) where {T<:AbstractFloat}
+function AffineFunctionEq(func::SAF{T}, set::ET{T}) where {T<:AbstractFloat}
     func.constant -= set.value
     return AffineFunctionEq{T}(func, length(func.terms))
 end

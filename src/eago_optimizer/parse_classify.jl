@@ -140,7 +140,7 @@ function _parse_classify_problem(::Val{MINCVX}, m::Optimizer{T}) where T<:Abstra
     constraint_expr(nl_evaluator, i)
     =#
 
-    m._solver = GlobalOptimizer{branch_num, T, typeof(_ext_type(m)}()
+    m._solver = GlobalOptimizer{branch_num, T, typeof(_ext_type(m))}()
     m._solver._ext_type = _ext_type(m)
 
     return true

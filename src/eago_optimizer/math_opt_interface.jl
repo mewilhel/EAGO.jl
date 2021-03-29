@@ -2,10 +2,10 @@
 #=
 Directly bridging SV in GT -> LT triggers
 =#
-MOI.supports_constraint(::Optimizer,
-                        ::Type{<:Union{SV, SAF, SQF}},
-                        ::Type{<:Union{LT,GT,ET,IT}},
-                        ) = true
+MOI.supports_constraint(::Optimizer{T},
+                        ::Type{<:Union{SV,SAF{T},SQF{T}}},
+                        ::Type{<:Union{LT{T},GT{T},ET{T},IT{T}}},
+                        ) where T <: AbstractFloat = true
 
 # No automatic bridge from ZO to Integers exist. Closest is semi-integer to
 # ZO + 2x SAF.
@@ -22,10 +22,10 @@ MOI.supports_constraint(::Optimizer,
 # simplifies objective bound cuts and access to objective values. Using
 # SAF prevents the introduce of a new auxilliary variable if the user
 # defines a SAF objective type.
-MOI.supports(::Optimizer,
+MOI.supports(::Optimizer{T},
              ::Union{MOI.ObjectiveSense,
-                     MOI.ObjectiveFunction{SAF}}
-                     ) = true
+                     MOI.ObjectiveFunction{SAF{T}}}
+                     ) where T <: AbstractFloat = true
 
 function MOI.copy_to(model::Optimizer, src::MOI.ModelLike; copy_names = false)
     return MOIU.default_copy_to(model, src, copy_names)
@@ -39,7 +39,7 @@ function MOI.get(m::Optimizer, v::MOI.PrimalStatus)
     end
     m._primal_status_code
 end
-MOI.get(m::Optimizer, ::MOI.SolveTime) = m._run_time
+MOI.get(m::Optimizer{T}, ::MOI.SolveTime) where T <: AbstractFloat = m._run_time
 MOI.get(m::Optimizer, ::MOI.NodeCount) = m._node_count
 MOI.get(m::Optimizer, ::MOI.ResultCount) = (m._primal_status_code === MOI.FEASIBLE_POINT) ? 1 : 0
 
@@ -51,9 +51,9 @@ end
 MOI.get(m::Optimizer, ::MOI.Silent) = m._is_silent
 
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
-MOI.get(m::Optimizer, ::MOI.TimeLimitSec) = isfinite(m._time_limit) ? m._time_limit : nothing
-MOI.set(m::Optimizer, ::MOI.TimeLimitSec, ::Nothing)  = (m._time_limit = Inf;   return)
-MOI.set(m::Optimizer, ::MOI.TimeLimitSec, v::Float64) = (m._time_limit = v; return)
+MOI.get(m::Optimizer{T}, ::MOI.TimeLimitSec) where T <: AbstractFloat = isfinite(m._time_limit) ? m._time_limit : nothing
+MOI.set(m::Optimizer{T}, ::MOI.TimeLimitSec, ::Nothing) where T <: AbstractFloat  = (m._time_limit = Inf;   return)
+MOI.set(m::Optimizer{T}, ::MOI.TimeLimitSec, v::Float64) where T <: AbstractFloat = (m._time_limit = v; return)
 
 function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
     if !(p.name isa String) && !(p.name isa Symbol)
@@ -77,41 +77,53 @@ for attr in (MOI.ListOfConstraintAttributesSet, MOI.ListOfConstraintIndices)
 end
 
 for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
-    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{SV,ZO})
+    for S in (MOI.LessThan,MOI.GreaterThan,MOI.EqualTo,MOI.Interval)
+        @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,$S{T}}) where T<:AbstractFloat
+            return MOI.set(d._model._input_model, $attr(), ci)
+        end
+        @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{SV,$S{T}}) where T<:AbstractFloat
+            return MOI.get(d._model._input_model, $attr(), ci)
+        end
+        for F in (MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction)
+            @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{$F{T},$S{T}}) where T<:AbstractFloat
+                return MOI.set(d._model._input_model, $attr(), ci, v)
+            end
+            @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{$F{T},$S{T}}) where T<:AbstractFloat
+                return MOI.get(d._model._input_model, $attr(), ci, v)
+            end
+        end
+    end
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{SV,S}) where  S <: Union{ZO, MOI.Integer}
         return MOI.get(d._model._input_model, $attr(), ci)
     end
-    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT,GT,ET,IT}}
-        return MOI.get(d._model._input_model, $attr(), ci)
-    end
-    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}}
+    @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR},
+                                                                      S <: Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}}
         return MOI.get(d._mode._input_modell, $attr(), ci)
     end
     @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,S}, v) where  S <: Union{ZO, MOI.Integer}
-        return MOI.get(d._model._input_model, $attr(), ci, v)
+        return MOI.set(d._model._input_model, $attr(), ci, v)
     end
-    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{SV, SAF, SQF}, S <: Union{LT,GT,ET,IT}}
-        return MOI.get(d._model._input_model, $attr(), ci, v)
-    end
-    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR}, S <: Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}}
-        return MOI.get(d._model._input_model, $attr(), ci, v)
+    @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{F,S}) where {F <: Union{VECVAR},
+                                                                      S <: Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}}
+        return MOI.set(d._model._input_model, $attr(), ci, v)
     end
 end
 
-function MOI.get(m::Optimizer, v::MOI.VariablePrimal, vi::MOI.VariableIndex)
+function MOI.get(m::Optimizer{T}, v::MOI.VariablePrimal, vi::MOI.VariableIndex) where T <: AbstractFloat
     MOI.check_result_index_bounds(m, v)
     m._solution[vi.value]
 end
-MOI.get(m::Optimizer, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) = MOI.get.(m, p, vi)
-function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{LT,GT,ET,IT,ZO,MOI.Integer}}
+MOI.get(m::Optimizer{T}, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) where T <: AbstractFloat = MOI.get.(m, p, vi)
+function MOI.get(m::Optimizer{T}, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{LT,GT,ET,IT,ZO,MOI.Integer}, T}
     MOI.check_result_index_bounds(m, v)
     return m._solution[ci.value]
 end
 
-function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{SAF, SQF}, S <: Union{LT,GT,ET,IT}}
+function MOI.get(m::Optimizer{T}, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{SAF, SQF}, S <: Union{LT,GT,ET,IT}, T}
     MOI.check_result_index_bounds(m, v)
     return m._constraint_primal[ci]
 end
-function MOI.get(m::Optimizer, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{VECVAR}, S <: Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}}
+function MOI.get(m::Optimizer{T}, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{F, S}) where {F <: Union{VECVAR}, S <: Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}, T}
     MOI.check_result_index_bounds(m, v)
     return m._constraint_primal[ci]
 end
@@ -218,8 +230,8 @@ function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECVAR},
     MOI.add_constraint(d._model._input_model, f, s)
 end
 
-function MOI.set(d::Optimizer, ::MOI.ObjectiveFunction{SAF}, func::SAF)
-    MOI.set(d._model._input_model, MOI.ObjectiveFunction{SAF}(), func)
+function MOI.set(d::Optimizer, ::MOI.ObjectiveFunction{SAF{T}}, func::SAF{T}) where T<:AbstractFloat
+    MOI.set(d._model._input_model, MOI.ObjectiveFunction{SAF{T}}(), func)
 end
 
 MOI.supports(d::Optimizer, ::MOI.NLPBlock) = true

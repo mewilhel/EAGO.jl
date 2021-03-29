@@ -227,7 +227,7 @@ end
 """
 $(TYPEDSIGNATURES)
 """
-function relax!(m::m::GlobalOptimizer{N,T,S}, f::BufferedNonlinearFunction{MC{R,Q}}, safe::Bool) where {N,T<:AbstractFloat,S,R,Q<:RelaxTag}
+function relax!(m::GlobalOptimizer{N,T,S}, f::BufferedNonlinearFunction{MC{R,Q}}, safe::Bool) where {N,T<:AbstractFloat,S,R,Q<:RelaxTag}
     evaluator = m._working_problem._relaxed_evaluator
 
     finite_cut_generated = affine_relax_nonlinear!(f, evaluator, true, true)

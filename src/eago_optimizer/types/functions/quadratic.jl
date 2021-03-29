@@ -95,6 +95,7 @@ function BufferedQuadraticEq{T}() where T<:AbstractFloat
     BufferedQuadraticEq{T}(SQF{T}(SQT{T}[], SAT{T}[], zero(T)),
                            SQF{T}(SQT{T}[], SAT{T}[], zero(T)),
                            Dict{Int,T}(), SAF{T}(SAT{T}[], zero(T)), zero(T))
+end
 
 function BufferedQuadraticEq(func::SQF{T}, set::ET{T}) where T<:AbstractFloat
     b = create_buffer_dict(func)

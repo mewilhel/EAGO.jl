@@ -43,17 +43,17 @@ module EAGO
     const MOIB = MathOptInterface.Bridges
 
     const SV = MOI.SingleVariable
-    const SAF = MOI.ScalarAffineFunction{Float64}
-    const SQF = MOI.ScalarQuadraticFunction{Float64}
+    const SAF{T} = MOI.ScalarAffineFunction{T}
+    const SQF{T} = MOI.ScalarQuadraticFunction{T}
     const VECVAR = MOI.VectorOfVariables
 
-    const SQT = MOI.ScalarQuadraticTerm{Float64}
-    const SAT = MOI.ScalarAffineTerm{Float64}
+    const SQT{T} = MOI.ScalarQuadraticTerm{T}
+    const SAT{T} = MOI.ScalarAffineTerm{T}
 
-    const LT = MOI.LessThan{Float64}
-    const GT = MOI.GreaterThan{Float64}
-    const ET = MOI.EqualTo{Float64}
-    const IT = MOI.Interval{Float64}
+    const LT{T} = MOI.LessThan{T}
+    const GT{T} = MOI.GreaterThan{T}
+    const ET{T} = MOI.EqualTo{T}
+    const IT{T} = MOI.Interval{T}
     const ZO = MOI.ZeroOne
     const SOC_CONE = MOI.SecondOrderCone
     const POW_CONE = MOI.PowerCone
@@ -67,8 +67,6 @@ module EAGO
     const SCoefC = MOI.ScalarCoefficientChange
     const SConsC = MOI.ScalarConstantChange
     const MOIU = MOI.Utilities
-
-    const LT_ZERO = LT(0.0)
 
     # Add storage types for EAGO optimizers
     export NodeBB, get_history, get_lower_bound, get_upper_bound, get_lower_time,
