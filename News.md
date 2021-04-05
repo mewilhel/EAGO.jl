@@ -62,3 +62,15 @@
      - Support for Julia ~1 (with limited functionality for Julia 1.0, 1.1).
 - 11/18/2020 **EAGO v0.5.2 has been tagged**
      - Fix user specified branching variables.
+## v0.6.0
+- 2/5/2021: [EAGO v0.6.0 has been tagged](https://github.com/PSORLab/EAGO.jl/releases/tag/v0.6.0).
+       - License changed from CC BY-NC-SA 4.0 to MIT
+       - Fix deprecated Ipopt constructor
+       - Fix discrepancy between the returned objective value and the objective evaluated at the solution.
+       - Dramatically decrease allocates and first-run performance of SIP routines.
+       - Add two algorithms which modify SIPres detailed in Djelassi, H. and Mitsos A. 2017.
+       - Fix objective interval fallback function.
+       - New SIP interface with extendable subroutines.
+       - Fix x^y relaxation bug.
+       - Add issues template.
+       - Add SIP subroutine documentation.

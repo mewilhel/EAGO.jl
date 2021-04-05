@@ -169,7 +169,6 @@ function create_initial_node!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFlo
 end
 function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
-    ip = _input_problem(m)
     wp = _working_problem(m)
 
     _add_decision_variables!(wp, ip)

@@ -176,6 +176,8 @@ function set_global_lower_bound!(m::GlobalOptimizer{N,T,S}) where {N,T<:Abstract
     return nothing
 end
 
+parse_global!(t::ExtensionType, m::GlobalOptimizer) = nothing
+
 # wraps subroutine call to isolate ExtensionType
 for f in (:parse_global!, :presolve_global!, :termination_check, :cut_condition,
           :convergence_check, :repeat_check, :node_selection!, :preprocess!,

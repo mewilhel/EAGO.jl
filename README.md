@@ -99,17 +99,20 @@ As a global optimization platform, EAGO's solvers can be used to find solutions 
 The EAGO package has numerous features: a solver accessible from JuMP/MathOptInterface, domain reduction routines, McCormick relaxations, and specialized non-convex semi-infinite program solvers. A full description of all EAGO features is available in the [**documentation website**](https://psorlab.github.io/EAGO.jl/dev/). A series of example have been provided in the form of Jupyter notebooks in the separate [**EAGO-notebooks**](https://github.com/PSORLab/EAGO-notebooks) repository.
 
 ## Recent News
-- 2/5/2021: [EAGO v0.6.0 has been tagged](https://github.com/PSORLab/EAGO.jl/releases/tag/v0.6.0).
-  - License changed from CC BY-NC-SA 4.0 to MIT
-  - Fix deprecated Ipopt constructor
-  - Fix discrepancy between the returned objective value and the objective evaluated at the solution.
-  - Dramatically decrease allocates and first-run performance of SIP routines.
-  - Add two algorithms which modify SIPres detailed in Djelassi, H. and Mitsos A. 2017.
-  - Fix objective interval fallback function.
-  - New SIP interface with extendable subroutines.
-  - Fix x^y relaxation bug.
-  - Add issues template.
-  - Add SIP subroutine documentation.
+- 2/5/2021: [EAGO v0.7.0 has been tagged](https://github.com/PSORLab/EAGO.jl/releases/tag/v0.7.0).
+  - Add supports psuedocost and reliability-based branching.
+  - Add support for zero-one and integer variables.
+  - Add support for conic and semi-definite constraints.
+  - Add milp, conic, sdp, and convex-minlp subsolvers (default are GLPK, Hypatia, Hypatia, and Pavito).
+  - Use MathOptInterface.Test in continuous integration testing.
+  - Use MINLPTests in continuous integration testing.
+  - Detects linear, mixed-integer, conic, and semi-definite input problems and
+    passes these directly to the subsolver.  
+  - Parameterizes Optimizer with T<:AbstractFloat (McCormick subpackage is still
+    fixed to Float64)
+  - Use ntuples for storing bounds associated with each node. NodeBB -> NodeBB{N,T}.
+  - Place GlobalOptimizer into subfield and remake it after parsing to reduce
+    type instability.
 
 For a full list of EAGO release news, see click [**here**](https://github.com/PSORLab/EAGO.jl/releases)
 
