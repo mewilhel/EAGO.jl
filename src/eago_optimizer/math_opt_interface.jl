@@ -160,7 +160,7 @@ function MOI.empty!(m::Optimizer{T}) where {N,T<:AbstractFloat,S}
     return
 end
 
-function MOI.is_empty(m::Optimizer{T}) where {T<:AbstractFloat}
+function MOI.is_empty(m::Optimizer)
 
     is_empty_flag = MOI.is_empty(m._model)
     is_empty_flag &= MOI.is_empty(m._solver)

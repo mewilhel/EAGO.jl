@@ -323,23 +323,23 @@ Checks that the resulting value should be a number...
 
 $(TYPEDFIELDS)
 """
-Base.@kwdef mutable struct Evaluator <: MOI.AbstractNLPEvaluator
+Base.@kwdef mutable struct Evaluator{N,T} <: MOI.AbstractNLPEvaluator
 
     user_operators::JuMP._Derivatives.UserOperatorRegistry = JuMP._Derivatives.UserOperatorRegistry()
     has_user_mv_operator::Bool = false
-    num_mv_buffer::Vector{Float64} = Float64[]
-    parameter_values::Vector{Float64} = Float64[]
+    num_mv_buffer::Vector{T} = T[]
+    parameter_values::Vector{T} = T[]
 
-    current_node::NodeBB = NodeBB()
+    current_node::NodeBB{N,T} = NodeBB{N,T}()
     treat_x_as_number = Bool[]
-    lower_variable_bound::Vector{Float64} = Float64[]
-    upper_variable_bound::Vector{Float64} = Float64[]
-    x::Vector{Float64} = Float64[]
-    node_to_variable_map::Vector{Int64} = Int64[]
-    variable_to_node_map::Vector{Int64} = Int64[]
+    lower_variable_bound::Vector{T} = T[]
+    upper_variable_bound::Vector{T} = T[]
+    x::Vector{T} = T[]
+    node_to_variable_map::Vector{Int} = Int[]
+    variable_to_node_map::Vector{Int} = Int[]
 
-    variable_count::Int64 = 0
-    node_count::Int64 = 0
+    variable_count::Int = 0
+    node_count::Int = 0
 
     "Context used to guard against domain violations & branch on these violations if necessary"
     subgrad_tighten::Bool = false
@@ -353,7 +353,7 @@ Base.@kwdef mutable struct Evaluator <: MOI.AbstractNLPEvaluator
     is_first_eval::Bool = false
     interval_intersect::Bool = false
 
-    subgrad_tol::Float64 = 1E-10
+    subgrad_tol::T = 1E-10
 end
 
 """

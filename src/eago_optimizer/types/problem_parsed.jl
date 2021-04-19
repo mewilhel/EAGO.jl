@@ -6,31 +6,31 @@ $(TYPEDEF)
 A structure used to expressions and problem descriptions EAGO uses to formulate
 relaxed problems.
 """
-Base.@kwdef mutable struct ParsedProblem <: MOI.ModelLike
+Base.@kwdef mutable struct ParsedProblem{N,T} <: MOI.ModelLike
 
     # Problem classification (set in parse_classify_problem!)
     _problem_type::ProblemType = UNCLASSIFIED
 
     # objectives (set in initial_parse)
-    _objective::SAF = SAF(SAT[], 0.0)
-    _objective_parsed::AffineFunctionIneq = AffineFunctionIneq()
+    _objective::SAF = SAF(SAT{T}[], zero(T))
+    _objective_parsed::AffineFunctionIneq{T} = AffineFunctionIneq{T}()
     _optimization_sense::MOI.OptimizationSense = MOI.MIN_SENSE
 
     # non-single variable constraints (set in initial_parse)
-    _saf_leq::Vector{AffineFunctionIneq} = AffineFunctionIneq[]
-    _saf_eq::Vector{AffineFunctionEq} = AffineFunctionEq[]
-    _sqf_leq::Vector{BufferedQuadraticIneq} = BufferedQuadraticIneq[]
-    _sqf_eq::Vector{BufferedQuadraticEq} = BufferedQuadraticEq[]
-    _conic_second_order::Vector{BufferedSOC} = BufferedSOC[]
+    _saf_leq::Vector{AffineFunctionIneq{T}} = AffineFunctionIneq{T}[]
+    _saf_eq::Vector{AffineFunctionEq{T}} = AffineFunctionEq{T}[]
+    _sqf_leq::Vector{BufferedQuadraticIneq{T}} = BufferedQuadraticIneq{T}[]
+    _sqf_eq::Vector{BufferedQuadraticEq{T}} = BufferedQuadraticEq{T}[]
+    _conic_second_order::Vector{BufferedSOC{T}} = BufferedSOC{T}[]
 
     # nlp constraints (set in initial_parse)
-    _nlp_data::MOI.NLPBlockData = empty_nlp_data()
+    _nlp_data::Union{MOI.NLPBlockData,Nothing} = nothing
 
     # storage for nonlinear functions
-    _nonlinear_constr::Vector{BufferedNonlinearFunction} = BufferedNonlinearFunction[]
+    _nonlinear_constr::Vector{BufferedNonlinearFunction{T}} = BufferedNonlinearFunction{T}[]
 
     # nonlinear evaluator
-    _relaxed_evaluator = Evaluator()
+    _relaxed_evaluator = Evaluator{N,T}()
 
     # variables (set in initial_parse)
     _variable_info::Vector{VariableInfo} = VariableInfo[]

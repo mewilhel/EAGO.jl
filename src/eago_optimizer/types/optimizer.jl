@@ -19,8 +19,6 @@ end
 
 MOI.is_empty(m::InputModel) = (m._nlp_data == nothing) && MOI.is_empty(m._input_model)
 
-@enum(ProblemType, UNCLASSIFIED, LP, MILP, SOCP, MISOCP, SDP, DIFF_CVX, MICVX, MINCVX)
-
 #=
 Holds outputs in the Optimizer object, passing parameters EAGO specific parameters
 to _options, the GlobalOptimizer is remade to ensure type stability of subroutines

@@ -30,6 +30,7 @@ module EAGO
     using DataStructures: OrderedDict, BinaryMinMaxHeap, popmin!, popmax!, top
     using SparseArrays: SparseMatrixCSC, spzeros, rowvals, nzrange, nonzeros, sparse, findnz
     using LinearAlgebra: eigmin, norm
+    using Printf: @printf
 
     import IntervalArithmetic: mid
 

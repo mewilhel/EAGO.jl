@@ -11,3 +11,5 @@ MOIU.map_indices(::Function, x::ExtensionType) = x
 MOIU.map_indices(::Function, x::DefaultExt) = x
 
 @enum(BRANCH_VARIABLE, UNSPEC_BRANCH, NO_BRANCH, BRANCH)
+
+@enum(ProblemType, UNCLASSIFIED, LP, MILP, SOCP, MISOCP, SDP, DIFF_CVX, MICVX, MINCVX)

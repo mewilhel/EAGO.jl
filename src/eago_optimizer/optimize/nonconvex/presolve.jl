@@ -210,7 +210,13 @@ function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,
     # populate in full space until local MOI nlp solves support constraint deletion
     # uses input model for local nlp solves... may adjust this if a convincing reason
     # to use a reformulated upper problem presents itself
-    m._lower_solution      = zeros(Float64, m._working_problem._variable_num)
+    m._lower_result_count_max  = 100
+    m._lower_result_count      = 0
+    m._lower_solution          = Vector{Float64}[]
+    for j = 1:_lower_result_count_max
+        push!(m._lower_solution, zeros(m._working_problem._variable_num))
+    end
+
     m._cut_solution        = zeros(Float64, m._working_problem._variable_num)
     m._solution            = zeros(Float64, m._working_problem._variable_num)
     m._upper_solution      = zeros(Float64, m._working_problem._variable_num)

@@ -12,8 +12,7 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         _constraint_offset::Vector{Int}                 = Int[]
         _constraint_index_num::Int = 0
         _constraint_row_num::Int = 0
-        # loaded from _input_problem by TODO
-        #_working_problem::ParsedProblem = ParsedProblem()
+        _working_problem::ParsedProblem{N,T} = ParsedProblem{N,T}()
 
         _first_relax_point_set::Bool = false
         _current_xref::Vector{T} = T[]
@@ -69,26 +68,26 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
 
         _postprocess_feasibility::Bool = true
 
-        _time_left::T = 1000.0
-        _start_time::T = 0.0
-        _run_time::T = 0.0
-        _parse_time::T = 0.0
-        _presolve_time::T = 0.0
-        _last_preprocess_time::T = 0.0
-        _last_lower_problem_time::T = 0.0
-        _last_upper_problem_time::T = 0.0
-        _last_postprocessing_time::T = 0.0
+        _time_left::T = 1000*one(T)
+        _start_time::T = zero(T)
+        _run_time::T = zero(T)
+        _parse_time::T = zero(T)
+        _presolve_time::T = zero(T)
+        _last_preprocess_time::T = zero(T)
+        _last_lower_problem_time::T = zero(T)
+        _last_upper_problem_time::T = zero(T)
+        _last_postprocessing_time::T = zero(T)
 
         # reset in initial_parse! in parse.jl
-        _min_converged_value::T = Inf
-        _global_lower_bound::T = -Inf
-        _global_upper_bound::T = Inf
+        _min_converged_value::T = typemax(T)
+        _global_lower_bound::T = typemin(T)
+        _global_upper_bound::T = typemax(T)
         _maximum_node_id::Int = 0
         _iteration_count::Int = 0
         _node_count::Int = 0
 
         # Storage for output, reset in initial_parse! in parse.jl
-        _solution_value::T = 0.0
+        _solution_value::T = zero(T)
         _feasible_solution_found::Bool = false
         _first_solution_node::Int = -1
         _best_upper_value::T = Inf
@@ -109,7 +108,7 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
 
         # Feasibility-Based Bound Tightening Options
         # set in set_constraint_propagation_fbbt in domain_reduction.jl
-        _cp_improvement::T = 0.0
+        _cp_improvement::T = zero(T)
         _cp_evaluation_reverse::Bool = false
 
         _cut_iterations::Int = 0
@@ -118,8 +117,8 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         # Options for Repetition (If DBBT Performed Well)
         # set in within preprocess in optimize_nonconvex.jl
         _node_repetitions::Int = 0
-        _initial_volume::T = 0.0
-        _final_volume::T = 0.0
+        _initial_volume::T = zero(T)
+        _final_volume::T = zero(T)
 
         # Log
         _log::Log = Log()
@@ -164,12 +163,16 @@ function MOI.is_empty(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
         elseif f == :_current_node
             is_empty_flag &= getfield(m, f) == NodeBB{N,T}()
         elseif f == :_log
+                # TODO
+        elseif f == :_working_problem
+                # TODO
         else
             if getfield(empty_opt, f) != getfield(m, f)
                 is_empty_flag = false
                 break
             end
         end
+        @show is_empty_flag
     end
     return is_empty_flag
 end
@@ -224,3 +227,5 @@ function _mid(::BranchVar, m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S<:Extens
 end
 Base.@propagate_inbounds function _mid(::BranchVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
 end
+
+_working_problem(m::GlobalOptimizer) = m._working_problem

@@ -94,7 +94,7 @@ function fallback_interval_lower_bound!(m::GlobalOptimizer{N,T,S}) where {N,T<:A
     return
 end
 
-function _update_lp_box!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
+function _update_box!(m::GlobalOptimizer{N,T,S}, v::Val{:cont}) where {N,T<:AbstractFloat,S}
     wp = _working_problem(m)
     lb = _lower_bound(FullVar, m)
     ub = _upper_bound(FullVar, m)
@@ -108,7 +108,7 @@ function _update_lp_box!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
     return nothing
 end
 
-function _update_mip_box!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
+function _update_box!(m::GlobalOptimizer{N,T,S}, v::Val{:mixed}) where {N,T<:AbstractFloat,S}
     wp = _working_problem(m)
     for x in m._relaxed_variable_zo
         l = _lower_bound(FullVar, m, x[2])
@@ -150,8 +150,8 @@ and optimizer on node `y`.
 function lower_problem!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     if !_relaxation_available(m)
-        _update_lp_box!(m)
-        _relax_problem!(m)
+        _update_box!(m, Val(:cont))
+        _relax_problem!(m, Val(:cont))
     else
         _reset_objective!(m)
     end
@@ -162,35 +162,38 @@ function lower_problem!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<
     valid_flag, feasible_flag = is_globally_optimal(m._lower_termination_status,
                                                     m._lower_result_status)
 
+    # add continuous linear cuts
+    linear_cut_condition = true
     while valid_flag && feasible_flag && linear_cut_condition
-        # add linear cut
-        _relax_problem!(m)
+        _relax_problem!(m, Val(:cont))
         MOI.optimize!(m.relaxed_optimizer)
         valid_flag, feasible_flag = is_globally_optimal(m._lower_termination_status,
                                                         m._lower_result_status)
+        linear_cut_condition = false # TODO: ADD CUT CHECK...
     end
 
     # activate integer variables and solve mixed integer formulation
-    if valid_flag && feasible_flag && (_integer_variable_num(m) > 0)
-        _update_mip_box!(m)
+    is_integer_prob = _integer_variable_num(m) > 0
+    if valid_flag && feasible_flag && is_integer_prob
+        _update_box!(m, Val(:mixed))      # need to update qp and conic relaxations as well
+        _relax_problem!(m, Val(:mixed))
         MOI.optimize!(m.relaxed_optimizer)
-        m._lower_result_num = MOI.get(m, MOI.ResultCount())
-        if m._lower_result_num > 1
-            for i = 1:_variable_num(_working_problem(m))
-                for j = 2:m._lower_result_num
-                    m._lower_solution_candidate[j] = MOI.get(d, MOI.VariablePrimal(j), m._relaxed_variable_index[i])
-                end
-            end
-        end
     end
 
     if valid_flag && feasible_flag
         _set_dual!(m)
         m._lower_feasibility = true
         m._lower_objective_value = MOI.get(d, MOI.ObjectiveValue())
-        for i = 1:_variable_num(_working_problem(m))
-             m._lower_solution[i] = MOI.get(d, MOI.VariablePrimal(1), m._relaxed_variable_index[i])
+        result_count = MOI.get(d, MOI.ResultCount())
+        for i = m._lower_result_count_max:(result_count-1)
+            push!(m._lower_solution, zeros(m._working_problem._variable_num))
+        end
+        for j = 1:result_count
+            for i = 1:_variable_num(_working_problem(m))
+                 m._lower_solution[j][i] = MOI.get(d, MOI.VariablePrimal(j), m._relaxed_variable_index[i])
+             end
          end
+         m._lower_result_count = result_count
     elseif valid_flag && !feasible_flag
         m._lower_feasibility  = false
         m._lower_objective_value = -Inf
