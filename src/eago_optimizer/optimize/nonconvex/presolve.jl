@@ -123,12 +123,9 @@ function load_relaxed_problem!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFl
     return
 end
 
-function _mod_vinfo!(wp, ip, ci::CI{SV,T}) where T
-    @show ci
+function _mod_vinfo!(wp, ip, ci::CI{SV,S}) where S
     sv = MOI.get(ip, MOI.ConstraintFunction(), ci)
-    @show sv
     sv_set = MOI.get(ip, MOI.ConstraintSet(), ci)
-    @show sv_set
     wp._variable_info[sv.value] = VariableInfo(wp._variable_info[sv.value], sv_set)
     return nothing
 end
@@ -143,21 +140,79 @@ function _add_decision_variables!(wp, ip::InputModel{T}) where {T<:Real}
     foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, ET{T}}()))
     foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, ZO}()))
     foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, MOI.Integer}()))
-    any(isempty, wp._variable_info) && error("Variable bounds lead to infeasible problem.")
+    any(isempty, wp._variable_info) && error("Variable bounds lead to infeasible problem.") # TODO: Message + Model Issue Return Code
     return nothing
 end
 
-function _add_linear_constraints!(opt::T, ip) where T
-    foreach(fs -> _add_constraint(opt, fs), values(_linear_leq(ip)))
-    foreach(fs -> _add_constraint(opt, fs), values(_linear_geq(ip)))
-    foreach(fs -> _add_constraint(opt, fs), values(_linear_eq(ip)))
+function _add_constraint!(wp, ip::InputModel{T}) where {T<:Real}
+    imodel = ip._input_model
+    ip_variable_num = MOI.get(imodel, MOI.NumberOfVariables())
+    wp._variable_num = ip_variable_num
+    wp._variable_info = fill(VariableInfo{T}(), ip_variable_num)
+    foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, LT{T}}()))
+    foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, GT{T}}()))
+    foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, ET{T}}()))
+    foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, ZO}()))
+    foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, MOI.Integer}()))
+    any(isempty, wp._variable_info) && error("Variable bounds lead to infeasible problem.") # TODO: Message + Model Issue Return Code
     return nothing
 end
 
-function _add_quadratic_constraints!(opt::T, ip) where T
-    foreach(fs -> _add_constraint(opt, fs), values(_quadratic_leq(ip)))
-    foreach(fs -> _add_constraint(opt, fs), values(_quadratic_geq(ip)))
-    foreach(fs -> _add_constraint(opt, fs), values(_quadratic_eq(ip)))
+for Q in (LT,GT)
+    @eval function _add_constraint!(wp::ParsedProblem, ip::InputModel{T}, ci::CI{SAF{T},$Q{T}}) where {T<:Real}
+        imodel = ip._input_model
+        f = MOI.get(imodel, MOI.ConstraintFunction(), ci)
+        s = MOI.get(imodel, MOI.ConstraintSet(), ci)
+        push!(wp._saf_leq, AffineFunctionIneq(f, s))
+        return nothing
+    end
+    @eval function _add_constraint!(wp::ParsedProblem, ip::InputModel{T}, ci::CI{SQF{T},$Q{T}}) where {T<:Real}
+        imodel = ip._input_model
+        f = MOI.get(imodel, MOI.ConstraintFunction(), ci)
+        s = MOI.get(imodel, MOI.ConstraintSet(), ci)
+        push!(wp._sqf_leq, BufferedQuadraticIneq(f, s))
+        return nothing
+    end
+end
+function _add_constraint!(wp::ParsedProblem, ip::InputModel{T}, ci::CI{SAF{T},ET{T}}) where {T<:Real}
+    imodel = ip._input_model
+    f = MOI.get(imodel, MOI.ConstraintFunction(), ci)
+    s = MOI.get(imodel, MOI.ConstraintSet(), ci)
+    push!(wp._saf_eq, AffineFunctionEq(f, s))
+    return nothing
+end
+function _add_constraint!(wp::ParsedProblem, ip::InputModel{T}, ci::CI{SQF{T},ET{T}}) where {T<:Real}
+    imodel = ip._input_model
+    f = MOI.get(imodel, MOI.ConstraintFunction(), ci)
+    s = MOI.get(imodel, MOI.ConstraintSet(), ci)
+    push!(wp._sqf_eq, BufferedQuadraticEq(f, s))
+    return nothing
+end
+
+function _add_constraint!(wp::ParsedProblem, ip::InputModel{T}, fs::CI{VECVAR,SOC_CONE}) where {T<:Real}
+    imodel = ip._input_model
+    f = MOI.get(imodel, MOI.ConstraintFunction(), ci)
+    s = MOI.get(imodel, MOI.ConstraintSet(), ci)
+    first_variable_loc = f.variables[1].value
+    prior_lbnd = wp._variable_info[first_variable_loc].lower_bound
+    wp._variable_info[first_variable_loc].lower_bound = max(prior_lbnd, 0.0)
+    push!(wp._conic_second_order, BufferedSOC(f, s))
+    return nothing
+end
+
+function _add_linear_constraints!(m::S, ip::InputModel{T}) where {S,T<:Real}
+    imodel = ip._input_model
+    foreach(x -> _add_constraint!(m, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SAF{T}, LT{T}}()))
+    foreach(x -> _add_constraint!(m, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SAF{T}, GT{T}}()))
+    foreach(x -> _add_constraint!(m, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SAF{T}, ET{T}}()))
+    return nothing
+end
+
+function _add_quadratic_constraints!(m::S, ip::InputModel{T}) where {S,T<:Real}
+    imodel = ip._input_model
+    foreach(x -> _add_constraint!(m, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SQF{T}, LT{T}}()))
+    foreach(x -> _add_constraint!(m, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SQF{T}, GT{T}}()))
+    foreach(x -> _add_constraint!(m, imodel, x),MOI.get(imodel, MOI.ListOfConstraintIndices{SQF{T}, ET{T}}()))
     return nothing
 end
 
@@ -188,7 +243,7 @@ function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,
     _add_decision_variables!(wp, ip)
     _add_linear_constraints!(wp, ip)
     _add_quadratic_constraints!(wp, ip)
-    _add_conic_constraints!(wp, ip)
+    #_add_conic_constraints!(wp, ip)
 
     # set objective function
     m._working_problem._objective_sv = ip._objective_sv

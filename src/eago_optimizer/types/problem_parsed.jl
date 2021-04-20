@@ -49,43 +49,6 @@ Base.@kwdef mutable struct ParsedProblem{N,T} <: MOI.ModelLike
     _variable_num::Int = 0
 end
 
-function _add_constraint(wp::ParsedProblem, fs::Tuple{SAF,LT})
-    push!(wp._saf_leq, AffineFunctionIneq(fs[1], fs[2])); return
-end
-function _add_constraint(wp::ParsedProblem, fs::Tuple{SAF,GT})
-    push!(wp._saf_leq, AffineFunctionIneq(fs[1], fs[2])); return
-end
-function _add_constraint(wp::ParsedProblem, fs::Tuple{SAF,ET})
-    push!(wp._saf_eq, AffineFunctionEq(fs[1], fs[2])); return
-end
-
-function _add_constraint(wp::ParsedProblem, fs::Tuple{SQF,LT})
-    push!(wp._sqf_leq, BufferedQuadraticIneq(fs[1], fs[2])); return
-end
-function _add_constraint(wp::ParsedProblem, fs::Tuple{SQF,GT})
-    push!(wp._sqf_leq, BufferedQuadraticIneq(fs[1], fs[2])); return
-end
-function _add_constraint(wp::ParsedProblem, fs::Tuple{SQF,ET})
-    push!(wp._sqf_eq, BufferedQuadraticEq(fs[1], fs[2])); return
-end
-
-function _add_constraint(wp::ParsedProblem, fs::Tuple{VECVAR,SOC_CONE})
-    f, s = fs
-    first_variable_loc = f.variables[1].value
-    prior_lbnd = wp._variable_info[first_variable_loc].lower_bound
-    wp._variable_info[first_variable_loc].lower_bound = max(prior_lbnd, 0.0)
-    push!(wp._conic_second_order, BufferedSOC(f, s))
-    return
-end
-
-function _mod_decision_variables!(wp::ParsedProblem, d::Dict{S,T}) where {S,T}
-    for (k,v) in d
-        i = v[1].variable.value
-        wp._variable_info[i] = VariableInfo(wp._variable_info[i], v[2])
-    end
-    return
-end
-
 function Base.isempty(x::ParsedProblem)
 
     is_empty_flag = true
