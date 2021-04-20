@@ -123,14 +123,27 @@ function load_relaxed_problem!(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFl
     return
 end
 
-function _add_decision_variables!(wp, ip)
-    wp._variable_num = ip._variable_num
-    wp._variable_info = fill(VariableInfo(),ip._variable_num)
-    _mod_decision_variables!(wp, ip._variable_leq)
-    _mod_decision_variables!(wp, ip._variable_geq)
-    _mod_decision_variables!(wp, ip._variable_eq)
-    _mod_decision_variables!(wp, ip._variable_zo)
-    # TODO CHECK FOR MALFORMED VARIABLES THROW -> INFEASIBLE.
+function _mod_vinfo!(wp, ip, ci::CI{SV,T}) where T
+    @show ci
+    sv = MOI.get(ip, MOI.ConstraintFunction(), ci)
+    @show sv
+    sv_set = MOI.get(ip, MOI.ConstraintSet(), ci)
+    @show sv_set
+    wp._variable_info[sv.value] = VariableInfo(wp._variable_info[sv.value], sv_set)
+    return nothing
+end
+
+function _add_decision_variables!(wp, ip::InputModel{T}) where {T<:Real}
+    imodel = ip._input_model
+    ip_variable_num = MOI.get(imodel, MOI.NumberOfVariables())
+    wp._variable_num = ip_variable_num
+    wp._variable_info = fill(VariableInfo{T}(), ip_variable_num)
+    foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, LT{T}}()))
+    foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, GT{T}}()))
+    foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, ET{T}}()))
+    foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, ZO}()))
+    foreach(x -> _mod_vinfo!(wp, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SV, MOI.Integer}()))
+    any(isempty, wp._variable_info) && error("Variable bounds lead to infeasible problem.")
     return nothing
 end
 
@@ -170,6 +183,7 @@ end
 function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
 
     wp = _working_problem(m)
+    ip = _input_problem(m)
 
     _add_decision_variables!(wp, ip)
     _add_linear_constraints!(wp, ip)

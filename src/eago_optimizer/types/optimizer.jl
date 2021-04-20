@@ -10,15 +10,6 @@
 # EAGOParameters, InputProblem, ParsedProblem, and Optimizer.
 #############################################################################
 
-# Holds a copy of the problem passed to EAGO
-# Needs separate storage for the MOI compilant model and the nlp_data
-Base.@kwdef mutable struct InputModel{T<:Real}
-    _input_model::MOIU.Model{T} = MOIU.Model{T}()
-    _nlp_data::Union{MOI.NLPBlockData, Nothing} = nothing
-end
-
-MOI.is_empty(m::InputModel) = (m._nlp_data == nothing) && MOI.is_empty(m._input_model)
-
 #=
 Holds outputs in the Optimizer object, passing parameters EAGO specific parameters
 to _options, the GlobalOptimizer is remade to ensure type stability of subroutines

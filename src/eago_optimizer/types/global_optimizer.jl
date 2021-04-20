@@ -12,7 +12,9 @@ Base.@kwdef mutable struct GlobalOptimizer{N,T<:Real,S<:ExtensionType} <: MOI.Ab
         _constraint_offset::Vector{Int}                 = Int[]
         _constraint_index_num::Int = 0
         _constraint_row_num::Int = 0
+
         _working_problem::ParsedProblem{N,T} = ParsedProblem{N,T}()
+        _input_problem::InputModel{T} = InputModel{T}()
 
         _first_relax_point_set::Bool = false
         _current_xref::Vector{T} = T[]
@@ -166,13 +168,13 @@ function MOI.is_empty(m::GlobalOptimizer{N,T,S}) where {N,T<:AbstractFloat,S}
                 # TODO
         elseif f == :_working_problem
                 # TODO
+        elseif f == :_input_problem
         else
             if getfield(empty_opt, f) != getfield(m, f)
                 is_empty_flag = false
                 break
             end
         end
-        @show is_empty_flag
     end
     return is_empty_flag
 end
@@ -228,4 +230,5 @@ end
 Base.@propagate_inbounds function _mid(::BranchVar, m::GlobalOptimizer{N,T,S}, i) where {N,T<:Real,S<:ExtensionType}
 end
 
+_input_problem(m::GlobalOptimizer) = m._input_problem
 _working_problem(m::GlobalOptimizer) = m._working_problem
