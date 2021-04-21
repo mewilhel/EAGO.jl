@@ -25,12 +25,12 @@ Base.@kwdef mutable struct ParsedProblem{N,T} <: MOI.ModelLike
 
     # objectives (set in initial_parse)
     _objective::SAF = SAF(SAT{T}[], zero(T))
-    _objective_parsed::AffineFunctionIneq{T} = AffineFunctionIneq{T}()
+    _objective_parsed::AffineFunction{T} = AffineFunction{T}()
     _optimization_sense::MOI.OptimizationSense = MOI.MIN_SENSE
 
     # non-single variable constraints (set in initial_parse)
-    _saf_leq::Vector{AffineFunctionIneq{T}} = AffineFunctionIneq{T}[]
-    _saf_eq::Vector{AffineFunctionEq{T}} = AffineFunctionEq{T}[]
+    _saf_leq::Vector{AffineFunction{T}} = AffineFunction{T}[]
+    _saf_eq::Vector{AffineFunction{T}} = AffineFunction{T}[]
     _sqf_leq::Vector{BufferedQuadraticIneq{T}} = BufferedQuadraticIneq{T}[]
     _sqf_eq::Vector{BufferedQuadraticEq{T}} = BufferedQuadraticEq{T}[]
     _conic_second_order::Vector{BufferedSOC{T}} = BufferedSOC{T}[]

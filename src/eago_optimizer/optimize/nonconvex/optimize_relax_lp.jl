@@ -75,8 +75,8 @@ function fallback_interval_lower_bound!(m::GlobalOptimizer{N,T,S}) where {N,T<:A
     feas = true
     wp = _working_problem(m)
     if !cp_condition(m)
-        feas = foreach_until(x -> _is_feas(m, x), wp._saf_leq, feas)
-        feas = foreach_until(x -> _is_feas(m, x), wp._saf_eq,  feas)
+        feas = foreach_until(x -> _is_feas(Val{:leq}, m, x), wp._saf_leq, feas)
+        feas = foreach_until(x -> _is_feas(Val{:eq}, m, x), wp._saf_eq, feas)
         feas = foreach_until(x -> _is_feas(m, x), wp._sqf_leq, feas)
         feas = foreach_until(x -> _is_feas(m, x), wp._sqf_eq,  feas)
         feas = foreach_until(x -> _is_feas(m, x), wp._nonlinear_constr, feas)

@@ -22,53 +22,37 @@ $(TYPEDEF)
 Current only used for bound tightening. Stores a representation
 of an affine inequality.
 """
-mutable struct AffineFunctionIneq{T<:AbstractFloat} <: AbstractEAGOConstraint
+struct AffineFunction{T<:Real} <: AbstractEAGOConstraint
     func::SAF{T}
     len::Int
 end
-AffineFunctionIneq{T}() where {T<:AbstractFloat} = AffineFunctionIneq{T}(SAF{T}(SAT{T}[], zero(T)), zero(T))
-
-function AffineFunctionIneq(func::SAF{T}, set::LT{T}) where {T<:AbstractFloat}
-    func.constant -= set.upper
-    return AffineFunctionIneq{T}(func, length(func.terms))
+function AffineFunction(func::SAF{T}, c::T) where {T<:Real}
+    fc = copy(func)
+    fc.constant = c
+    return AffineFunction(fc, length(fc.terms))
 end
-function AffineFunctionIneq(func::SAF{T}, set::GT{T}) where {T<:AbstractFloat}
-    func.constant = set.lower - func.constant
-    return AffineFunctionIneq{T}(func, length(func.terms))
-end
-
-"""
-$(TYPEDEF)
-
-Current only used for bound tightening. Stores a representation
-of an affine equality.
-"""
-mutable struct AffineFunctionEq{T<:AbstractFloat} <: AbstractEAGOConstraint
-    func::SAF{T}
-    len::Int
-end
-AffineFunctionEq{T}() where T<:AbstractFloat = AffineFunctionEq{T}(Tuple{T,Int}[], zero(T), 0)
-function AffineFunctionEq(func::SAF{T}, set::ET{T}) where {T<:AbstractFloat}
-    func.constant -= set.value
-    return AffineFunctionEq{T}(func, length(func.terms))
-end
+AffineFunction{T}() where {T<:Real} = AffineFunction{T}(SAF{T}(SAT{T}[], zero(T)), zero(T))
+AffineFunction(f::SAF{T}, s::LT{T}) where {T<:Real} = AffineFunction(f, f.constant - s.upper)
+AffineFunction(f::SAF{T}, s::GT{T}) where {T<:Real} = AffineFunction(f, s.lower - f.constant)
+AffineFunction(f::SAF{T}, s::ET{T}) where {T<:Real} = AffineFunction(f, f.constant - s.value)
 
 ###
 ### Parsing definitions
 ###
 
-function eliminate_fixed_variables!(f::T, v::Vector{VariableInfo}) where T <: Union{AffineFunctionIneq,
-                                                                                    AffineFunctionEq}
+function eliminate_fixed_variables(f::AffineFunction{T}, v::Vector{VariableInfo{T}}) where T
+    func = f.func
+    len = f.len
     deleted_count = 0
-    for i = 1:f.len
-        sat = @inbounds f.func.terms[i - deleted_count]
+    for i = 1:len
+        sat = @inbounds func.terms[i - deleted_count]
         vi = @inbounds v[sat.value]
         if vi.is_fixed
             f.constant += (sat.coefficient)*vi.lower_bound
-            deleteat!(f.terms, i - deleted_count)
+            deleteat!(func.terms, i - deleted_count)
             deleted_count += 1
         end
     end
-    f.len -= deleted_count
-    return nothing
+    len -= deleted_count
+    return AffineFunction(func, len)
 end

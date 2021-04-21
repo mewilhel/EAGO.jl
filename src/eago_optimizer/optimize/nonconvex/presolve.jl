@@ -189,13 +189,13 @@ function _add_constraint!(wp::ParsedProblem, ip::InputModel{T}, ci::CI{SQF{T},ET
     return nothing
 end
 
-function _add_constraint!(wp::ParsedProblem, ip::InputModel{T}, fs::CI{VECVAR,SOC_CONE}) where {T<:Real}
+function _add_constraint!(wp::ParsedProblem, ip::InputModel{T}, ci::CI{VECVAR,SOC_CONE}) where {T<:Real}
     imodel = ip._input_model
     f = MOI.get(imodel, MOI.ConstraintFunction(), ci)
     s = MOI.get(imodel, MOI.ConstraintSet(), ci)
     first_variable_loc = f.variables[1].value
     prior_lbnd = wp._variable_info[first_variable_loc].lower_bound
-    wp._variable_info[first_variable_loc].lower_bound = max(prior_lbnd, 0.0)
+    wp._variable_info[first_variable_loc].lower_bound = max(prior_lbnd, zero(T))
     push!(wp._conic_second_order, BufferedSOC(f, s))
     return nothing
 end
@@ -212,14 +212,24 @@ function _add_quadratic_constraints!(m::S, ip::InputModel{T}) where {S,T<:Real}
     imodel = ip._input_model
     foreach(x -> _add_constraint!(m, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SQF{T}, LT{T}}()))
     foreach(x -> _add_constraint!(m, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SQF{T}, GT{T}}()))
-    foreach(x -> _add_constraint!(m, imodel, x),MOI.get(imodel, MOI.ListOfConstraintIndices{SQF{T}, ET{T}}()))
+    foreach(x -> _add_constraint!(m, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{SQF{T}, ET{T}}()))
     return nothing
 end
 
-function _add_conic_constraints!(opt::T, ip) where T
-    foreach(fs -> MOI.add_constraint(opt, fs), values(_conic_socp(ip)))
+function _add_conic_constraints!(m::S, ip::InputModel{T}) where {S,T<:Real}
+    imodel = ip._input_model
+    foreach(x -> MOI.add_constraint(m, imodel, x), MOI.get(imodel, MOI.ListOfConstraintIndices{VECVAR,SOC_CONE}()))
     return nothing
 end
+
+function _add_objective!(m::S, ip::InputModel{T}) where {S,T<:Real}
+    saf = MOI.get(ip._input_model, MOI.ObjectiveFunction{SAF{T}}())
+    #m._optimization_sense = MOI.get(ip._input_model, MOI.OptimizationSense(1)) # TODO
+    m._objective = copy(saf)
+    m._objective_parsed = AffineFunction(saf, len(saf))
+    return nothing
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -240,13 +250,12 @@ function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,
     wp = _working_problem(m)
     ip = _input_problem(m)
 
-    _add_decision_variables!(wp, ip)
+    _add_decision_variables!(wp, ip)      # copy constraints with storage
     _add_linear_constraints!(wp, ip)
     _add_quadratic_constraints!(wp, ip)
-    #_add_conic_constraints!(wp, ip)
+    _add_conic_constraints!(wp, ip)
 
-    # set objective function
-    m._working_problem._objective_sv = ip._objective_sv
+    _add_objective!(wp, ip)               # set objective function
 
     # add nonlinear constraints
     # the nonlinear evaluator loads with populated subexpressions which are then used
@@ -269,31 +278,31 @@ function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,
 
     branch_variable_num = m._branch_variable_num
 
-    m._current_xref             = fill(0.0, branch_variable_num)
-    m._candidate_xref           = fill(0.0, branch_variable_num)
-    m._current_objective_xref   = fill(0.0, branch_variable_num)
-    m._prior_objective_xref     = fill(0.0, branch_variable_num)
-    m._lower_lvd                = fill(0.0, branch_variable_num)
-    m._lower_uvd                = fill(0.0, branch_variable_num)
+    m._current_xref             = fill(zero(T), branch_variable_num)
+    m._candidate_xref           = fill(zero(T), branch_variable_num)
+    m._current_objective_xref   = fill(zero(T), branch_variable_num)
+    m._prior_objective_xref     = fill(zero(T), branch_variable_num)
+    m._lower_lvd                = fill(zero(T), branch_variable_num)
+    m._lower_uvd                = fill(zero(T), branch_variable_num)
 
     # populate in full space until local MOI nlp solves support constraint deletion
     # uses input model for local nlp solves... may adjust this if a convincing reason
     # to use a reformulated upper problem presents itself
     m._lower_result_count_max  = 100
     m._lower_result_count      = 0
-    m._lower_solution          = Vector{Float64}[]
+    m._lower_solution          = Vector{T}[]
     for j = 1:_lower_result_count_max
         push!(m._lower_solution, zeros(m._working_problem._variable_num))
     end
 
-    m._cut_solution        = zeros(Float64, m._working_problem._variable_num)
-    m._solution            = zeros(Float64, m._working_problem._variable_num)
-    m._upper_solution      = zeros(Float64, m._working_problem._variable_num)
+    m._cut_solution        = zeros(T, m._working_problem._variable_num)
+    m._solution            = zeros(T, m._working_problem._variable_num)
+    m._upper_solution      = zeros(T, m._working_problem._variable_num)
     m._upper_variables     = fill(VI(-1), m._working_problem._variable_num)
 
     # add storage for fbbt
-    m._lower_fbbt_buffer   = zeros(Float64, m._working_problem._variable_num)
-    m._upper_fbbt_buffer   = zeros(Float64, m._working_problem._variable_num)
+    m._lower_fbbt_buffer   = zeros(T, m._working_problem._variable_num)
+    m._upper_fbbt_buffer   = zeros(T, m._working_problem._variable_num)
 
     # add storage for obbt ( perform obbt on all relaxed variables, potentially)
     m._obbt_working_lower_index = fill(false, branch_variable_num)

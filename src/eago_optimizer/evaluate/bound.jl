@@ -55,12 +55,11 @@ function interval_bound(m::GlobalOptimizer{N,T,S}, t::Vector{SQT}, c) where {N,T
     mapreduce(i -> _get_bnds(m, i), +, t; init = c)
 end
 
-function interval_bound(m::GlobalOptimizer{N,T,S}, f::AffineFunctionEq) where {N,T<:AbstractFloat,S}
-    mapreduce(i -> _get_bnds(m, i), +, f.func.terms; init = (f.func.constant,
-                                                             f.func.constant))
+function interval_bound(m::GlobalOptimizer{N,T,S}, f::AffineFunction{T}) where {N,T<:Real,S}
+    mapreduce(i -> _get_bnds(m, i), +, f.func.terms; init = (f.func.constant, f.func.constant))
 end
 
-function lower_interval_bound(m::GlobalOptimizer{N,T,S}, f::AffineFunctionIneq) where {N,T<:AbstractFloat,S}
+function lower_interval_bound(m::GlobalOptimizer{N,T,S}, f::AffineFunction{T}) where {N,T<:Real,S}
     lower_interval_bound(m, f.func.terms, f.func.constant)
 end
 
@@ -105,12 +104,15 @@ function interval_bound(m::GlobalOptimizer{N,T,S}, d::BufferedNonlinearFunction{
     return v.lo, v.hi
 end
 
-_is_feas(m::GlobalOptimizer{N,T,S}, x::AffineFunctionIneq) where {N,T<:AbstractFloat,S} = lower_interval_bound(m, x) <= 0.0
-_is_feas(m::GlobalOptimizer{N,T,S}, x::BufferedQuadraticIneq) where {N,T<:AbstractFloat,S} = lower_interval_bound(m, x) <= 0.0
-function _is_feas(m::GlobalOptimizer{N,T,S}, x::AffineFunctionEq) where {N,T<:AbstractFloat,S}
-    lower_value, upper_value = interval_bound(m, x)
-    return lower_value <= 0.0 <= upper_value
+function _is_feas(::Type{Val{:leq}}, m::GlobalOptimizer{N,T,S}, x::AffineFunction{T}) where {N,T<:Real,S}
+    lower_interval_bound(m, x) <= zero(T)
 end
+function _is_feas(::Type{Val{:eq}}, m::GlobalOptimizer{N,T,S}, x::AffineFunction{T}) where {N,T<:Real,S}
+    lower_value, upper_value = interval_bound(m, x)
+    return lower_value <= zero(T) <= upper_value
+end
+
+_is_feas(m::GlobalOptimizer{N,T,S}, x::BufferedQuadraticIneq) where {N,T<:AbstractFloat,S} = lower_interval_bound(m, x) <= zero(T)
 function _is_feas(m::GlobalOptimizer{N,T,S}, x::BufferedQuadraticEq) where {N,T<:AbstractFloat,S}
     lower_value, upper_value = interval_bound(m, x)
     return lower_value <= 0.0 <= upper_value
