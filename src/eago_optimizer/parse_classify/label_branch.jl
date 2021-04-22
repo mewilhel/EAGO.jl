@@ -28,8 +28,33 @@ function _label_branch_nl!(d, ex::Expr)
     return
 end
 
-_label_nl!(d::Dict{Int,Bool}, ::Nothing) = nothing
-function _label_nl!(d::Dict{Int,Bool}, nl_data)
+is_scaled_ref(d::T) where T <: Real = true
+function is_scaled_ref(d::Expr)
+    is_affine = true
+    h = ex.head
+    if h == :*
+        is_affine = is_scaled_ref(d.args[1]) && is_scaled_ref(d.args[1])
+    elseif h != :ref
+        is_affine = false
+    end
+    return is_affine
+end
+is_affine_expr(d::T) where T <: Real = true
+function is_affine_expr(d::Expr)
+    is_affine = true
+    h = ex.head
+    if h == :+
+        is_affine = all(is_scaled_ref, d.args)
+    elseif h == :*
+        is_affine = is_scaled_ref(d)
+    elseif h != :ref
+        is_affine = false
+    end
+    return is_affine
+end
+
+_label_nl(d::Dict{Int,Bool}, ::Nothing) = false
+function _label_nl(d::Dict{Int,Bool}, nl_data)
     nl_eval = nl_data.evaluator
     nl_bnds = nl_data.constraint_bounds
     MOI.initialize(nl_eval, Symbol[:ExprGraph])
@@ -41,5 +66,5 @@ function _label_nl!(d::Dict{Int,Bool}, nl_data)
     for i = 1:length(nl_bnds)
         _label_branch_nl!(d, MOI.constraint_expr(nl_eval, i))
     end
-    return nothing
+    return is_affine_expr(obj_expr)
 end

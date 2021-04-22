@@ -39,6 +39,104 @@ function add_sv_or_aff_obj!(m::GlobalOptimizer, opt::T) where T
 end
 =#
 
+add_nl_functions!(m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S} = add_nonlinear_functions!(m, m._input_problem._nlp_data)
+add_nl_functions!(m::GlobalOptimizer{N,T,S}, x::Nothing) where {N,T<:Real,S} = nothing
+add_nl_functions!(m::GlobalOptimizer{N,T,S}, x::MOI.NLPBlockData) where {N,T<:Real,S} = add_nl_functions!(m, x.evaluator)
+function add_nonlinear_functions!(m::GlobalOptimizer{N,T,S}, x::JuMP.NLPEvaluator) where {N,T<:Real,S}
+
+    nlp_data = m._input_problem._nlp_data
+    MOI.initialize(x, Symbol[:Grad, :ExprGraph])
+
+    # set nlp data structure
+    m._working_problem._nlp_data = nlp_data
+
+    # add subexpressions (assumes they are already ordered by JuMP)
+    # creates a dictionary that lists the subexpression sparsity
+    # by search each node for variables dict[2] = [2,3] indicates
+    # that subexpression 2 depends on variables 2 and 3
+    # this is referenced when subexpressions are called by other
+    # subexpressions or functions to determine overall sparsity
+    # the sparsity of a function is the collection of indices
+    # in all participating subexpressions and the function itself
+    # it is necessary to define this as such to enable reverse
+    # McCormick constraint propagation
+    relax_evaluator = m._working_problem._relaxed_evaluator
+    has_subexpressions = length(x.m.nlp_data.nlexpr) > 0
+    dict_sparsity = Dict{Int64,Vector{Int64}}()
+    if has_subexpressions
+        for i = 1:length(x.subexpressions)
+            subexpr = x.subexpressions[i]
+            push!(relax_evaluator.subexpressions, NonlinearExpression!(subexpr, dict_sparsity, i,
+                                                                      x.subexpression_linearity,
+                                                                      m.relax_tag))
+        end
+    end
+
+    # scrubs udf functions using Cassette to remove odd data structures...
+    # alternatively convert udfs to JuMP scripts...
+    m.presolve_scrubber_flag && Script.scrub!(m._working_problem._nlp_data)
+    if m.presolve_to_JuMP_flag
+        Script.udf_loader!(m)
+    end
+
+    parameter_values = copy(x.parameter_values)
+
+    # add nonlinear objective
+    if x.has_nlobj
+        # TODO: Should add a constraint to nlp_data... or evaluator not objective
+        m._working_problem._objective_nl = BufferedNonlinearFunction(x.objective, MOI.NLPBoundsPair(-Inf, Inf),
+                                                                     dict_sparsity, x.subexpression_linearity,
+                                                                     m.relax_tag)
+    end
+
+    # add nonlinear constraints
+    constraint_bounds = m._working_problem._nlp_data.constraint_bounds
+    for i = 1:length(x.constraints)
+        constraint = x.constraints[i]
+        bnds = constraint_bounds[i]
+        push!(m._working_problem._nonlinear_constr, BufferedNonlinearFunction(constraint, bnds, dict_sparsity,
+                                                                              x.subexpression_linearity,
+                                                                              m.relax_tag))
+    end
+
+    m._input_problem._nonlinear_count = length(m._working_problem._nonlinear_constr)
+    m._working_problem._nonlinear_count = length(m._working_problem._nonlinear_constr)
+
+    return nothing
+end
+
+function add_nl_evaluator!(m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S}
+    add_nl_evaluator!(m, m._input_problem._nlp_data)
+end
+add_nl_evaluator!(m::GlobalOptimizer{N,T,S}, x::Nothing) where {N,T<:Real,S} = nothing
+function add_nonlinear_evaluator!(m::GlobalOptimizer{N,T,S}, x::JuMP.NLPEvaluator) where {N,T<:Real,S}
+    m._working_problem._relaxed_evaluator = Evaluator{N,T}()
+
+    relax_evaluator = m._working_problem._relaxed_evaluator
+    relax_evaluator.variable_count = length(m._working_problem._variable_info)
+    relax_evaluator.user_operators = x.m.nlp_data.user_operators
+
+    relax_evaluator.lower_variable_bounds = zeros(relax_evaluator.variable_count)
+    relax_evaluator.upper_variable_bounds = zeros(relax_evaluator.variable_count)
+    relax_evaluator.x                     = zeros(relax_evaluator.variable_count)
+    relax_evaluator.num_mv_buffer         = zeros(relax_evaluator.variable_count)
+    relax_evaluator.treat_x_as_number     = fill(false, relax_evaluator.variable_count)
+    relax_evaluator.ctx                   = GuardCtx(metadata = GuardTracker(m.domain_violation_ϵ,
+                                                                             m.domain_violation_guard_on))
+    relax_evaluator.subgrad_tol           = m.subgrad_tol
+
+    m._nonlinear_evaluator_created = true
+
+    return nothing
+end
+
+function add_subexpr_buffers!(m::GlobalOptimizer{N,T,S}) where {N,T<:Real,S}
+    relax_evaluator = m._working_problem._relaxed_evaluator
+    relax_evaluator.subexpressions_eval = fill(false, length(relax_evaluator.subexpressions))
+
+    return nothing
+end
+
 function add_variables(m::GlobalOptimizer, optimizer::T, variable_number::Int) where T
 
     variable_index = fill(VI(1), variable_number)
@@ -222,14 +320,34 @@ function _add_conic_constraints!(m::S, ip::InputModel{T}) where {S,T<:Real}
     return nothing
 end
 
+#=
+Adds objective, converting problem to MinSensae
+=#
+_add_objective(d::Nothing, m::S, ip::InputModel{T}) where {S,T<:Real} = false
+function _add_objective(d, m::S, ip::InputModel{T}) where {S,T<:Real}
+    if d.has_objective
+        # TODO: other manipulations of nonlinear objective...
+        imodel = ip._input_model
+        vi = VI(MOI.get(imodel, MOI.NumberOfVariables()) + 1)
+        push!(m._variable_info, VariableInfo{T}())
+        m._objective = SAF{T}(SAT{T}[SAT{T}(one(T), vi)], zero(T))
+        return true
+    end
+    return false
+end
 function _add_objective!(m::S, ip::InputModel{T}) where {S,T<:Real}
-    saf = MOI.get(ip._input_model, MOI.ObjectiveFunction{SAF{T}}())
-    #m._optimization_sense = MOI.get(ip._input_model, MOI.OptimizationSense(1)) # TODO
-    m._objective = copy(saf)
-    m._objective_parsed = AffineFunction(saf, len(saf))
+    nl_obj_set = _add_objective(ip._nlp_data, m, ip)
+    if !nl_obj_set
+        saf = MOI.get(ip._input_model, MOI.ObjectiveFunction{SAF{T}}())
+        m._objective = copy(saf)
+        #if MOI.get(ip._input_model, MOI.OptimizationSense(1)) == MOI.MAX_SENSE # TODO: Fix me!
+        #    m._objective = MOIU.operate(-, T, m._objective)
+        #end
+    end
+    m._objective_parsed = AffineFunction(copy(m._objective), m._objective.constant)
+    m._optimization_sense = MOI.MIN_SENSE
     return nothing
 end
-
 
 """
 $(TYPEDSIGNATURES)
@@ -256,22 +374,11 @@ function presolve_global!(t::ExtensionType, m::GlobalOptimizer{N,T,S}) where {N,
     _add_conic_constraints!(wp, ip)
 
     _add_objective!(wp, ip)               # set objective function
+    _label_branch_variables!(m)           # labels default variables to branch on
 
-    # add nonlinear constraints
-    # the nonlinear evaluator loads with populated subexpressions which are then used
-    # to asssess the linearity of subexpressions
-    add_nonlinear_evaluator!(m)
-    add_nonlinear_functions!(m)
+    add_nl_evaluator!(m)
+    add_nl_functions!(m)
     add_subexpression_buffers!(m)
-
-    # converts a maximum problem to a minimum problem (internally) if necessary
-    # this is placed after adding nonlinear functions as this prior routine
-    # copies the nlp_block from the input_problem to the working problem
-    _max_to_min!(m)
-    reform_epigraph!(m)
-
-    # labels variables to branch on
-    label_branch_variables!(m)
 
     load_relaxed_problem!(m)
     create_initial_node!(m)

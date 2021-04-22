@@ -31,6 +31,7 @@ function MOI.copy_to(model::Optimizer, src::MOI.ModelLike; copy_names = false)
     return MOIU.default_copy_to(model, src, copy_names)
 end
 
+MOI.get(m::Optimizer, ::MOI.ObjectiveFunctionType) = MOI.get(m._model._input_model, MOI.ObjectiveFunctionType())
 MOI.get(m::Optimizer, ::MOI.SolverName) = "EAGO: Easy Advanced Global Optimization"
 MOI.get(m::Optimizer, ::MOI.TerminationStatus) = m._termination_status_code
 function MOI.get(m::Optimizer, v::MOI.PrimalStatus)

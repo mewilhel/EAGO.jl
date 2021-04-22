@@ -380,7 +380,7 @@ Performs feasibility-based bound tightening on a back-end constraint and returns
 """
 function fbbt! end
 
-function fbbt!(m::Optimizer, f::AffineFunctionIneq)
+function fbbt!(::Type{Val{:leq}}, m::Optimizer, f::AffineFunction)
 
     # compute full sum
     temp_sum = -f.constant
@@ -429,7 +429,7 @@ function fbbt!(m::Optimizer, f::AffineFunctionIneq)
     return true
 end
 
-function fbbt!(m::Optimizer, f::AffineFunctionEq)
+function fbbt!(::Type{Val{:eq}}, m::Optimizer, f::AffineFunction)
 
     # compute full sum
     terms = f.terms

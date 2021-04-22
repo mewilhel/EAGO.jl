@@ -24,30 +24,30 @@ const LINEAR_FUNC_SET{T <: Real} = Union{Tuple{MOI.SingleVariable, MOI.LessThan{
                                          Tuple{MOI.SingleVariable, MOI.GreaterThan{T}},
                                          Tuple{MOI.SingleVariable, MOI.EqualTo{T}},
                                          Tuple{MOI.SingleVariable, MOI.Interval{T}},
-                                         Tuple{MOI.ScalarAffineFunction, MOI.LessThan{T}},
-                                         Tuple{MOI.ScalarAffineFunction, MOI.GreaterThan{T}},
-                                         Tuple{MOI.ScalarAffineFunction, MOI.EqualTo{T}},
-                                         Tuple{MOI.ScalarAffineFunction, MOI.Interval{T}},
+                                         Tuple{MOI.ScalarAffineFunction{T}, MOI.LessThan{T}},
+                                         Tuple{MOI.ScalarAffineFunction{T}, MOI.GreaterThan{T}},
+                                         Tuple{MOI.ScalarAffineFunction{T}, MOI.EqualTo{T}},
+                                         Tuple{MOI.ScalarAffineFunction{T}, MOI.Interval{T}},
                                          Tuple{MOI.VectorOfVariables,    MOI.Nonnegatives},
                                          Tuple{MOI.VectorOfVariables,    MOI.Nonpositives},
                                          Tuple{MOI.VectorOfVariables,    MOI.Zeros},
-                                         Tuple{MOI.VectorAffineFunction, MOI.Nonnegatives},
-                                         Tuple{MOI.VectorAffineFunction, MOI.Nonpositives},
-                                         Tuple{MOI.VectorAffineFunction, MOI.Zeros}}
+                                         Tuple{MOI.VectorAffineFunction{T}, MOI.Nonnegatives},
+                                         Tuple{MOI.VectorAffineFunction{T}, MOI.Nonpositives},
+                                         Tuple{MOI.VectorAffineFunction{T}, MOI.Zeros}}
 
-const CONE_FUNC_SET =  Union{Tuple{MOI.VectorOfVariables, MOI.NormInfinityCone},
-                             Tuple{MOI.VectorOfVariables, MOI.NormOneCone},
-                             Tuple{MOI.VectorOfVariables, MOI.SecondOrderCone},
-                             Tuple{MOI.VectorOfVariables, MOI.RotatedSecondOrderCone},
-                             Tuple{MOI.VectorOfVariables, MOI.GeometricMeanCone},
-                             Tuple{MOI.VectorOfVariables, MOI.ExponentialCone},
-                             Tuple{MOI.VectorOfVariables, MOI.DualExponentialCone},
-                             Tuple{MOI.VectorOfVariables, MOI.RelativeEntropyCone},
-                             Tuple{MOI.VectorOfVariables, MOI.NormSpectralCone},
-                             Tuple{MOI.VectorOfVariables, MOI.NormNuclearCone},
-                             Tuple{MOI.VectorOfVariables, MOI.PowerCone},
-                             Tuple{MOI.VectorOfVariables, MOI.DualPowerCone},
-                             }
+const CONE_FUNC_SET{T <: Real} =  Union{Tuple{MOI.VectorOfVariables, MOI.NormInfinityCone},
+                                        Tuple{MOI.VectorOfVariables, MOI.NormOneCone},
+                                        Tuple{MOI.VectorOfVariables, MOI.SecondOrderCone},
+                                        Tuple{MOI.VectorOfVariables, MOI.RotatedSecondOrderCone},
+                                        Tuple{MOI.VectorOfVariables, MOI.GeometricMeanCone},
+                                        Tuple{MOI.VectorOfVariables, MOI.ExponentialCone},
+                                        Tuple{MOI.VectorOfVariables, MOI.DualExponentialCone},
+                                        Tuple{MOI.VectorOfVariables, MOI.RelativeEntropyCone},
+                                        Tuple{MOI.VectorOfVariables, MOI.NormSpectralCone},
+                                        Tuple{MOI.VectorOfVariables, MOI.NormNuclearCone},
+                                        Tuple{MOI.VectorOfVariables, MOI.PowerCone{T}},
+                                        Tuple{MOI.VectorOfVariables, MOI.DualPowerCone{T}},
+                                        }
 
 const SDP_FUNC_SET = Union{Tuple{MOI.VectorOfVariables, MOI.PositiveSemidefiniteConeTriangle},
                            Tuple{MOI.VectorOfVariables, MOI.PositiveSemidefiniteConeSquare},
@@ -64,8 +64,14 @@ _in_prob(::Val{SDP}, S, T)  = _in_prob(Val{SOCP}(), S, T) | (Tuple{S, T} <: SDP_
 for F in (LP, MILP, SOCP, SDP)
     @eval function _parse_classify_problem(::Val{$F}, m::Optimizer)
         ip = _input_model(m)
-        flag = isempty(filter(x -> !_in_prob(Val{$F}(), x[1], x[2]), MOI.get(ip, MOI.ListOfConstraints())))
+        lc = MOI.get(ip, MOI.ListOfConstraints())
+        lcf = filter(x -> !_in_prob(Val{$F}(), x[1], x[2]), lc)
+        flag = isempty(lcf)
+        @show flag
+        @show lc
+        @show lcf
         flag &= _input_nlp_data(m) === nothing
+        @show flag
         if flag
             m._problem_type = $F
         end
@@ -82,16 +88,16 @@ function _parse_classify_problem(::Val{MINCVX}, m::Optimizer{T}) where T<:Abstra
 
     d = Dict{Int,Bool}()
 
-    sqf_lt_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF,LT}())
-    sqf_gt_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF,GT}())
-    sqf_et_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF,ET}())
+    sqf_lt_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF{T},LT}())
+    sqf_gt_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF{T},GT}())
+    sqf_et_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF{T},ET}())
     foreach(ci -> _label_branch!(d, m, ci), sqf_lt_list)
     foreach(ci -> _label_branch!(d, m, ci), sqf_gt_list)
     foreach(ci -> _label_branch!(d, m, ci), sqf_et_list)
 
     soc_list = MOI.get(m, MOI.ListOfConstraintIndices{VECVAR,SOC_CONE}())
     exp_list = MOI.get(m, MOI.ListOfConstraintIndices{VECVAR,EXP_CONE}())
-    pow_list = MOI.get(m, MOI.ListOfConstraintIndices{VECVAR,POW_CONE}())
+    pow_list = MOI.get(m, MOI.ListOfConstraintIndices{VECVAR,POW_CONE{T}}())
     psd_list = MOI.get(m, MOI.ListOfConstraintIndices{VECVAR,PSD_CONE}())
     foreach(ci -> _label_branch!(d, m, ci, start = 2), soc_list)
     foreach(ci -> _label_branch!(d, m, ci), exp_list)
@@ -99,9 +105,10 @@ function _parse_classify_problem(::Val{MINCVX}, m::Optimizer{T}) where T<:Abstra
     foreach(ci -> _label_branch!(d, m, ci), psd_list)
 
     #Get branch variables from nonlinear expressions
-    _label_nl!(d, _input_nlp_data(m))
+    has_nl_obj = _label_nl(d, _input_nlp_data(m))
 
-    branch_num = length(keys(d))
+    branch_num = has_nl_obj ? 1 : 0
+    branch_num += length(keys(d))
 
     m._solver = GlobalOptimizer{branch_num, T, typeof(_ext_type(m))}()
     m._solver._ext_type = _ext_type(m)
