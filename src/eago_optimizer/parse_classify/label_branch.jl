@@ -1,5 +1,5 @@
 
-function _label_branch!(d, m, ci::CI{SQF,S}) where S
+function _label_branch!(d, m, ci::CI{SQF{T},S}) where {T<:Real,S}
     sqf = MOI.get(m, MOI.ConstraintFunction(), ci)
     for term in sqf.quadratic_terms
         d[term.variable_index_1.value] = true

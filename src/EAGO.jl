@@ -44,17 +44,17 @@ module EAGO
     const MOIB = MathOptInterface.Bridges
 
     const SV = MOI.SingleVariable
-    const SAF{T} = MOI.ScalarAffineFunction{T}
-    const SQF{T} = MOI.ScalarQuadraticFunction{T}
+    const SAF = MOI.ScalarAffineFunction
+    const SQF = MOI.ScalarQuadraticFunction
     const VECVAR = MOI.VectorOfVariables
 
-    const SQT{T} = MOI.ScalarQuadraticTerm{T}
-    const SAT{T} = MOI.ScalarAffineTerm{T}
+    const SQT = MOI.ScalarQuadraticTerm
+    const SAT = MOI.ScalarAffineTerm
 
-    const LT{T} = MOI.LessThan{T}
-    const GT{T} = MOI.GreaterThan{T}
-    const ET{T} = MOI.EqualTo{T}
-    const IT{T} = MOI.Interval{T}
+    const LT = MOI.LessThan
+    const GT = MOI.GreaterThan
+    const ET = MOI.EqualTo
+    const IT = MOI.Interval
     const ZO = MOI.ZeroOne
     const SOC_CONE = MOI.SecondOrderCone
     const POW_CONE = MOI.PowerCone

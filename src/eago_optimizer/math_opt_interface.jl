@@ -5,7 +5,7 @@ Directly bridging SV in GT -> LT triggers
 MOI.supports_constraint(::Optimizer{T},
                         ::Type{<:Union{SV,SAF{T},SQF{T}}},
                         ::Type{<:Union{LT{T},GT{T},ET{T},IT{T}}},
-                        ) where T <: AbstractFloat = true
+                        ) where T <: Real = true
 
 # No automatic bridge from ZO to Integers exist. Closest is semi-integer to
 # ZO + 2x SAF.
@@ -15,8 +15,8 @@ MOI.supports_constraint(::Optimizer,
 
 MOI.supports_constraint(::Optimizer,
                         ::Type{<:Union{VECVAR}},
-                        ::Type{<:Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}},
-                        ) = true
+                        ::Type{<:Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE{T}, PSD_CONE}},
+                        ) where T <: Real = true
 
 # Using SingleVariable or ScalarAffineFunction as the objective greatly
 # simplifies objective bound cuts and access to objective values. Using
@@ -25,7 +25,7 @@ MOI.supports_constraint(::Optimizer,
 MOI.supports(::Optimizer{T},
              ::Union{MOI.ObjectiveSense,
                      MOI.ObjectiveFunction{SAF{T}}}
-                     ) where T <: AbstractFloat = true
+                     ) where T <: Real = true
 
 function MOI.copy_to(model::Optimizer, src::MOI.ModelLike; copy_names = false)
     return MOIU.default_copy_to(model, src, copy_names)
@@ -40,7 +40,7 @@ function MOI.get(m::Optimizer, v::MOI.PrimalStatus)
     end
     m._primal_status_code
 end
-MOI.get(m::Optimizer{T}, ::MOI.SolveTime) where T <: AbstractFloat = m._run_time
+MOI.get(m::Optimizer{T}, ::MOI.SolveTime) where T <: Real = m._run_time
 MOI.get(m::Optimizer, ::MOI.NodeCount) = m._node_count
 MOI.get(m::Optimizer, ::MOI.ResultCount) = (m._primal_status_code === MOI.FEASIBLE_POINT) ? 1 : 0
 
@@ -52,9 +52,9 @@ end
 MOI.get(m::Optimizer, ::MOI.Silent) = m._is_silent
 
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
-MOI.get(m::Optimizer{T}, ::MOI.TimeLimitSec) where T <: AbstractFloat = isfinite(m._time_limit) ? m._time_limit : nothing
-MOI.set(m::Optimizer{T}, ::MOI.TimeLimitSec, ::Nothing) where T <: AbstractFloat  = (m._time_limit = Inf;   return)
-MOI.set(m::Optimizer{T}, ::MOI.TimeLimitSec, v::Float64) where T <: AbstractFloat = (m._time_limit = v; return)
+MOI.get(m::Optimizer{T}, ::MOI.TimeLimitSec)  where T <: Real = isfinite(m._time_limit) ? m._time_limit : nothing
+MOI.set(m::Optimizer{T}, ::MOI.TimeLimitSec, ::Nothing) where T <: Real  = (m._time_limit = typemax(T);   return)
+MOI.set(m::Optimizer{T}, ::MOI.TimeLimitSec, v::T)      where T <: Real = (m._time_limit = v; return)
 
 function MOI.set(m::Optimizer, p::MOI.RawParameter, value)
     if !(p.name isa String) && !(p.name isa Symbol)
@@ -79,18 +79,18 @@ end
 
 for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     for S in (MOI.LessThan,MOI.GreaterThan,MOI.EqualTo,MOI.Interval)
-        @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,$S{T}}) where T<:AbstractFloat
-            return MOI.set(d._model._input_model, $attr(), ci)
+        @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{SV,$S{T}}, v) where T<:Real
+            return MOI.set(d._model._input_model, $attr(), ci, v)
         end
-        @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{SV,$S{T}}) where T<:AbstractFloat
+        @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{SV,$S{T}}) where T<:Real
             return MOI.get(d._model._input_model, $attr(), ci)
         end
         for F in (MOI.ScalarAffineFunction,MOI.ScalarQuadraticFunction)
-            @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{$F{T},$S{T}}) where T<:AbstractFloat
+            @eval function MOI.set(d::Optimizer, ::$attr, ci::CI{$F{T},$S{T}}, v) where T<:Real
                 return MOI.set(d._model._input_model, $attr(), ci, v)
             end
-            @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{$F{T},$S{T}}) where T<:AbstractFloat
-                return MOI.get(d._model._input_model, $attr(), ci, v)
+            @eval function MOI.get(d::Optimizer, ::$attr, ci::CI{$F{T},$S{T}}) where T<:Real
+                return MOI.get(d._model._input_model, $attr(), ci)
             end
         end
     end
@@ -110,11 +110,11 @@ for attr in (MOI.ConstraintFunction, MOI.ConstraintSet)
     end
 end
 
-function MOI.get(m::Optimizer{T}, v::MOI.VariablePrimal, vi::MOI.VariableIndex) where T <: AbstractFloat
+function MOI.get(m::Optimizer{T}, v::MOI.VariablePrimal, vi::MOI.VariableIndex) where T <: Real
     MOI.check_result_index_bounds(m, v)
     m._solution[vi.value]
 end
-MOI.get(m::Optimizer{T}, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) where T <: AbstractFloat = MOI.get.(m, p, vi)
+MOI.get(m::Optimizer{T}, p::MOI.VariablePrimal, vi::Vector{MOI.VariableIndex}) where T <: Real = MOI.get.(m, p, vi)
 function MOI.get(m::Optimizer{T}, v::MOI.ConstraintPrimal, ci::MOI.ConstraintIndex{SV, S}) where {S <: Union{LT,GT,ET,IT,ZO,MOI.Integer}, T}
     MOI.check_result_index_bounds(m, v)
     return m._solution[ci.value]
@@ -140,7 +140,7 @@ const EAGO_MODEL_NOT_STRUCT_ATTRIBUTES = setdiff(fieldnames(Optimizer), union(EA
                                                                               EAGO_MODEL_STRUCT_ATTRIBUTES))
 const EAGO_MODEL_EITHER_ATTRIBUTE = union(EAGO_MODEL_STRUCT_ATTRIBUTES, EAGO_MODEL_NOT_STRUCT_ATTRIBUTES)
 
-function MOI.empty!(m::Optimizer{T}) where {N,T<:AbstractFloat,S}
+function MOI.empty!(m::Optimizer{T}) where {N,T<:Real,S}
     m._model = InputModel{T}()
     m._solver = GlobalOptimizer{}(T)
     m._problem_type = UNCLASSIFIED
@@ -149,19 +149,19 @@ function MOI.empty!(m::Optimizer{T}) where {N,T<:AbstractFloat,S}
     m._primal_status_code      = MOI.OTHER_RESULT_STATUS
 
     m._node_count      = 0
-    m._objective_value = Inf
-    m._objective_bound = -Inf
-    m._relative_gap = Inf
+    m._objective_value = typemax(T)
+    m._objective_bound = typemin(T)
+    m._relative_gap = typemax(T)
 
-    m._start_time   = 0.0
-    m._time_limit   = Inf
-    m._time_left    = 1000.0
-    m._run_time     = 0.0
-    m._parse_time   = 0.0
+    m._start_time   = zero(T)
+    m._time_limit   = typemax(T)
+    m._time_left    = 1000*one(T)
+    m._run_time     = zero(T)
+    m._parse_time   = zero(T)
     return
 end
 
-function MOI.is_empty(m::Optimizer)
+function MOI.is_empty(m::Optimizer{T}) where T<:Real
 
     is_empty_flag = MOI.is_empty(m._model)
     is_empty_flag &= MOI.is_empty(m._solver)
@@ -171,27 +171,27 @@ function MOI.is_empty(m::Optimizer)
     is_empty_flag &= (m._primal_status_code      == MOI.OTHER_RESULT_STATUS)
 
     is_empty_flag &= (m._node_count      == 0)
-    is_empty_flag &= (m._objective_value == Inf)
-    is_empty_flag &= (m._objective_bound == -Inf)
-    is_empty_flag &= (m._relative_gap    == Inf)
+    is_empty_flag &= (m._objective_value == typemax(T))
+    is_empty_flag &= (m._objective_bound == typemin(T))
+    is_empty_flag &= (m._relative_gap    == typemax(T))
 
-    is_empty_flag &= (m._start_time == 0.0)
-    is_empty_flag &= (m._time_limit == Inf)
-    is_empty_flag &= (m._time_left  == 1000.0)
-    is_empty_flag &= (m._run_time   == 0.0)
-    is_empty_flag &= (m._parse_time == 0.0)
+    is_empty_flag &= (m._start_time == zero(T))
+    is_empty_flag &= (m._time_limit == typemax(T))
+    is_empty_flag &= (m._time_left  == 1000*one(T))
+    is_empty_flag &= (m._run_time   == zero(T))
+    is_empty_flag &= (m._parse_time == zero(T))
 
     return is_empty_flag
 end
 
-function MOI.get(m::Optimizer, v::MOI.ObjectiveValue)
+function MOI.get(m::Optimizer{T}, v::MOI.ObjectiveValue) where T<:Real
     MOI.check_result_index_bounds(m, v)
     m._objective_value
 end
-MOI.get(m::Optimizer, ::MOI.ObjectiveBound) = m._objective_bound
-MOI.get(m::Optimizer, ::MOI.NumberOfVariables) = MOI.get(m._model._input_model, MOI.NumberOfVariables())
+MOI.get(m::Optimizer{T}, ::MOI.ObjectiveBound) where T<:Real = m._objective_bound
+MOI.get(m::Optimizer{T}, ::MOI.NumberOfVariables) where T<:Real = MOI.get(m._model._input_model, MOI.NumberOfVariables())
 
-function MOI.get(m::Optimizer, ::MOI.RelativeGap)
+function MOI.get(m::Optimizer{T}, ::MOI.RelativeGap) where T<:Real
     LBD = m._objective_value
     UBD = m._objective_bound
     if m._model._optimization_sense === MOI.MAX_SENSE
@@ -202,7 +202,7 @@ function MOI.get(m::Optimizer, ::MOI.RelativeGap)
     return gap
 end
 
-function MOI.get(m::Optimizer, p::MOI.RawParameter)
+function MOI.get(m::Optimizer{T}, p::MOI.RawParameter) where T<:Real
     if p.name isa String
         psym = Symbol(p.name)
     elseif p.name isa Symbol
@@ -213,25 +213,35 @@ function MOI.get(m::Optimizer, p::MOI.RawParameter)
 
     if psym in fieldnames(EAGOParameters)
         return getfield(m._parameters, psym)
-    else
-        return getfield(m, psym)
     end
+    return getfield(m, psym)
 end
 
 MOI.add_variable(d::Optimizer) = MOI.add_variable(d._model._input_model)
 
-function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F <: Union{SV, SAF, SQF}, S <: Union{LT,GT,ET,IT}}
+for S in (LT,GT,ET,IT)
+    for F in (SAF,SQF)
+        @eval function MOI.add_constraint(d::Optimizer{T}, f::$F{T}, s::$S{T}) where T<:Real
+            MOI.add_constraint(d._model._input_model, f, s)
+        end
+    end
+end
+
+for S in (LT,GT,ET,IT)
+    @eval function MOI.add_constraint(d::Optimizer{T}, f::SV, s::$S{T}) where T<:Real
+        MOI.add_constraint(d._model._input_model, f, s)
+    end
+end
+function MOI.add_constraint(d::Optimizer{T}, f::SV, s::S) where {S<:Union{ZO,MOI.Integer},T<:Real}
     MOI.add_constraint(d._model._input_model, f, s)
 end
-function MOI.add_constraint(d::Optimizer, f::SV, s::S) where {S<:Union{ZO, MOI.Integer}}
-    MOI.add_constraint(d._model._input_model, f, s)
-end
+
 function MOI.add_constraint(d::Optimizer, f::F, s::S) where {F<:Union{VECVAR},
                                                              S<:Union{MOI.SOS1, MOI.SOS2, SOC_CONE, EXP_CONE, POW_CONE, PSD_CONE}}
     MOI.add_constraint(d._model._input_model, f, s)
 end
 
-function MOI.set(d::Optimizer, ::MOI.ObjectiveFunction{SAF{T}}, func::SAF{T}) where T<:AbstractFloat
+function MOI.set(d::Optimizer, ::MOI.ObjectiveFunction{SAF{T}}, func::SAF{T}) where T<:Real
     MOI.set(d._model._input_model, MOI.ObjectiveFunction{SAF{T}}(), func)
 end
 

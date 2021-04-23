@@ -24,10 +24,10 @@ const LINEAR_FUNC_SET{T <: Real} = Union{Tuple{MOI.SingleVariable, MOI.LessThan{
                                          Tuple{MOI.SingleVariable, MOI.GreaterThan{T}},
                                          Tuple{MOI.SingleVariable, MOI.EqualTo{T}},
                                          Tuple{MOI.SingleVariable, MOI.Interval{T}},
-                                         Tuple{MOI.ScalarAffineFunction{T}, MOI.LessThan{T}},
-                                         Tuple{MOI.ScalarAffineFunction{T}, MOI.GreaterThan{T}},
-                                         Tuple{MOI.ScalarAffineFunction{T}, MOI.EqualTo{T}},
-                                         Tuple{MOI.ScalarAffineFunction{T}, MOI.Interval{T}},
+                                         Tuple{SAF{T}, MOI.LessThan{T}},
+                                         Tuple{SAF{T}, MOI.GreaterThan{T}},
+                                         Tuple{SAF{T}, MOI.EqualTo{T}},
+                                         Tuple{SAF{T}, MOI.Interval{T}},
                                          Tuple{MOI.VectorOfVariables,    MOI.Nonnegatives},
                                          Tuple{MOI.VectorOfVariables,    MOI.Nonpositives},
                                          Tuple{MOI.VectorOfVariables,    MOI.Zeros},
@@ -88,9 +88,9 @@ function _parse_classify_problem(::Val{MINCVX}, m::Optimizer{T}) where T<:Abstra
 
     d = Dict{Int,Bool}()
 
-    sqf_lt_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF{T},LT}())
-    sqf_gt_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF{T},GT}())
-    sqf_et_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF{T},ET}())
+    sqf_lt_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF{T},LT{T}}())
+    sqf_gt_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF{T},GT{T}}())
+    sqf_et_list = MOI.get(m, MOI.ListOfConstraintIndices{SQF{T},ET{T}}())
     foreach(ci -> _label_branch!(d, m, ci), sqf_lt_list)
     foreach(ci -> _label_branch!(d, m, ci), sqf_gt_list)
     foreach(ci -> _label_branch!(d, m, ci), sqf_et_list)
