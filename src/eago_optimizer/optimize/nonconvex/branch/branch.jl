@@ -1,4 +1,3 @@
-
 include(joinpath(@__DIR__, "branch_variable.jl"))
 include(joinpath(@__DIR__, "branch_special.jl"))
 
